@@ -18,7 +18,7 @@
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
             <div class="flex items-center cursor-pointer" onclick="window.location.reload()">
                 <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain">
-                <span class="font-bold text-xl text-blue-900 ml-2">Spotter</span>
+                <span class="font-bold text-xl text-blue-900 ml-2 hidden sm:block">Spotter</span>
             </div>
             
             <div id="nav-public">
@@ -26,6 +26,8 @@
             </div>
 
             <div id="nav-private" class="hidden flex items-center gap-3">
+                <select id="role-switcher" onchange="loadView(this.value)" class="hidden text-xs font-bold border rounded p-1 bg-slate-50 text-slate-600 outline-none"></select>
+                
                 <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">User</span>
                 <button onclick="handleLogout()" class="text-xs font-bold text-red-500">Logout</button>
             </div>
@@ -66,7 +68,7 @@
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="text-xs font-bold text-blue-600 mt-2 hidden">Age: <span id="age-value"></span> Years</p></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Gender *</label><select id="gender" class="input-field bg-white" required><option value="" disabled selected>Select</option><option>Male</option><option>Female</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Intent / Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Professional Training</option><option>Weight Loss</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Pro</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                         </div>
                     </div>
 
@@ -74,29 +76,27 @@
                         <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Mobile (Whatsapp)*</label><input type="tel" id="phone" class="input-field" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone *</label><input type="tel" id="phone" class="input-field" required></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Alternate Contact No*</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
                             <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
 
                     <div class="grid md:grid-cols-2 gap-4">
                         <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or 'None'..." required></textarea></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Instagram / Facebook</option><option>Gogole Search / Maps</option><option>Friends / Family</option><option>Events / Demo</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Google</option><option>Social</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                     </div>
 
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
                         <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
                         <div class="terms-box">
-                            <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program. I hereby declare that all the information provided in this registration form is true and accurate to the best of my knowledge.</p><br>
-                            <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation in The Tumble Gym's activities.</p><br>
-                            <p><strong>3. Liability Waiver:</strong> I hereby release and hold harmless The Tumble Gym Mysore, its owners, staff, and instructors from any liability for any injury or accident that may occur during my child's participation in the gymnastics program, including but not limited to any injuries resulting from the use of equipment, facilities, or participation in any activities conducted by The Tumble Gym.</p><br>
-                            <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed during classes and events. These images and videos may be used for promotional purposes, including social media, brochures, and other marketing materials.</p><br>
-                            <p><strong>5. Policy Agreement:</strong> I acknowledge that the membership and any associated packages are non-transferable and non-refundable. I have read, understood, and agree to abide by the terms and conditions outlined by The Tumble Gym.</p>
+                            <p><strong>1. Waiver:</strong> I release The Tumble Gym from liability...</p>
+                            <p><strong>2. Medical:</strong> Child is fit to participate...</p>
+                            <p><strong>3. Media:</strong> Consent for photos/videos...</p>
                         </div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to the Terms & Conditions above. *</label></div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">By checking this box, I authorize The Tumble Gym to contact me via phone/WhatsApp or email for feedback regarding my child's participation and to provide information about future programs, events, and special offers. *</label></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to Terms *</label></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">Allow Communication *</label></div>
                     </div>
 
                     <button type="submit" id="btn-submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-xl hover:bg-rose-600 transition shadow-lg text-lg">Request Free Slot</button>
@@ -111,22 +111,21 @@
     </div>
 
     <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1><button onclick="loadTrainerDashboard()" class="text-xs bg-slate-100 p-2 rounded">Refresh</button></div>
+        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1></div>
         <div class="space-y-3" id="trial-list"></div>
     </div>
 
     <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
         <div class="flex justify-between items-end mb-8"><h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1></div>
         
-        <div class="grid grid-cols-3 gap-4 mb-8">
+        <div class="grid grid-cols-2 gap-4 mb-8">
             <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Leads</div></div>
-            <div class="stat-card"><div class="stat-value text-blue-600" id="stat-trials">0</div><div class="stat-label">Pending Trials</div></div>
-            <div class="stat-card"><div class="stat-value text-green-600" id="stat-active">0</div><div class="stat-label">Active Students</div></div>
+            <div class="stat-card"><div class="stat-value text-yellow-600" id="stat-reqs">0</div><div class="stat-label">Registration Reqs</div></div>
         </div>
 
         <div class="bg-white p-6 rounded-2xl shadow">
             <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">Student Directory</h3><button onclick="loadAdminDashboard()" class="text-xs bg-slate-100 px-3 py-1 rounded">Refresh</button></div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Parent</th><th class="p-3">Status</th><th class="p-3">Batch</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Parent</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div>
         </div>
     </div>
 
@@ -157,10 +156,26 @@
         </div>
     </div>
 
+    <div id="reg-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="text-lg font-bold mb-2">Register for Classes</h3>
+            <p class="text-sm mb-4">Student: <span id="reg-child-name" class="font-bold text-blue-600"></span></p>
+            
+            <label class="text-xs font-bold uppercase">Preferred Days</label>
+            <select id="reg-days" class="input-field mb-3"><option>Mon / Thu</option><option>Tue / Fri</option><option>Wed / Sat</option><option>Weekend Only</option></select>
+            
+            <label class="text-xs font-bold uppercase">Start Date</label>
+            <input type="date" id="reg-date" class="input-field mb-4">
+            
+            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">Submit Request</button>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Cancel</button>
+        </div>
+    </div>
+
     <div id="admin-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-4">Student Details</h3>
-            <div id="admin-modal-content-body"></div>
+            <h3 class="text-lg font-bold mb-4">Student Management</h3>
+            <div id="admin-modal-body"></div>
             <button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button>
         </div>
     </div>
