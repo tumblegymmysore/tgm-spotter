@@ -8,7 +8,7 @@ const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 }
 
 let db = null;
 let currentUser = null;
-let currentUserName = "Staff"; // Default
+let currentUserName = "Staff"; 
 
 document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = supabase; 
@@ -140,13 +140,14 @@ async function loadTrainerDashboard() {
         const isDone = l.status === 'Trial Completed';
         const badge = isDone ? `<span class="bg-green-100 text-green-700 px-2 text-xs rounded">Done</span>` : `<span class="bg-yellow-100 text-yellow-700 px-2 text-xs rounded">Pending</span>`;
         
+        // FIX: Added quotes around ID
         list.innerHTML += `
         <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center mb-2">
             <div>
                 <div class="font-bold text-slate-800">${l.child_name} <span class="text-xs font-normal text-slate-500">(${getAge(l.dob)}y)</span></div>
                 <div class="mt-1">${badge}</div>
             </div>
-            <button onclick="openTrialModal(${l.id}, '${l.child_name}', ${getAge(l.dob)}, '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
+            <button onclick="openTrialModal('${l.id}', '${l.child_name}', ${getAge(l.dob)}, '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
                 class="bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold">Assess</button>
         </div>`;
     });
@@ -196,17 +197,18 @@ async function loadParentData(email) {
     let html = '';
     data.forEach(child => {
         let actionArea = '';
+        // FIX: Added quotes around ID
         if(child.status === 'Trial Completed') {
             actionArea = `
                 <div class="bg-blue-50 p-4 rounded mt-2 border border-blue-100">
                     <p class="font-bold text-blue-900 text-sm mb-2">🎉 Trial Successful!</p>
                     <p class="text-xs text-slate-600 mb-2">Coach <strong>${child.trainer_name || 'Staff'}</strong> recommends: <strong>${child.recommended_batch}</strong></p>
-                    <button onclick="openRegistrationModal(${child.id})" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Register Now</button>
+                    <button onclick="openRegistrationModal('${child.id}')" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Register Now</button>
                 </div>`;
         } else if (child.status === 'Enrolled') {
             actionArea = `
                 <div class="mt-2 bg-green-50 p-2 rounded text-green-800 text-xs text-center font-bold mb-2">✅ Active Student</div>
-                <button onclick="openRegistrationModal(${child.id}, true)" class="w-full bg-white border border-green-600 text-green-700 font-bold py-1 rounded text-xs">Renew Membership</button>
+                <button onclick="openRegistrationModal('${child.id}', true)" class="w-full bg-white border border-green-600 text-green-700 font-bold py-1 rounded text-xs">Renew Membership</button>
             `;
         } else if (child.status === 'Registration Requested') {
             actionArea = `<div class="mt-2 bg-yellow-50 p-2 rounded text-yellow-800 text-xs text-center font-bold">⏳ Verification Pending</div>`;
@@ -218,34 +220,41 @@ async function loadParentData(email) {
 }
 
 async function openRegistrationModal(id, isRenewal = false) {
-    currentRegistrationId = id;
-    const { data } = await db.from('leads').select('*').eq('id', id).single();
-    document.getElementById('reg-child-name').innerText = data.child_name;
-    document.getElementById('is-renewal').value = isRenewal;
+    try {
+        currentRegistrationId = id;
+        const { data, error } = await db.from('leads').select('*').eq('id', id).single();
+        if(error) throw error;
 
-    document.getElementById('edit-name').value = data.child_name;
-    document.getElementById('edit-phone').value = data.phone;
-    document.getElementById('edit-email').value = data.email;
-    
-    if(isRenewal) {
-        document.getElementById('reg-fee-row').classList.add('hidden');
-        document.getElementById('reg-fee-display').innerText = "0";
-    } else {
-        document.getElementById('reg-fee-row').classList.remove('hidden');
-        document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
+        document.getElementById('reg-child-name').innerText = data.child_name;
+        document.getElementById('is-renewal').value = isRenewal;
+
+        document.getElementById('edit-name').value = data.child_name;
+        document.getElementById('edit-phone').value = data.phone;
+        document.getElementById('edit-email').value = data.email;
+        
+        if(isRenewal) {
+            document.getElementById('reg-fee-row').classList.add('hidden');
+            document.getElementById('reg-fee-display').innerText = "0";
+        } else {
+            document.getElementById('reg-fee-row').classList.remove('hidden');
+            document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
+        }
+
+        const age = getAge(data.dob);
+        let slots = "<strong>Available Slots:</strong><br>";
+        if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
+        else if(age <= 8) slots += "• Tue-Fri: 5-6 PM<br>• Sat: 3 PM, Sun: 10 AM";
+        else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
+        document.getElementById('reg-slots-info').innerHTML = slots;
+
+        document.getElementById('reg-package').value = "";
+        document.getElementById('training-level-group').classList.add('hidden');
+        document.getElementById('total-price').innerText = "0";
+        document.getElementById('reg-modal').classList.remove('hidden');
+    } catch(e) {
+        console.error(e);
+        alert("System Error: Could not load registration details. " + e.message);
     }
-
-    const age = getAge(data.dob);
-    let slots = "<strong>Available Slots:</strong><br>";
-    if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
-    else if(age <= 8) slots += "• Tue-Fri: 5-6 PM<br>• Sat: 3 PM, Sun: 10 AM";
-    else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
-    document.getElementById('reg-slots-info').innerHTML = slots;
-
-    document.getElementById('reg-package').value = "";
-    document.getElementById('training-level-group').classList.add('hidden');
-    document.getElementById('total-price').innerText = "0";
-    document.getElementById('reg-modal').classList.remove('hidden');
 }
 
 function handlePackageChange() {
@@ -319,7 +328,6 @@ async function loadAdminDashboard() {
     if(!currentUser) return;
     const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
     
-    // Stats
     const total = data.length;
     const reqs = data.filter(l => l.status === 'Registration Requested').length;
     document.getElementById('stat-total').innerText = total;
@@ -329,9 +337,10 @@ async function loadAdminDashboard() {
     list.innerHTML = '';
     data.forEach(l => {
         let alert = l.status === 'Registration Requested' ? '<span class="text-red-500 font-bold animate-pulse">!</span>' : '';
+        // FIX: Added quotes around ID
         let btnAction = l.status === 'Registration Requested' ? 
-            `<button onclick="openAdminModal(${l.id})" class="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded text-xs font-bold">Verify</button>` : 
-            `<button onclick="openAdminModal(${l.id})" class="text-gray-500 border px-2 py-1 rounded text-xs">View</button>`;
+            `<button onclick="openAdminModal('${l.id}')" class="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded text-xs font-bold">Verify</button>` : 
+            `<button onclick="openAdminModal('${l.id}')" class="text-gray-500 border px-2 py-1 rounded text-xs">View</button>`;
         
         list.innerHTML += `<tr class="border-b"><td class="p-3 font-bold">${l.child_name} ${alert}</td><td class="p-3 text-sm">${l.status}</td><td class="p-3">${btnAction}</td></tr>`;
     });
@@ -342,20 +351,20 @@ async function openAdminModal(id) {
     if(!data) return;
 
     const content = document.getElementById('admin-modal-body');
-    let proofImg = data.payment_proof_url ? `<a href="${data.payment_proof_url}" target="_blank"><img src="${data.payment_proof_url}" class="h-32 object-contain border rounded mt-2"></a>` : 'No proof';
+    let proofImg = data.payment_proof_url ? `<a href="${data.payment_proof_url}" target="_blank"><img src="${data.payment_proof_url}" class="h-32 object-contain border rounded mt-2 cursor-zoom-in"></a>` : 'No proof';
 
     content.innerHTML = `
         <div class="grid grid-cols-2 gap-2 text-sm mb-4 bg-gray-50 p-3 rounded">
             <div><span class="text-xs text-gray-400">Child</span><br><b>${data.child_name}</b></div>
-            <div><span class="text-xs text-gray-400">Package</span><br><b>${data.selected_package}</b></div>
-            <div><span class="text-xs text-gray-400">Price</span><br><b>₹${data.package_price}</b></div>
+            <div><span class="text-xs text-gray-400">Package</span><br><b>${data.selected_package || '-'}</b></div>
+            <div><span class="text-xs text-gray-400">Price</span><br><b>₹${data.package_price || '-'}</b></div>
             <div><span class="text-xs text-gray-400">Start Date</span><br><b>${data.start_date || '-'}</b></div>
         </div>
-        <div class="mb-4">
-            <label class="text-xs font-bold uppercase">Payment Proof</label><br>
+        <div class="mb-4 text-center">
+            <label class="text-xs font-bold uppercase block mb-1">Payment Proof</label>
             ${proofImg}
         </div>
-        <button onclick="adminApprove(${data.id})" class="w-full bg-green-600 text-white font-bold py-2 rounded mb-2">Approve & Enroll</button>
+        <button onclick="adminApprove('${data.id}')" class="w-full bg-green-600 text-white font-bold py-2 rounded mb-2 shadow hover:bg-green-700">Approve & Enroll</button>
     `;
     document.getElementById('admin-modal').classList.remove('hidden');
 }
