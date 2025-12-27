@@ -140,52 +140,90 @@
         </div>
     </div>
 
-    <div id="reg-modal" class="modal-overlay hidden">
+<div id="reg-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Registration</h3>
+            <div class="flex justify-between items-center mb-2">
+                <h3 class="text-xl font-bold text-slate-800">Registration</h3>
+                <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            
             <input type="hidden" id="is-renewal">
+
             <div class="review-box">
-                <div class="review-header" onclick="toggleReview()"><span><i class="fas fa-edit mr-2"></i> Review Details</span><i class="fas fa-chevron-down"></i></div>
+                <div class="review-header" onclick="toggleReview()">
+                    <span><i class="fas fa-user-edit mr-2"></i> Review Personal Details</span>
+                    <i class="fas fa-chevron-down"></i>
+                </div>
                 <div id="review-body" class="review-body">
-                    <label class="text-xs font-bold uppercase">Name</label><input type="text" id="edit-name" class="input-field mb-2 h-8 text-sm">
-                    <label class="text-xs font-bold uppercase">Phone</label><input type="tel" id="edit-phone" class="input-field mb-2 h-8 text-sm">
-                    <label class="text-xs font-bold uppercase">Email</label><input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100" readonly>
+                    <div class="grid gap-3">
+                        <div><label>Child Name</label><input type="text" id="edit-name" class="input-field h-8 text-sm"></div>
+                        <div><label>Phone</label><input type="tel" id="edit-phone" class="input-field h-8 text-sm"></div>
+                        <div><label>Email</label><input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100 text-gray-500" readonly></div>
+                    </div>
                 </div>
             </div>
+
+            <p class="text-xs font-bold text-slate-500 uppercase mb-2">Select Plan for <span id="reg-child-name" class="text-blue-600"></span></p>
+            
             <div id="reg-slots-info" class="slot-info mb-4"></div>
-            <select id="reg-package" class="input-field mb-2" onchange="handlePackageChange()">
-                <option value="" disabled selected>Select Package</option>
+
+            <select id="reg-package" class="input-field mb-4" onchange="handlePackageChange()">
+                <option value="" disabled selected>Select a Package</option>
                 <optgroup label="Regular Gymnastics">
-                    <option value="2 Days/Week - 1 Month|3,500">2 Days - 1 Month (₹3,500)</option>
-                    <option value="2 Days/Week - 3 Months|9,000">2 Days - 3 Months (₹9,000)</option>
-                    <option value="2 Days/Week - 6 Months|16,000">2 Days - 6 Months (₹16,000)</option>
+                    <option value="2 Days/Week - 1 Month|3,500">2 Days/Week - 1 Month (₹3,500)</option>
+                    <option value="2 Days/Week - 3 Months|9,000">2 Days/Week - 3 Months (₹9,000)</option>
+                    <option value="2 Days/Week - 6 Months|16,000">2 Days/Week - 6 Months (₹16,000)</option>
+                    <option value="2 Days/Week - 12 Months|25,000">2 Days/Week - 12 Months (₹25,000)</option>
                     <option value="Unlimited - 1 Month|5,500">Unlimited - 1 Month (₹5,500)</option>
                     <option value="Unlimited - 3 Months|15,000">Unlimited - 3 Months (₹15,000)</option>
+                    <option value="Unlimited - 6 Months|25,000">Unlimited - 6 Months (₹25,000)</option>
+                    <option value="Unlimited - 12 Months|35,000">Unlimited - 12 Months (₹35,000)</option>
                 </optgroup>
                 <optgroup label="Professional">
                     <option value="Special">Special / Professional Training</option>
                 </optgroup>
             </select>
-            <div id="training-level-group" class="hidden mb-4 pl-2 border-l-2 border-blue-500">
-                <select id="reg-level" class="input-field h-10" onchange="calculateTotal()">
+
+            <div id="training-level-group" class="hidden mb-4 pl-3 border-l-4 border-blue-500 bg-blue-50 py-2 rounded-r">
+                <label class="text-blue-700">Select Training Level</label>
+                <select id="reg-level" class="input-field" onchange="calculateTotal()">
                     <option value="Beginner">Beginner (₹700/class)</option>
                     <option value="Intermediate">Intermediate (₹850/class)</option>
                     <option value="Advanced">Advanced (₹1,000/class)</option>
                 </select>
             </div>
-            <label class="text-xs font-bold uppercase mt-2">Start Date</label>
+
+            <label>Preferred Start Date</label>
             <input type="date" id="reg-date" class="input-field mb-4">
-            <div class="bg-gray-50 p-3 rounded mb-4 text-sm">
-                <div id="reg-fee-row" class="flex justify-between mb-1 text-slate-500"><span>Registration Fee</span><span>₹<span id="reg-fee-display">2000</span></span></div>
-                <div class="flex justify-between font-bold text-lg text-slate-800 border-t pt-2"><span>Total</span><span>₹<span id="total-price">0</span></span></div>
+
+            <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 mb-4">
+                <div id="reg-fee-row" class="flex justify-between mb-2 text-slate-500 text-sm">
+                    <span>Registration Fee (One Time)</span>
+                    <span>₹<span id="reg-fee-display">2000</span></span>
+                </div>
+                <div class="flex justify-between font-extrabold text-lg text-slate-800 border-t border-slate-200 pt-2">
+                    <span>Total To Pay</span>
+                    <span>₹<span id="total-price">0</span></span>
+                </div>
             </div>
+
             <div class="qr-grid">
-                <div class="qr-box"><div class="qr-label">Main UPI</div><img src="qr1.png" class="h-24 w-24 mx-auto object-contain"></div>
-                <div class="qr-box"><div class="qr-label">Backup UPI</div><img src="qr2.png" class="h-24 w-24 mx-auto object-contain"></div>
+                <div class="qr-box">
+                    <div class="qr-label">Scan to Pay (Option 1)</div>
+                    <img src="qr1.png" class="h-24 w-24 mx-auto object-contain bg-white">
+                </div>
+                <div class="qr-box">
+                    <div class="qr-label">Scan to Pay (Option 2)</div>
+                    <img src="qr2.png" class="h-24 w-24 mx-auto object-contain bg-white">
+                </div>
             </div>
-            <div class="mb-4"><label class="text-xs font-bold uppercase mb-1 block">Upload Proof *</label><input type="file" id="payment-proof" accept="image/*" class="w-full text-xs text-slate-500"></div>
-            <button id="btn-submit-reg" onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit Request</button>
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-3 text-xs">Cancel</button>
+
+            <div class="mb-6">
+                <label>Upload Payment Screenshot *</label>
+                <input type="file" id="payment-proof" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
+            
+            <button id="btn-submit-reg" onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg transition">Submit Request</button>
         </div>
     </div>
 
