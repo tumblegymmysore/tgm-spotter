@@ -22,7 +22,7 @@ jobs:
 
       - name: Deploy Function
         run: |
-          supabase functions deploy notify --project-ref $PROJECT_ID
+          supabase functions deploy notify --project-ref $PROJECT_ID --no-verify-jwt
           
       - name: Set Secrets
         run: |
