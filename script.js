@@ -6,13 +6,14 @@ const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZ
 const REGISTRATION_FEE = 2000;
 const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
 
-// GLOBAL VARS
+// GLOBAL VARIABLES
 let db = null;
 let currentUser = null;
 let currentUserName = "Staff"; 
 let currentTrialId = null;
 let currentRegistrationId = null;
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = supabase; 
     db = createClient(SUPABASE_URL, SUPABASE_KEY);
@@ -22,37 +23,43 @@ document.addEventListener('DOMContentLoaded', async () => {
     if(session) handleSessionSuccess(session.user);
 });
 
-// --- HELPERS ---
+// --- HELPER FUNCTIONS ---
 function getAge(dob) {
     if(!dob) return 0;
     const diff = Date.now() - new Date(dob).getTime();
     return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 }
-function calculateAgeDisplay() {
+window.calculateAgeDisplay = function() { // Made Global
     const dob = document.getElementById('dob').value;
     if(dob) {
         document.getElementById('age-value').innerText = getAge(dob);
         document.getElementById('age-display').classList.remove('hidden');
     }
 }
-function checkOther(el, targetId) {
+window.checkOther = function(el, targetId) { // Made Global
     const target = document.getElementById(targetId);
     if(el.value.includes('Other')) target.classList.remove('hidden'); else target.classList.add('hidden');
 }
 function showToast(msg) {
     const t = document.getElementById('toast');
     t.innerHTML = `<i class="fas fa-check-circle mr-2"></i> ${msg}`;
-    t.className = "show"; setTimeout(() => t.className = "", 3000);
+    t.className = "show"; 
+    setTimeout(() => t.className = "", 4000);
 }
 
-// --- GLOBAL FUNCTIONS (Attached to Window for HTML Access) ---
-
+// --- AUTHENTICATION (Global) ---
 window.handleLogin = async function() {
     const email = document.getElementById('login-email').value;
     const pass = document.getElementById('login-password').value;
+    
+    if(!email || !pass) { alert("Please enter email and password."); return; }
+
     const { data, error } = await db.auth.signInWithPassword({ email: email, password: pass });
     if(error) alert("Login Failed: " + error.message); 
-    else { document.getElementById('login-modal').classList.add('hidden'); handleSessionSuccess(data.user); }
+    else { 
+        document.getElementById('login-modal').classList.add('hidden'); 
+        handleSessionSuccess(data.user); 
+    }
 }
 
 window.handleMagicLink = async function() {
@@ -68,9 +75,11 @@ window.handleLogout = async function() {
     window.location.reload(); 
 }
 
+// --- PUBLIC INTAKE FORM (Global) ---
 window.handleIntakeSubmit = async function(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
+    const originalText = btn.innerText;
     btn.innerText = "Processing..."; btn.disabled = true;
 
     const email = document.getElementById('email').value;
@@ -90,21 +99,31 @@ window.handleIntakeSubmit = async function(e) {
     };
 
     try {
+        // Auto-Register User
         const { data: authData } = await db.auth.signUp({ email: email, password: phone });
         if(authData.user) {
             const { data: roleData } = await db.from('user_roles').select('*').eq('id', authData.user.id);
             if(!roleData || roleData.length === 0) await db.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
         }
+        
+        // Save Lead
         const { error } = await db.from('leads').insert([formData]);
         if (error) throw error;
-        alert("✅ Request Sent! Check email for details.");
-        window.location.reload();
-    } catch (err) { alert("Error: " + err.message); } 
-    finally { btn.disabled = false; }
+
+        // SHOW SUCCESS & RESET
+        showToast("Request Sent! Login with Email & Phone.");
+        e.target.reset(); 
+        document.getElementById('age-display').classList.add('hidden');
+        window.scrollTo(0,0);
+
+    } catch (err) { 
+        alert("Error: " + err.message); 
+    } finally { 
+        btn.innerText = originalText; btn.disabled = false; 
+    }
 }
 
-// --- TRAINER FUNCTIONS ---
-
+// --- TRAINER FUNCTIONS (Global) ---
 window.loadTrainerDashboard = async function() {
     if(!currentUser) return;
     const list = document.getElementById('trial-list');
@@ -177,22 +196,21 @@ window.submitTrialResult = async function() {
     else { showToast("Saved Successfully"); document.getElementById('trial-modal').classList.add('hidden'); loadTrainerDashboard(); }
 }
 
-// --- COMMERCE / REGISTRATION FUNCTIONS ---
-
+// --- COMMERCE / REGISTRATION (Global) ---
 window.openRegistrationModal = async function(id, isRenewal = false) {
     currentRegistrationId = id;
     const { data } = await db.from('leads').select('*').eq('id', id).single();
     
-    // Safely set text
+    // Safety check for elements
+    if(!document.getElementById('reg-modal')) { alert("Error: Registration modal missing from HTML."); return; }
+
     document.getElementById('reg-child-name').innerText = data.child_name;
     document.getElementById('is-renewal').value = isRenewal;
 
-    // Prefill Review
     document.getElementById('edit-name').value = data.child_name;
     document.getElementById('edit-phone').value = data.phone;
     document.getElementById('edit-email').value = data.email;
     
-    // Fee Logic
     const feeRow = document.getElementById('reg-fee-row');
     if(isRenewal) {
         feeRow.classList.add('hidden');
@@ -202,7 +220,6 @@ window.openRegistrationModal = async function(id, isRenewal = false) {
         document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
     }
 
-    // Slots Logic
     const age = getAge(data.dob);
     let slots = "<strong>Available Slots:</strong><br>";
     if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
@@ -210,7 +227,6 @@ window.openRegistrationModal = async function(id, isRenewal = false) {
     else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
     document.getElementById('reg-slots-info').innerHTML = slots;
 
-    // Reset Form
     document.getElementById('reg-package').value = "";
     document.getElementById('training-level-group').classList.add('hidden');
     document.getElementById('total-price').innerText = "0";
@@ -279,7 +295,7 @@ window.submitRegistration = async function() {
         }).eq('id', currentRegistrationId);
 
         if(error) throw error;
-        alert("✅ Request Submitted! Admin will verify.");
+        showToast("Request Submitted! Admin will verify.");
         document.getElementById('reg-modal').classList.add('hidden');
         loadParentData(currentUser.email);
 
@@ -287,8 +303,7 @@ window.submitRegistration = async function() {
     finally { btn.innerText = "Submit Request"; btn.disabled = false; }
 }
 
-// --- ADMIN FUNCTIONS ---
-
+// --- ADMIN (Global) ---
 window.loadAdminDashboard = async function() {
     if(!currentUser) return;
     const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
@@ -341,7 +356,6 @@ window.adminApprove = async function(id) {
 }
 
 // --- UTILITIES ---
-
 async function handleSessionSuccess(user) {
     currentUser = user;
     document.getElementById('nav-public').classList.add('hidden');
