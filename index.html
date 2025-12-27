@@ -17,27 +17,36 @@
     <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200 fixed w-full z-50 transition-all">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
             <div class="flex items-center cursor-pointer" onclick="window.location.reload()">
-                <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain">
-                <span class="font-bold text-xl text-blue-900 ml-2 hidden sm:block">Spotter</span>
+                <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain" onerror="this.style.display='none'; document.getElementById('backup-logo').style.display='flex';">
+                <div id="backup-logo" style="display:none;" class="flex items-center gap-2">
+                     <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
+                     <span class="font-bold text-xl text-blue-900">Spotter</span>
+                </div>
             </div>
+            
             <div id="nav-public">
-                <button onclick="document.getElementById('login-modal').classList.remove('hidden')" class="px-4 py-2 rounded-lg text-sm font-bold text-blue-600 border border-blue-200 hover:bg-blue-50">Login</button>
+                <button onclick="document.getElementById('login-modal').classList.remove('hidden')" class="px-5 py-2 rounded-lg text-sm font-bold text-blue-600 border border-blue-200 hover:bg-blue-50 transition">
+                    <i class="fas fa-sign-in-alt mr-2"></i> Login
+                </button>
             </div>
+
             <div id="nav-private" class="hidden flex items-center gap-3">
                 <select id="role-switcher" onchange="loadView(this.value)" class="hidden text-xs font-bold border rounded p-1 bg-slate-50 text-slate-600 outline-none"></select>
-                <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">User</span>
-                <button onclick="handleLogout()" class="text-xs font-bold text-red-500">Logout</button>
+                <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-3 py-1 rounded-full">User</span>
+                <button onclick="handleLogout()" class="text-xs font-bold text-red-500 hover:text-red-700">Logout</button>
             </div>
         </div>
     </nav>
 
     <div id="landing" class="pt-16 fade-in">
-        <header class="hero-gradient text-white text-center py-24 px-4 rounded-b-[3rem] shadow-xl relative overflow-hidden">
-            <div class="relative z-10 max-w-3xl mx-auto">
+        <header class="hero-gradient text-white text-center py-20 px-4 rounded-b-[3rem] relative shadow-lg">
+            <div class="max-w-3xl mx-auto">
                 <span class="bg-yellow-400 text-blue-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block shadow-sm">Admissions Open</span>
-                <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">Where Kids Learn to <br/><span class="text-yellow-300">Fly & Tumble!</span></h1>
-                <p class="text-blue-100 text-lg md:text-xl mb-8 font-medium">Professional gymnastics training for ages 3-14 in Mysore.</p>
-                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">Book Free Trial</button>
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">Where Kids Learn to <br/><span class="text-yellow-300">Fly & Tumble!</span></h1>
+                <p class="text-blue-100 text-lg mb-8 font-medium">Professional gymnastics training for ages 3-14 in Mysore.</p>
+                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">
+                    Book a Free Trial
+                </button>
             </div>
         </header>
 
@@ -49,35 +58,78 @@
             </div>
         </section>
 
-        <section id="intake-form" class="max-w-4xl mx-auto mt-24 mb-24 px-4">
+        <section id="intake-form" class="max-w-4xl mx-auto mt-20 mb-24 px-4">
              <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-                <div class="text-center mb-8"><h2 class="text-2xl font-bold text-slate-800">Book a Free Trial</h2><p class="text-slate-500 text-sm">Please fill out the details below.</p></div>
+                <div class="text-center mb-10">
+                    <h2 class="text-3xl font-bold text-slate-800">Student Application</h2>
+                    <p class="text-slate-500 mt-2">New here? Fill this out for a free trial. Already a member? <a href="#" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="text-blue-600 font-bold underline">Login here</a>.</p>
+                </div>
+
                 <form onsubmit="handleIntakeSubmit(event)" class="space-y-8">
+                    
                     <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                        <h3 class="text-blue-900 font-bold mb-4 flex items-center"><i class="fas fa-child mr-2"></i> Child's Details</h3>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="hidden text-xs font-bold text-blue-600 mt-2">Age: <span id="age-value"></span> Years</p></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Gender *</label><select id="gender" class="input-field bg-white" required><option value="" disabled selected>Select</option><option>Male</option><option>Female</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Professional</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                        <h3 class="text-blue-900 font-bold mb-4 flex items-center text-lg"><i class="fas fa-child mr-2"></i> Child's Details</h3>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div><label>Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
+                            <div>
+                                <label>Date of Birth *</label>
+                                <input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required>
+                                <p id="age-display" class="text-xs font-bold text-blue-600 mt-1 hidden">Age: <span id="age-value"></span> Years</p>
+                            </div>
+                            <div>
+                                <label>Gender *</label>
+                                <select id="gender" class="input-field" required>
+                                    <option value="" disabled selected>Select Gender</option>
+                                    <option value="Male">Boy</option>
+                                    <option value="Female">Girl</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>Goal / Intent *</label>
+                                <select id="intent" class="input-field" onchange="checkOther(this, 'intent_other')" required>
+                                    <option value="" disabled selected>Select Goal</option>
+                                    <option>Fun & Fitness</option>
+                                    <option>Professional Training</option>
+                                    <option>Weight Loss</option>
+                                    <option value="Other">Other</option>
+                                </select>
+                                <input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Please specify...">
+                            </div>
                         </div>
                     </div>
+
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                        <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Phone" required></div>
-                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
+                        <h3 class="text-slate-800 font-bold mb-4 flex items-center text-lg"><i class="fas fa-user-shield mr-2"></i> Parent / Guardian</h3>
+                        <div class="grid md:grid-cols-2 gap-6">
+                            <div><label>Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
+                            <div><label>Phone (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
+                            <div><label>Email Address *</label><input type="email" id="email" class="input-field" required></div>
+                            <div><label>Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Alternate Number" required></div>
+                            <div class="md:col-span-2"><label>Residential Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or type 'None'..." required></textarea></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Google Search</option><option>Social Media</option><option>Referral</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+
+                    <div class="grid md:grid-cols-2 gap-6">
+                        <div class="md:col-span-2">
+                            <label>Medical Info / Allergies *</label>
+                            <textarea id="medical" class="input-field" rows="2" placeholder="List any injuries, allergies, or 'None'" required></textarea>
+                        </div>
+                        <div class="md:col-span-2">
+                            <label>How did you hear about us? *</label>
+                            <select id="source" class="input-field" onchange="checkOther(this, 'source_other')" required>
+                                <option value="" disabled selected>Select Source</option>
+                                <option>Google Search / Maps</option>
+                                <option>Instagram / Facebook</option>
+                                <option>Friend / Referral</option>
+                                <option value="Other">Other</option>
+                            </select>
+                            <input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Please specify...">
+                        </div>
                     </div>
+
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
-                        <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver & Consent</h3>
+                        <h3 class="text-yellow-800 font-bold mb-2 text-lg"><i class="fas fa-file-contract mr-2"></i> Waiver & Consent</h3>
+                        
                         <div class="terms-box">
                             <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program. I hereby declare that all the information provided in this registration form is true and accurate to the best of my knowledge.</p><br>
                             <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation in The Tumble Gym's activities.</p><br>
@@ -85,62 +137,117 @@
                             <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed during classes and events. These images and videos may be used for promotional purposes, including social media, brochures, and other marketing materials.</p><br>
                             <p><strong>5. Policy Agreement:</strong> I acknowledge that the membership and any associated packages are non-transferable and non-refundable. I have read, understood, and agree to abide by the terms and conditions outlined by The Tumble Gym.</p>
                         </div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label class="checkbox-text font-bold">I Agree to the Terms & Conditions above. *</label></div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label class="checkbox-text">By checking this box, I authorize The Tumble Gym to contact me via phone/WhatsApp or email for feedback regarding my child's participation and to provide information about future programs, events, and special offers. *</label></div>
+
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="terms_check" required class="mt-1 h-4 w-4">
+                            <label for="terms_check" class="checkbox-text">I have read and agree to the <strong>Terms & Conditions</strong> above. *</label>
+                        </div>
+                        <div class="checkbox-wrapper">
+                            <input type="checkbox" id="marketing_check" required class="mt-1 h-4 w-4">
+                            <label for="marketing_check" class="checkbox-text">I authorize The Tumble Gym to contact me via phone/WhatsApp or email for feedback and to provide information about future programs and offers. *</label>
+                        </div>
                     </div>
-                    <button type="submit" id="btn-submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-xl hover:bg-rose-600 transition shadow-lg text-lg">Request Free Slot</button>
+
+                    <button type="submit" id="btn-submit" class="w-full bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition shadow-lg text-lg">
+                        Submit & Create Account
+                    </button>
                 </form>
              </div>
         </section>
     </div>
 
-    <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto">
-        <div class="text-center mb-8"><h1 class="text-3xl font-bold text-slate-800">My Child</h1></div>
-        <div id="parent-content" class="space-y-4"></div>
+    <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto mb-20">
+        <div class="text-center mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">My Dashboard</h1>
+            <p class="text-slate-500">Manage your child's journey</p>
+        </div>
+        <div id="parent-content" class="space-y-6"></div>
     </div>
 
     <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1></div>
+        <div class="flex justify-between items-center mb-6">
+            <h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1>
+            <button onclick="loadTrainerDashboard()" class="text-xs bg-white border border-slate-200 px-3 py-1 rounded shadow-sm">Refresh</button>
+        </div>
         <div class="space-y-3" id="trial-list"></div>
     </div>
 
     <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
-        <div class="flex justify-between items-end mb-8"><h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1></div>
-        <div class="grid grid-cols-2 gap-4 mb-8">
+        <div class="flex justify-between items-end mb-8">
+            <h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1>
+            <button onclick="loadAdminDashboard()" class="text-xs bg-white border border-slate-200 px-3 py-1 rounded shadow-sm">Refresh Data</button>
+        </div>
+        
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
             <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Leads</div></div>
             <div class="stat-card"><div class="stat-value text-yellow-600" id="stat-reqs">0</div><div class="stat-label">Registration Reqs</div></div>
+            <div class="stat-card"><div class="stat-value text-green-600" id="stat-active">0</div><div class="stat-label">Active Students</div></div>
+            <div class="stat-card"><div class="stat-value text-blue-600" id="stat-trials">0</div><div class="stat-label">Pending Trials</div></div>
         </div>
-        <div class="bg-white p-6 rounded-2xl shadow"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div></div>
+
+        <div class="bg-white p-6 rounded-2xl shadow border border-slate-100">
+            <div class="overflow-x-auto">
+                <table class="w-full text-left text-sm">
+                    <thead class="bg-slate-50 font-bold text-slate-500 uppercase text-xs border-b border-slate-200">
+                        <tr><th class="p-4">Child</th><th class="p-4">Parent</th><th class="p-4">Status</th><th class="p-4">Action</th></tr>
+                    </thead>
+                    <tbody id="admin-list" class="divide-y divide-slate-100"></tbody>
+                </table>
+            </div>
+        </div>
     </div>
 
     <div id="login-modal" class="modal-overlay hidden">
         <div class="modal-content text-center">
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Welcome Back</h3>
-            <p class="text-xs text-slate-500 mb-4">Login with Email & Password (Phone Number)<br>OR get a login link via email.</p>
+            <h3 class="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h3>
+            <p class="text-xs text-slate-500 mb-6">Parents: Login using your registered email.<br>Staff: Use your credentials.</p>
+            
             <input type="email" id="login-email" class="input-field mb-3" placeholder="Email Address">
             <input type="password" id="login-password" class="input-field mb-4" placeholder="Password (Default: Phone #)">
-            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-3">Login with Password</button>
-            <div class="relative flex py-2 items-center"><div class="flex-grow border-t border-slate-200"></div><span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OR</span><div class="flex-grow border-t border-slate-200"></div></div>
-            <button onclick="handleMagicLink()" class="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-200 border border-slate-200"><i class="fas fa-magic mr-2"></i> Email me a Login Link</button>
-            <p onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-4 cursor-pointer hover:underline">Cancel</p>
+            
+            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-3 shadow-md transition">
+                Login with Password
+            </button>
+            
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-slate-200"></div>
+                <span class="flex-shrink-0 mx-4 text-gray-400 text-xs font-bold">OR</span>
+                <div class="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <button onclick="handleMagicLink()" class="w-full bg-white text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-50 border border-slate-300 transition">
+                <i class="fas fa-envelope mr-2"></i> Email me a Login Link
+            </button>
+
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-6 hover:text-slate-600 underline">Cancel</button>
         </div>
     </div>
 
     <div id="trial-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-2">Assessment</h3>
-            <p class="text-sm mb-4" id="modal-child-name"></p>
-            <label class="text-xs font-bold uppercase block mb-1">Feedback</label>
-            <textarea id="trainer-feedback" class="input-field mb-3" rows="3" placeholder="Enter assessment details..."></textarea>
-            <label class="text-xs font-bold uppercase block mb-1">Recommended Batch</label>
-            <select id="trainer-batch" class="input-field mb-6"><option value="3-5 Yrs">3-5 Yrs</option><option value="5-8 Yrs">5-8 Yrs</option><option value="8+ Yrs">8+ Yrs</option><option value="Adult">Adult (18+)</option></select>
-            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Save & Mark Complete</button>
-            <button id="btn-edit-trial" onclick="enableTrialEdit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hidden">Enable Edit</button>
-            <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Close</button>
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-slate-800">Assessment</h3>
+                <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="text-slate-400 hover:text-slate-600"><i class="fas fa-times"></i></button>
+            </div>
+            <p class="text-sm mb-4 bg-blue-50 p-2 rounded text-blue-800 border border-blue-100">Student: <span id="modal-child-name" class="font-bold"></span></p>
+            
+            <label>Feedback / Observations</label>
+            <textarea id="trainer-feedback" class="input-field mb-4" rows="4" placeholder="Enter strength, flexibility, focus notes..."></textarea>
+            
+            <label>Recommended Batch</label>
+            <select id="trainer-batch" class="input-field mb-6">
+                <option value="3-5 Yrs">3-5 Yrs (Toddler)</option>
+                <option value="5-8 Yrs">5-8 Yrs (Junior)</option>
+                <option value="8+ Yrs">8+ Yrs (Senior)</option>
+                <option value="Adult">Adult (18+)</option>
+            </select>
+            
+            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 shadow-md transition">Save & Mark Complete</button>
+            <button id="btn-edit-trial" onclick="enableTrialEdit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hidden">Edit Assessment</button>
         </div>
     </div>
 
-<div id="reg-modal" class="modal-overlay hidden">
+    <div id="reg-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <div class="flex justify-between items-center mb-2">
                 <h3 class="text-xl font-bold text-slate-800">Registration</h3>
@@ -164,7 +271,6 @@
             </div>
 
             <p class="text-xs font-bold text-slate-500 uppercase mb-2">Select Plan for <span id="reg-child-name" class="text-blue-600"></span></p>
-            
             <div id="reg-slots-info" class="slot-info mb-4"></div>
 
             <select id="reg-package" class="input-field mb-4" onchange="handlePackageChange()">
@@ -229,7 +335,7 @@
 
     <div id="admin-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-4">Student Management</h3>
+            <h3 class="text-lg font-bold mb-4">Manage Student</h3>
             <div id="admin-modal-body"></div>
             <button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button>
         </div>
