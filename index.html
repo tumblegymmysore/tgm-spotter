@@ -27,7 +27,6 @@
 
             <div id="nav-private" class="hidden flex items-center gap-3">
                 <select id="role-switcher" onchange="loadView(this.value)" class="hidden text-xs font-bold border rounded p-1 bg-slate-50 text-slate-600 outline-none"></select>
-                
                 <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">User</span>
                 <button onclick="handleLogout()" class="text-xs font-bold text-red-500">Logout</button>
             </div>
@@ -40,9 +39,7 @@
                 <span class="bg-yellow-400 text-blue-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block shadow-sm">Admissions Open</span>
                 <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">Where Kids Learn to <br/><span class="text-yellow-300">Fly & Tumble!</span></h1>
                 <p class="text-blue-100 text-lg md:text-xl mb-8 font-medium">Professional gymnastics training for ages 3-14 in Mysore.</p>
-                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">
-                    Book Free Trial <i class="fas fa-arrow-down ml-2"></i>
-                </button>
+                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">Book Free Trial</button>
             </div>
         </header>
 
@@ -56,49 +53,37 @@
 
         <section id="intake-form" class="max-w-4xl mx-auto mt-24 mb-24 px-4">
              <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-                <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Book a Free Trial</h2>
-                    <p class="text-slate-500 text-sm">Please fill out the details below.</p>
-                </div>
-
+                <div class="text-center mb-8"><h2 class="text-2xl font-bold text-slate-800">Book a Free Trial</h2><p class="text-slate-500 text-sm">Please fill out the details below.</p></div>
                 <form onsubmit="handleIntakeSubmit(event)" class="space-y-8">
                     <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
                         <h3 class="text-blue-900 font-bold mb-4 flex items-center"><i class="fas fa-child mr-2"></i> Child's Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="text-xs font-bold text-blue-600 mt-2 hidden">Age: <span id="age-value"></span> Years</p></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Gender *</label><select id="gender" class="input-field bg-white" required><option value="" disabled selected>Select</option><option>Male</option><option>Female</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Pro</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                            <input type="text" id="k_name" class="input-field" placeholder="Child Name *" required>
+                            <input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="hidden text-xs font-bold text-blue-600 mt-2">Age: <span id="age-value"></span> Years</p>
+                            <select id="gender" class="input-field bg-white" required><option value="">Gender</option><option>Male</option><option>Female</option></select>
+                            <select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="">Goal</option><option>Fun & Fitness</option><option>Pro</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify...">
                         </div>
                     </div>
-
                     <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
                         <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone *</label><input type="tel" id="phone" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
-                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
+                            <input type="text" id="p_name" class="input-field" placeholder="Parent Name *" required>
+                            <input type="tel" id="phone" class="input-field" placeholder="Phone *" required>
+                            <input type="email" id="email" class="input-field" placeholder="Email *" required>
+                            <input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact *" required>
+                            <input type="text" id="address" class="input-field" placeholder="Address *" required>
                         </div>
                     </div>
-
                     <div class="grid md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or 'None'..." required></textarea></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Google</option><option>Social</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                        <textarea id="medical" class="input-field" rows="2" placeholder="Medical Info *" required></textarea>
+                        <select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="">Source</option><option>Google</option><option>Social</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify...">
                     </div>
-
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
                         <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
-                        <div class="terms-box">
-                            <p><strong>1. Waiver:</strong> I release The Tumble Gym from liability...</p>
-                            <p><strong>2. Medical:</strong> Child is fit to participate...</p>
-                            <p><strong>3. Media:</strong> Consent for photos/videos...</p>
-                        </div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to Terms *</label></div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">Allow Communication *</label></div>
+                        <div class="terms-box"><p>I agree to terms...</p></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required><label>I Agree to Terms *</label></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required><label>Allow Communication *</label></div>
                     </div>
-
                     <button type="submit" id="btn-submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-xl hover:bg-rose-600 transition shadow-lg text-lg">Request Free Slot</button>
                 </form>
              </div>
@@ -117,16 +102,11 @@
 
     <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
         <div class="flex justify-between items-end mb-8"><h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1></div>
-        
         <div class="grid grid-cols-2 gap-4 mb-8">
             <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Leads</div></div>
             <div class="stat-card"><div class="stat-value text-yellow-600" id="stat-reqs">0</div><div class="stat-label">Registration Reqs</div></div>
         </div>
-
-        <div class="bg-white p-6 rounded-2xl shadow">
-            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">Student Directory</h3><button onclick="loadAdminDashboard()" class="text-xs bg-slate-100 px-3 py-1 rounded">Refresh</button></div>
-            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Parent</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div>
-        </div>
+        <div class="bg-white p-6 rounded-2xl shadow"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div></div>
     </div>
 
     <div id="login-modal" class="modal-overlay hidden">
@@ -155,58 +135,36 @@
         </div>
     </div>
 
-<div id="trial-modal" class="modal-overlay hidden">
+    <div id="trial-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h3 class="text-lg font-bold mb-2">Assessment</h3>
             <p class="text-sm mb-4" id="modal-child-name"></p>
-            
-            <label class="text-xs font-bold uppercase">Feedback</label>
-            <textarea id="trainer-feedback" class="input-field mb-3" rows="3" placeholder="Enter assessment details..."></textarea>
-            
-            <label class="text-xs font-bold uppercase">Recommended Batch</label>
-            <select id="trainer-batch" class="input-field mb-6">
-                <option value="3-5 Yrs">3-5 Yrs</option>
-                <option value="5-8 Yrs">5-8 Yrs</option>
-                <option value="8+ Yrs">8+ Yrs</option>
-                <option value="Adult">Adult (18+)</option>
-            </select>
-            
-            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Save & Mark Complete</button>
-            <button id="btn-edit-trial" onclick="enableTrialEdit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hidden">Enable Edit</button>
+            <textarea id="trainer-feedback" class="input-field mb-3" rows="3" placeholder="Feedback"></textarea>
+            <select id="trainer-batch" class="input-field mb-4"><option>3-5 Yrs</option><option>5-8 Yrs</option><option>8+ Yrs</option><option>Adult</option></select>
+            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Save</button>
             <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Close</button>
         </div>
     </div>
 
-<div id="reg-modal" class="modal-overlay hidden">
+    <div id="reg-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Checkout & Registration</h3>
-            
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Registration</h3>
             <input type="hidden" id="is-renewal">
-
             <div class="review-box">
-                <div class="review-header" onclick="toggleReview()">
-                    <span><i class="fas fa-edit mr-2"></i> Review Personal Details</span>
-                    <i class="fas fa-chevron-down"></i>
-                </div>
+                <div class="review-header" onclick="toggleReview()"><span><i class="fas fa-edit mr-2"></i> Review Details</span><i class="fas fa-chevron-down"></i></div>
                 <div id="review-body" class="review-body">
-                    <label class="text-xs font-bold uppercase">Child Name</label>
-                    <input type="text" id="edit-name" class="input-field mb-2 h-8 text-sm">
-                    <label class="text-xs font-bold uppercase">Phone</label>
-                    <input type="tel" id="edit-phone" class="input-field mb-2 h-8 text-sm">
-                    <label class="text-xs font-bold uppercase">Email</label>
-                    <input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100" readonly>
+                    <label class="text-xs font-bold uppercase">Name</label><input type="text" id="edit-name" class="input-field mb-2 h-8 text-sm">
+                    <label class="text-xs font-bold uppercase">Phone</label><input type="tel" id="edit-phone" class="input-field mb-2 h-8 text-sm">
+                    <label class="text-xs font-bold uppercase">Email</label><input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100" readonly>
                 </div>
             </div>
-
-            <p class="text-sm mb-1 font-bold">Select Plan <span id="reg-child-name" class="text-blue-600"></span></p>
             <div id="reg-slots-info" class="slot-info mb-4"></div>
-
             <select id="reg-package" class="input-field mb-2" onchange="handlePackageChange()">
                 <option value="" disabled selected>Select Package</option>
                 <optgroup label="Regular Gymnastics">
-                    <option value="2 Days/Week - 1 Month|3,500">2 Days/Week - 1 Month (₹3,500)</option>
-                    <option value="2 Days/Week - 3 Months|9,000">2 Days/Week - 3 Months (₹9,000)</option>
-                    <option value="2 Days/Week - 6 Months|16,000">2 Days/Week - 6 Months (₹16,000)</option>
+                    <option value="2 Days/Week - 1 Month|3,500">2 Days - 1 Month (₹3,500)</option>
+                    <option value="2 Days/Week - 3 Months|9,000">2 Days - 3 Months (₹9,000)</option>
+                    <option value="2 Days/Week - 6 Months|16,000">2 Days - 6 Months (₹16,000)</option>
                     <option value="Unlimited - 1 Month|5,500">Unlimited - 1 Month (₹5,500)</option>
                     <option value="Unlimited - 3 Months|15,000">Unlimited - 3 Months (₹15,000)</option>
                 </optgroup>
@@ -214,47 +172,25 @@
                     <option value="Special">Special / Professional Training</option>
                 </optgroup>
             </select>
-
             <div id="training-level-group" class="hidden mb-4 pl-2 border-l-2 border-blue-500">
-                <label class="text-xs font-bold uppercase text-blue-600">Select Level</label>
                 <select id="reg-level" class="input-field h-10" onchange="calculateTotal()">
                     <option value="Beginner">Beginner (₹700/class)</option>
                     <option value="Intermediate">Intermediate (₹850/class)</option>
                     <option value="Advanced">Advanced (₹1,000/class)</option>
                 </select>
             </div>
-
             <label class="text-xs font-bold uppercase mt-2">Start Date</label>
             <input type="date" id="reg-date" class="input-field mb-4">
-
             <div class="bg-gray-50 p-3 rounded mb-4 text-sm">
-                <div id="reg-fee-row" class="flex justify-between mb-1 text-slate-500">
-                    <span>Registration Fee (One Time)</span>
-                    <span>₹<span id="reg-fee-display">2000</span></span>
-                </div>
-                <div class="flex justify-between font-bold text-lg text-slate-800 border-t pt-2">
-                    <span>Total To Pay</span>
-                    <span>₹<span id="total-price">0</span></span>
-                </div>
+                <div id="reg-fee-row" class="flex justify-between mb-1 text-slate-500"><span>Registration Fee</span><span>₹<span id="reg-fee-display">2000</span></span></div>
+                <div class="flex justify-between font-bold text-lg text-slate-800 border-t pt-2"><span>Total</span><span>₹<span id="total-price">0</span></span></div>
             </div>
-
             <div class="qr-grid">
-                <div class="qr-box">
-                    <div class="qr-label">Main UPI</div>
-                    <img src="qr1.png" class="w-32 h-32 mx-auto">
-                </div>
-                <div class="qr-box">
-                    <div class="qr-label">Backup UPI</div>
-                    <img src="qr2.png" class="w-32 h-32 mx-auto">.
-                </div>
+                <div class="qr-box"><div class="qr-label">Main UPI</div><img src="qr1.png" class="h-24 w-24 mx-auto object-contain"></div>
+                <div class="qr-box"><div class="qr-label">Backup UPI</div><img src="qr2.png" class="h-24 w-24 mx-auto object-contain"></div>
             </div>
-
-            <div class="mb-4">
-                <label class="text-xs font-bold uppercase mb-1 block">Upload Payment Screenshot *</label>
-                <input type="file" id="payment-proof" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
-            </div>
-            
-            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit Request</button>
+            <div class="mb-4"><label class="text-xs font-bold uppercase mb-1 block">Upload Proof *</label><input type="file" id="payment-proof" accept="image/*" class="w-full text-xs text-slate-500"></div>
+            <button id="btn-submit-reg" onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit Request</button>
             <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-3 text-xs">Cancel</button>
         </div>
     </div>
