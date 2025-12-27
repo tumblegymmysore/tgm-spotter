@@ -61,3 +61,31 @@ body { font-family: 'Nunito', sans-serif; }
     background: #FFF; border: 2px dashed #CBD5E1; border-radius: 12px;
     padding: 20px; text-align: center; margin-bottom: 15px;
 }
+
+/* DUAL QR GRID */
+.qr-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
+}
+.qr-box {
+    border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; text-align: center;
+    background: #F8FAFC;
+}
+.qr-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; margin-bottom: 5px; }
+
+/* FILE UPLOAD */
+.file-upload-box {
+    border: 2px dashed #CBD5E1; padding: 15px; text-align: center; border-radius: 8px;
+    cursor: pointer; transition: 0.2s; color: #64748B; font-size: 12px;
+}
+.file-upload-box:hover { border-color: #3B82F6; color: #3B82F6; background: #EFF6FF; }
+
+/* REVIEW SECTION */
+.review-box {
+    background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 15px;
+}
+.review-header {
+    padding: 10px; background: #F1F5F9; font-weight: bold; font-size: 12px; 
+    display: flex; justify-content: space-between; cursor: pointer;
+}
+.review-body { padding: 15px; display: none; }
+.review-body.open { display: block; }
