@@ -25,11 +25,7 @@ body { font-family: 'Nunito', sans-serif; }
 .checkbox-wrapper { display: flex; align-items: start; gap: 10px; margin-bottom: 8px; }
 .checkbox-text { font-size: 12px; color: #475569; line-height: 1.4; }
 
-/* Age Buttons */
-.age-btn { background: white; border: 2px solid #E5E7EB; color: #6B7280; width: 100%; transition: 0.2s; }
-.age-btn-active { background: #EFF6FF !important; border-color: #2563EB !important; color: #2563EB !important; font-weight: 800 !important; transform: scale(1.05); }
-
-/* MODAL (New) */
+/* Modals */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
     background: rgba(0,0,0,0.5); z-index: 50; display: flex;
@@ -37,22 +33,11 @@ body { font-family: 'Nunito', sans-serif; }
 }
 .modal-content {
     background: white; padding: 24px; border-radius: 16px;
-    width: 90%; max-width: 400px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    width: 95%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
+    max-height: 90vh; overflow-y: auto;
 }
 
-/* AUTH SCREEN */
-#auth-container {
-    position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
-    background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%);
-    z-index: 999; display: flex; justify-content: center; align-items: center;
-}
-.auth-box {
-    background: white; padding: 40px; border-radius: 20px; width: 90%; max-width: 400px;
-    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25); text-align: center;
-}
-.auth-tab {
-    padding: 10px; cursor: pointer; border-bottom: 2px solid #E2E8F0; color: #94A3B8; font-weight: bold; flex: 1;
-}
-.auth-tab.active {
-    border-bottom: 2px solid #2563EB; color: #2563EB;
-}
+/* Dashboard Stats */
+.stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #F1F5F9; }
+.stat-value { font-size: 24px; font-weight: 800; color: #1E293B; }
+.stat-label { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; }
