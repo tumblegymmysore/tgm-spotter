@@ -17,58 +17,54 @@
     <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200 fixed w-full z-50 transition-all">
         <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
             <div class="flex items-center cursor-pointer" onclick="window.location.reload()">
-                <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain" onerror="this.style.display='none'; document.getElementById('backup-logo').style.display='flex';">
-                <div id="backup-logo" style="display:none;" class="flex items-center gap-2">
-                     <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-                     <span class="font-bold text-xl text-blue-900">Spotter</span>
-                </div>
+                <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain">
+                <span class="font-bold text-xl text-blue-900 ml-2">Spotter</span>
             </div>
             
-            <div id="nav-public" class="flex space-x-2">
-                <button onclick="document.getElementById('login-modal').classList.remove('hidden')" class="px-4 py-2 rounded-lg text-sm font-bold text-blue-600 border border-blue-200 hover:bg-blue-50">
-                    <i class="fas fa-sign-in-alt mr-2"></i> Login
-                </button>
+            <div id="nav-public">
+                <button onclick="document.getElementById('login-modal').classList.remove('hidden')" class="px-4 py-2 rounded-lg text-sm font-bold text-blue-600 border border-blue-200 hover:bg-blue-50">Login</button>
             </div>
 
             <div id="nav-private" class="hidden flex items-center gap-3">
                 <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">User</span>
-                <button onclick="handleLogout()" class="text-xs font-bold text-red-500 hover:text-red-700">Logout</button>
+                <button onclick="handleLogout()" class="text-xs font-bold text-red-500">Logout</button>
             </div>
         </div>
     </nav>
 
     <div id="landing" class="pt-16 fade-in">
-        <header class="hero-gradient text-white text-center py-20 px-4 rounded-b-[3rem] relative">
-            <div class="max-w-3xl mx-auto">
-                <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Jump Start Your Journey</h1>
-                <p class="text-blue-100 text-lg mb-6">Register for classes or book a free trial today.</p>
-                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">
-                    Start Here
+        <header class="hero-gradient text-white text-center py-24 px-4 rounded-b-[3rem] shadow-xl relative overflow-hidden">
+            <div class="relative z-10 max-w-3xl mx-auto">
+                <span class="bg-yellow-400 text-blue-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block shadow-sm">Admissions Open</span>
+                <h1 class="text-4xl md:text-6xl font-extrabold mb-4 leading-tight">Where Kids Learn to <br/><span class="text-yellow-300">Fly & Tumble!</span></h1>
+                <p class="text-blue-100 text-lg md:text-xl mb-8 font-medium">Professional gymnastics training for ages 3-14 in Mysore.</p>
+                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-4 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">
+                    Book Free Trial <i class="fas fa-arrow-down ml-2"></i>
                 </button>
             </div>
         </header>
 
-        <section id="intake-form" class="max-w-4xl mx-auto mt-12 mb-24 px-4">
+        <section class="max-w-4xl mx-auto -mt-10 px-4 relative z-20">
+            <div class="bg-white p-6 rounded-2xl card-shadow grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
+                <div><div class="text-3xl font-bold text-blue-600">300+</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Happy Kids</div></div>
+                <div><div class="text-3xl font-bold text-yellow-500">12+</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Expert Trainers</div></div>
+                <div><div class="text-3xl font-bold text-rose-500">4.9</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Rating</div></div>
+            </div>
+        </section>
+
+        <section id="intake-form" class="max-w-4xl mx-auto mt-24 mb-24 px-4">
              <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
                 <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Student Application</h2>
-                    <p class="text-slate-500 text-sm">New here? Fill this out. Returning? <a href="#" onclick="document.getElementById('login-modal').classList.remove('hidden')" class="text-blue-600 underline">Login above</a>.</p>
+                    <h2 class="text-2xl font-bold text-slate-800">Book a Free Trial</h2>
+                    <p class="text-slate-500 text-sm">Please fill out the details below.</p>
                 </div>
 
                 <form onsubmit="handleIntakeSubmit(event)" class="space-y-8">
-                    <div class="flex justify-center mb-6">
-                        <div class="bg-slate-100 p-1 rounded-xl flex">
-                            <button type="button" id="btn-trial" class="px-6 py-2 rounded-lg font-bold text-sm bg-white shadow text-blue-600 transition" onclick="toggleTrial(true)">Trial Class</button>
-                            <button type="button" id="btn-direct" class="px-6 py-2 rounded-lg font-bold text-sm text-slate-500 transition" onclick="toggleTrial(false)">Direct Admission</button>
-                        </div>
-                        <input type="hidden" id="is_trial" value="true">
-                    </div>
-
                     <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
                         <h3 class="text-blue-900 font-bold mb-4 flex items-center"><i class="fas fa-child mr-2"></i> Child's Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="text-xs font-bold text-blue-600 mt-2 hidden">Age: <span id="age-value"></span> Years</p></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Gender *</label><select id="gender" class="input-field bg-white" required><option value="" disabled selected>Select</option><option>Male</option><option>Female</option></select></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Pro</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                         </div>
@@ -78,48 +74,57 @@
                         <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone *</label><input type="tel" id="phone" class="input-field" required></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Phone *</label><input type="tel" id="alt_phone" class="input-field" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
                             <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
 
                     <div class="grid md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or type 'None'..." required></textarea></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or 'None'..." required></textarea></div>
                         <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Google</option><option>Social</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                     </div>
 
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
-                        <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver & Consent</h3>
-                        <div class="terms-box"><p>I confirm I am the parent/guardian...</p></div>
+                        <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
+                        <div class="terms-box">
+                            <p><strong>1. Waiver:</strong> I release The Tumble Gym from liability...</p>
+                            <p><strong>2. Medical:</strong> Child is fit to participate...</p>
+                            <p><strong>3. Media:</strong> Consent for photos/videos...</p>
+                        </div>
                         <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to Terms *</label></div>
                         <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">Allow Communication *</label></div>
                     </div>
 
-                    <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg text-lg">Submit & Create Account</button>
+                    <button type="submit" id="btn-submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-xl hover:bg-rose-600 transition shadow-lg text-lg">Request Free Slot</button>
                 </form>
              </div>
         </section>
     </div>
 
     <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto">
-        <div class="text-center mb-8"><h1 class="text-3xl font-bold text-slate-800">My Dashboard</h1></div>
-        <div id="parent-content" class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-yellow-500">
-            <p class="text-center text-slate-500">Loading...</p>
-        </div>
+        <div class="text-center mb-8"><h1 class="text-3xl font-bold text-slate-800">My Child</h1></div>
+        <div id="parent-content" class="space-y-4"></div>
     </div>
 
     <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1></div>
-        <div class="bg-white rounded-2xl shadow overflow-hidden"><div class="p-4 bg-blue-50 border-b border-blue-100 font-bold text-blue-800">Pending</div><div id="trial-list" class="divide-y divide-slate-100"></div></div>
+        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1><button onclick="loadTrainerDashboard()" class="text-xs bg-slate-100 p-2 rounded">Refresh</button></div>
+        <div class="space-y-3" id="trial-list"></div>
     </div>
 
     <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6"><h1 class="text-3xl font-bold text-slate-800">Admin View</h1></div>
-        <div class="bg-white p-6 rounded-2xl shadow border-l-4 border-blue-600">
-            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">Students</h3><button onclick="fetchLeads()" class="text-xs bg-slate-100 px-3 py-1 rounded">Refresh</button></div>
-            <div class="overflow-x-auto"><table class="w-full text-left"><thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold"><tr><th class="p-4">Child</th><th class="p-4">Parent</th><th class="p-4">Status</th><th class="p-4">Batch</th><th class="p-4">Action</th></tr></thead><tbody id="leads-list" class="divide-y divide-slate-100 text-sm font-medium"></tbody></table></div>
+        <div class="flex justify-between items-end mb-8"><h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1></div>
+        
+        <div class="grid grid-cols-3 gap-4 mb-8">
+            <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Leads</div></div>
+            <div class="stat-card"><div class="stat-value text-blue-600" id="stat-trials">0</div><div class="stat-label">Pending Trials</div></div>
+            <div class="stat-card"><div class="stat-value text-green-600" id="stat-active">0</div><div class="stat-label">Active Students</div></div>
+        </div>
+
+        <div class="bg-white p-6 rounded-2xl shadow">
+            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">Student Directory</h3><button onclick="loadAdminDashboard()" class="text-xs bg-slate-100 px-3 py-1 rounded">Refresh</button></div>
+            <div class="overflow-x-auto"><table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Parent</th><th class="p-3">Status</th><th class="p-3">Batch</th><th class="p-3">Action</th></tr></thead><tbody id="admin-list"></tbody></table></div>
         </div>
     </div>
 
@@ -137,11 +142,24 @@
         <div class="modal-content">
             <h3 class="text-lg font-bold mb-2">Assessment</h3>
             <p class="text-sm mb-4" id="modal-child-name"></p>
-            <textarea id="trainer-feedback" class="input-field mb-4" rows="3" placeholder="Feedback..."></textarea>
-            <select id="trainer-batch" class="input-field mb-4"><option>3-5 Yrs</option><option>5-8 Yrs</option><option>8+ Yrs</option><option>Adult</option></select>
-            <input type="text" id="trainer-name" class="input-field mb-6" placeholder="Your Name">
-            <button onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Save</button>
+            <label class="text-xs font-bold uppercase">Feedback</label>
+            <textarea id="trainer-feedback" class="input-field mb-3" rows="3"></textarea>
+            <label class="text-xs font-bold uppercase">Recommended Batch</label>
+            <select id="trainer-batch" class="input-field mb-3"><option>3-5 Yrs</option><option>5-8 Yrs</option><option>8+ Yrs</option><option>Adult</option></select>
+            <label class="text-xs font-bold uppercase">Trainer Name</label>
+            <input type="text" id="trainer-name" class="input-field mb-4">
+            
+            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Save</button>
+            <button id="btn-edit-trial" onclick="enableTrialEdit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hidden">Enable Edit</button>
             <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Close</button>
+        </div>
+    </div>
+
+    <div id="admin-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="text-lg font-bold mb-4">Student Details</h3>
+            <div id="admin-modal-content-body"></div>
+            <button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button>
         </div>
     </div>
 
