@@ -47,7 +47,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
-        to: ['YOUR_REAL_EMAIL@GMAIL.COM'], // <--- CHANGE THIS TO YOUR EMAIL
+        to: ['TUMBLEGYMMYSORE@GMAIL.COM'], // <--- CHANGE THIS TO YOUR EMAIL
         subject: `New Student: ${record.child_name}`,
         html: emailHtml,
       }),
