@@ -139,18 +139,23 @@
         </div>
     </div>
 
-    <div id="trial-modal" class="modal-overlay hidden">
+<div id="trial-modal" class="modal-overlay hidden">
         <div class="modal-content">
             <h3 class="text-lg font-bold mb-2">Assessment</h3>
             <p class="text-sm mb-4" id="modal-child-name"></p>
-            <label class="text-xs font-bold uppercase">Feedback</label>
-            <textarea id="trainer-feedback" class="input-field mb-3" rows="3"></textarea>
-            <label class="text-xs font-bold uppercase">Recommended Batch</label>
-            <select id="trainer-batch" class="input-field mb-3"><option>3-5 Yrs</option><option>5-8 Yrs</option><option>8+ Yrs</option><option>Adult</option></select>
-            <label class="text-xs font-bold uppercase">Trainer Name</label>
-            <input type="text" id="trainer-name" class="input-field mb-4">
             
-            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Save</button>
+            <label class="text-xs font-bold uppercase">Feedback</label>
+            <textarea id="trainer-feedback" class="input-field mb-3" rows="3" placeholder="Enter assessment details..."></textarea>
+            
+            <label class="text-xs font-bold uppercase">Recommended Batch</label>
+            <select id="trainer-batch" class="input-field mb-6">
+                <option value="3-5 Yrs">3-5 Yrs</option>
+                <option value="5-8 Yrs">5-8 Yrs</option>
+                <option value="8+ Yrs">8+ Yrs</option>
+                <option value="Adult">Adult (18+)</option>
+            </select>
+            
+            <button id="btn-save-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Save & Mark Complete</button>
             <button id="btn-edit-trial" onclick="enableTrialEdit()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hidden">Enable Edit</button>
             <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Close</button>
         </div>
