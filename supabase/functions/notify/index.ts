@@ -1,4 +1,3 @@
-// Initial deployment trigger
 // supabase/functions/notify/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 
@@ -10,7 +9,6 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  // Handle CORS (Browser security)
   if (req.method === 'OPTIONS') {
     return new Response('ok', { headers: corsHeaders })
   }
@@ -18,28 +16,36 @@ serve(async (req) => {
   try {
     const { record } = await req.json()
     
-    // 1. Check if this is a "Registration Requested" event
-    // We only want to send email when status changes to this
-    if (record.status !== 'Registration Requested') {
-        return new Response(JSON.stringify({ message: "Skipped: Not a registration request" }), {
+    // 1. DETERMINE EMAIL TYPE
+    // If it's neither a Trial nor a Registration, we skip sending an email.
+    const isTrial = record.status === 'Pending Trial';
+    const isRegistration = record.status === 'Registration Requested';
+
+    if (!isTrial && !isRegistration) {
+        return new Response(JSON.stringify({ message: "Skipped: Status not relevant" }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
     }
 
-    // 2. Prepare Email Content
+    // 2. CUSTOMIZE CONTENT
+    const subject = isTrial 
+        ? `🤸 New Trial Request: ${record.child_name}` 
+        : `💰 Payment Verification Needed: ${record.child_name}`;
+
     const emailHtml = `
-      <h2>New Registration Request!</h2>
+      <h2>${isTrial ? "New Free Trial Request" : "New Registration Payment"}</h2>
       <p><strong>Child:</strong> ${record.child_name}</p>
       <p><strong>Parent:</strong> ${record.parent_name}</p>
-      <p><strong>Plan:</strong> ${record.selected_package}</p>
-      <p><strong>Price:</strong> ${record.package_price}</p>
       <p><strong>Phone:</strong> ${record.phone}</p>
+      <p><strong>Status:</strong> ${record.status}</p>
+      ${isRegistration ? `<p><strong>Plan:</strong> ${record.selected_package}</p>` : ''}
+      ${isRegistration ? `<p><strong>Price:</strong> ${record.package_price}</p>` : ''}
       <br/>
-      <a href="${record.payment_proof_url}">View Payment Proof</a>
+      ${isRegistration ? `<a href="${record.payment_proof_url}" style="padding:10px; background:blue; color:white;">View Payment Proof</a>` : ''}
     `
 
-    // 3. Send via Resend
-    // Note: 'to' must be YOUR email for testing until you verify a domain on Resend
+    // 3. SEND EMAIL
+    // IMPORTANT: 'to' must be the email you used to sign up for Resend (until you verify a domain)
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -48,8 +54,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
-        to: ['TUMBLEGYMMYSORE@GMAIL.COM'], // <--- CHANGE THIS TO YOUR EMAIL
-        subject: `New Student: ${record.child_name}`,
+        to: ['YOUR_REAL_EMAIL@GMAIL.COM'], // <--- MAKE SURE THIS IS YOUR EMAIL
+        subject: subject,
         html: emailHtml,
       }),
     })
