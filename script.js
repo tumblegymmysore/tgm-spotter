@@ -2,19 +2,24 @@
 const SUPABASE_URL = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 
-// V13 PRICING DATA
+// PRICING DATA
 const REGISTRATION_FEE = 2000;
 const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
 
+// GLOBAL VARIABLES
 let db = null;
 let currentUser = null;
 let currentUserName = "Staff"; 
+let currentTrialId = null;
+let currentRegistrationId = null;
 
+// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = supabase; 
     db = createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log("DB Ready");
     
+    // Check Session
     const { data: { session } } = await db.auth.getSession();
     if(session) handleSessionSuccess(session.user);
 });
@@ -42,8 +47,9 @@ function showToast(msg) {
     t.className = "show"; setTimeout(() => t.className = "", 3000);
 }
 
-// --- AUTH ---
-async function handleLogin() {
+// --- GLOBAL FUNCTIONS (Attached to Window for HTML Access) ---
+
+window.handleLogin = async function() {
     const email = document.getElementById('login-email').value;
     const pass = document.getElementById('login-password').value;
     const { data, error } = await db.auth.signInWithPassword({ email: email, password: pass });
@@ -51,7 +57,7 @@ async function handleLogin() {
     else { document.getElementById('login-modal').classList.add('hidden'); handleSessionSuccess(data.user); }
 }
 
-async function handleMagicLink() {
+window.handleMagicLink = async function() {
     const email = document.getElementById('login-email').value;
     if(!email) { alert("Enter email first"); return; }
     const { error } = await db.auth.signInWithOtp({ email: email });
@@ -59,33 +65,12 @@ async function handleMagicLink() {
     else alert("✅ Link Sent! Check your email.");
 }
 
-async function handleSessionSuccess(user) {
-    currentUser = user;
-    document.getElementById('nav-public').classList.add('hidden');
-    document.getElementById('nav-private').classList.remove('hidden');
-
-    const { data } = await db.from('user_roles').select('*').eq('id', user.id).single();
-    const role = data ? data.role : 'parent';
-    if(data && data.full_name) currentUserName = data.full_name;
-
-    const switcher = document.getElementById('role-switcher');
-    if(role === 'admin') {
-        switcher.innerHTML = `<option value="admin">Admin</option><option value="parent">Parent View</option>`;
-        switcher.classList.remove('hidden');
-        loadAdminDashboard();
-    } else if(role === 'trainer') {
-        loadTrainerDashboard();
-    } else {
-        loadParentData(user.email);
-    }
-    document.getElementById('user-role-badge').innerText = role.toUpperCase();
-    showPage(role === 'parent' ? 'parent-portal' : role);
+window.handleLogout = async function() { 
+    await db.auth.signOut(); 
+    window.location.reload(); 
 }
 
-async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
-
-// --- INTAKE ---
-async function handleIntakeSubmit(e) {
+window.handleIntakeSubmit = async function(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
     btn.innerText = "Processing..."; btn.disabled = true;
@@ -120,13 +105,12 @@ async function handleIntakeSubmit(e) {
     finally { btn.disabled = false; }
 }
 
-// --- TRAINER ---
-let currentTrialId = null;
+// --- TRAINER FUNCTIONS ---
 
-async function loadTrainerDashboard() {
+window.loadTrainerDashboard = async function() {
     if(!currentUser) return;
     const list = document.getElementById('trial-list');
-    list.innerHTML = 'Loading...';
+    list.innerHTML = '<div class="text-center p-4">Loading...</div>';
     
     const yesterday = new Date(new Date().getTime() - (24 * 60 * 60 * 1000)).toISOString();
     const { data } = await db.from('leads').select('*')
@@ -138,22 +122,22 @@ async function loadTrainerDashboard() {
     
     data.forEach(l => {
         const isDone = l.status === 'Trial Completed';
-        const badge = isDone ? `<span class="bg-green-100 text-green-700 px-2 text-xs rounded">Done</span>` : `<span class="bg-yellow-100 text-yellow-700 px-2 text-xs rounded">Pending</span>`;
+        const badge = isDone ? `<span class="bg-green-100 text-green-700 px-2 text-xs rounded font-bold">Done</span>` : `<span class="bg-yellow-100 text-yellow-700 px-2 text-xs rounded font-bold">Pending</span>`;
         
-        // FIX: Added quotes around ID
         list.innerHTML += `
-        <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center mb-2">
+        <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center mb-3">
             <div>
-                <div class="font-bold text-slate-800">${l.child_name} <span class="text-xs font-normal text-slate-500">(${getAge(l.dob)}y)</span></div>
+                <div class="font-bold text-slate-800 text-lg">${l.child_name}</div> 
+                <div class="text-xs text-slate-500 font-bold uppercase">${getAge(l.dob)} Years • ${l.intent}</div>
                 <div class="mt-1">${badge}</div>
             </div>
-            <button onclick="openTrialModal('${l.id}', '${l.child_name}', ${getAge(l.dob)}, '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
-                class="bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold">Assess</button>
+            <button onclick="openTrialModal(${l.id}, '${l.child_name}', ${getAge(l.dob)}, '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
+                class="bg-blue-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow hover:bg-blue-700 transition">Assess</button>
         </div>`;
     });
 }
 
-function openTrialModal(id, name, age, status, feedback, batch) {
+window.openTrialModal = function(id, name, age, status, feedback, batch) {
     currentTrialId = id;
     document.getElementById('modal-child-name').innerText = `${name} (${age} Yrs)`;
     document.getElementById('trainer-feedback').value = feedback;
@@ -166,13 +150,23 @@ function openTrialModal(id, name, age, status, feedback, batch) {
     
     const isReadOnly = status === 'Trial Completed';
     document.getElementById('btn-save-trial').classList.toggle('hidden', isReadOnly);
+    document.getElementById('btn-edit-trial').classList.toggle('hidden', !isReadOnly);
+    document.getElementById('trainer-feedback').disabled = isReadOnly;
+    document.getElementById('trainer-batch').disabled = isReadOnly;
+
     document.getElementById('trial-modal').classList.remove('hidden');
 }
 
-async function submitTrialResult() {
+window.enableTrialEdit = function() {
+    document.getElementById('trainer-feedback').disabled = false;
+    document.getElementById('trainer-batch').disabled = false;
+    document.getElementById('btn-save-trial').classList.remove('hidden');
+    document.getElementById('btn-edit-trial').classList.add('hidden');
+}
+
+window.submitTrialResult = async function() {
     const feedback = document.getElementById('trainer-feedback').value;
     const batch = document.getElementById('trainer-batch').value;
-    
     if(!feedback) { alert("Feedback required"); return; }
 
     const { error } = await db.from('leads').update({
@@ -182,89 +176,59 @@ async function submitTrialResult() {
     }).eq('id', currentTrialId);
 
     if(error) alert("Error: " + error.message); 
-    else { showToast("Saved"); document.getElementById('trial-modal').classList.add('hidden'); loadTrainerDashboard(); }
+    else { showToast("Saved Successfully"); document.getElementById('trial-modal').classList.add('hidden'); loadTrainerDashboard(); }
 }
 
-// --- COMMERCE & REGISTRATION ---
-let currentRegistrationId = null;
+// --- COMMERCE / REGISTRATION FUNCTIONS ---
 
-async function loadParentData(email) {
-    const content = document.getElementById('parent-content');
-    const { data } = await db.from('leads').select('*').eq('email', email);
+window.openRegistrationModal = async function(id, isRenewal = false) {
+    currentRegistrationId = id;
+    const { data } = await db.from('leads').select('*').eq('id', id).single();
     
-    if(!data || data.length === 0) { content.innerHTML = '<p class="text-center p-4">No records found.</p>'; return; }
+    // Safely set text
+    document.getElementById('reg-child-name').innerText = data.child_name;
+    document.getElementById('is-renewal').value = isRenewal;
+
+    // Prefill Review
+    document.getElementById('edit-name').value = data.child_name;
+    document.getElementById('edit-phone').value = data.phone;
+    document.getElementById('edit-email').value = data.email;
     
-    let html = '';
-    data.forEach(child => {
-        let actionArea = '';
-        // FIX: Added quotes around ID
-        if(child.status === 'Trial Completed') {
-            actionArea = `
-                <div class="bg-blue-50 p-4 rounded mt-2 border border-blue-100">
-                    <p class="font-bold text-blue-900 text-sm mb-2">🎉 Trial Successful!</p>
-                    <p class="text-xs text-slate-600 mb-2">Coach <strong>${child.trainer_name || 'Staff'}</strong> recommends: <strong>${child.recommended_batch}</strong></p>
-                    <button onclick="openRegistrationModal('${child.id}')" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Register Now</button>
-                </div>`;
-        } else if (child.status === 'Enrolled') {
-            actionArea = `
-                <div class="mt-2 bg-green-50 p-2 rounded text-green-800 text-xs text-center font-bold mb-2">✅ Active Student</div>
-                <button onclick="openRegistrationModal('${child.id}', true)" class="w-full bg-white border border-green-600 text-green-700 font-bold py-1 rounded text-xs">Renew Membership</button>
-            `;
-        } else if (child.status === 'Registration Requested') {
-            actionArea = `<div class="mt-2 bg-yellow-50 p-2 rounded text-yellow-800 text-xs text-center font-bold">⏳ Verification Pending</div>`;
-        }
-
-        html += `<div class="mb-4 border-b pb-4"><h3 class="font-bold text-xl">${child.child_name}</h3><p class="text-sm">Status: <span class="font-bold text-blue-600">${child.status}</span></p>${actionArea}</div>`;
-    });
-    content.innerHTML = html;
-}
-
-async function openRegistrationModal(id, isRenewal = false) {
-    try {
-        currentRegistrationId = id;
-        const { data, error } = await db.from('leads').select('*').eq('id', id).single();
-        if(error) throw error;
-
-        document.getElementById('reg-child-name').innerText = data.child_name;
-        document.getElementById('is-renewal').value = isRenewal;
-
-        document.getElementById('edit-name').value = data.child_name;
-        document.getElementById('edit-phone').value = data.phone;
-        document.getElementById('edit-email').value = data.email;
-        
-        if(isRenewal) {
-            document.getElementById('reg-fee-row').classList.add('hidden');
-            document.getElementById('reg-fee-display').innerText = "0";
-        } else {
-            document.getElementById('reg-fee-row').classList.remove('hidden');
-            document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
-        }
-
-        const age = getAge(data.dob);
-        let slots = "<strong>Available Slots:</strong><br>";
-        if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
-        else if(age <= 8) slots += "• Tue-Fri: 5-6 PM<br>• Sat: 3 PM, Sun: 10 AM";
-        else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
-        document.getElementById('reg-slots-info').innerHTML = slots;
-
-        document.getElementById('reg-package').value = "";
-        document.getElementById('training-level-group').classList.add('hidden');
-        document.getElementById('total-price').innerText = "0";
-        document.getElementById('reg-modal').classList.remove('hidden');
-    } catch(e) {
-        console.error(e);
-        alert("System Error: Could not load registration details. " + e.message);
+    // Fee Logic
+    const feeRow = document.getElementById('reg-fee-row');
+    if(isRenewal) {
+        feeRow.classList.add('hidden');
+        document.getElementById('reg-fee-display').innerText = "0";
+    } else {
+        feeRow.classList.remove('hidden');
+        document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
     }
+
+    // Slots Logic
+    const age = getAge(data.dob);
+    let slots = "<strong>Available Slots:</strong><br>";
+    if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
+    else if(age <= 8) slots += "• Tue-Fri: 5-6 PM<br>• Sat: 3 PM, Sun: 10 AM";
+    else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
+    document.getElementById('reg-slots-info').innerHTML = slots;
+
+    // Reset Form
+    document.getElementById('reg-package').value = "";
+    document.getElementById('training-level-group').classList.add('hidden');
+    document.getElementById('total-price').innerText = "0";
+    
+    document.getElementById('reg-modal').classList.remove('hidden');
 }
 
-function handlePackageChange() {
+window.handlePackageChange = function() {
     const pkg = document.getElementById('reg-package').value;
-    if(pkg === 'Special') document.getElementById('training-level-group').classList.remove('hidden');
-    else document.getElementById('training-level-group').classList.add('hidden');
+    const levelGroup = document.getElementById('training-level-group');
+    if(pkg === 'Special') levelGroup.classList.remove('hidden');
+    else levelGroup.classList.add('hidden');
     calculateTotal();
 }
 
-function calculateTotal() {
+window.calculateTotal = function() {
     const pkgVal = document.getElementById('reg-package').value;
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     let base = 0;
@@ -280,9 +244,11 @@ function calculateTotal() {
     document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
 }
 
-function toggleReview() { document.getElementById('review-body').classList.toggle('open'); }
+window.toggleReview = function() {
+    document.getElementById('review-body').classList.toggle('open');
+}
 
-async function submitRegistration() {
+window.submitRegistration = async function() {
     const pkgVal = document.getElementById('reg-package').value;
     const total = document.getElementById('total-price').innerText;
     const fileInput = document.getElementById('payment-proof');
@@ -315,7 +281,7 @@ async function submitRegistration() {
         }).eq('id', currentRegistrationId);
 
         if(error) throw error;
-        alert("✅ Submitted! Admin will verify.");
+        alert("✅ Request Submitted! Admin will verify.");
         document.getElementById('reg-modal').classList.add('hidden');
         loadParentData(currentUser.email);
 
@@ -323,67 +289,20 @@ async function submitRegistration() {
     finally { btn.innerText = "Submit Request"; btn.disabled = false; }
 }
 
-// --- ADMIN ---
-async function loadAdminDashboard() {
+// --- ADMIN FUNCTIONS ---
+
+window.loadAdminDashboard = async function() {
     if(!currentUser) return;
     const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
     
-    const total = data.length;
-    const reqs = data.filter(l => l.status === 'Registration Requested').length;
-    document.getElementById('stat-total').innerText = total;
-    document.getElementById('stat-reqs').innerText = reqs;
+    document.getElementById('stat-total').innerText = data.length;
+    document.getElementById('stat-reqs').innerText = data.filter(l => l.status === 'Registration Requested').length;
+    document.getElementById('stat-active').innerText = data.filter(l => l.status === 'Enrolled').length;
+    document.getElementById('stat-trials').innerText = data.filter(l => l.status === 'Pending Trial').length;
 
     const list = document.getElementById('admin-list');
     list.innerHTML = '';
     data.forEach(l => {
         let alert = l.status === 'Registration Requested' ? '<span class="text-red-500 font-bold animate-pulse">!</span>' : '';
-        // FIX: Added quotes around ID
         let btnAction = l.status === 'Registration Requested' ? 
-            `<button onclick="openAdminModal('${l.id}')" class="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded text-xs font-bold">Verify</button>` : 
-            `<button onclick="openAdminModal('${l.id}')" class="text-gray-500 border px-2 py-1 rounded text-xs">View</button>`;
-        
-        list.innerHTML += `<tr class="border-b"><td class="p-3 font-bold">${l.child_name} ${alert}</td><td class="p-3 text-sm">${l.status}</td><td class="p-3">${btnAction}</td></tr>`;
-    });
-}
-
-async function openAdminModal(id) {
-    const { data } = await db.from('leads').select('*').eq('id', id).single();
-    if(!data) return;
-
-    const content = document.getElementById('admin-modal-body');
-    let proofImg = data.payment_proof_url ? `<a href="${data.payment_proof_url}" target="_blank"><img src="${data.payment_proof_url}" class="h-32 object-contain border rounded mt-2 cursor-zoom-in"></a>` : 'No proof';
-
-    content.innerHTML = `
-        <div class="grid grid-cols-2 gap-2 text-sm mb-4 bg-gray-50 p-3 rounded">
-            <div><span class="text-xs text-gray-400">Child</span><br><b>${data.child_name}</b></div>
-            <div><span class="text-xs text-gray-400">Package</span><br><b>${data.selected_package || '-'}</b></div>
-            <div><span class="text-xs text-gray-400">Price</span><br><b>₹${data.package_price || '-'}</b></div>
-            <div><span class="text-xs text-gray-400">Start Date</span><br><b>${data.start_date || '-'}</b></div>
-        </div>
-        <div class="mb-4 text-center">
-            <label class="text-xs font-bold uppercase block mb-1">Payment Proof</label>
-            ${proofImg}
-        </div>
-        <button onclick="adminApprove('${data.id}')" class="w-full bg-green-600 text-white font-bold py-2 rounded mb-2 shadow hover:bg-green-700">Approve & Enroll</button>
-    `;
-    document.getElementById('admin-modal').classList.remove('hidden');
-}
-
-async function adminApprove(id) {
-    if(!confirm("Confirm Payment Verified?")) return;
-    const { error } = await db.from('leads').update({ status: 'Enrolled', payment_status: 'Paid' }).eq('id', id);
-    if(error) alert("Error");
-    else { showToast("Student Enrolled!"); document.getElementById('admin-modal').classList.add('hidden'); loadAdminDashboard(); }
-}
-
-// --- SHARED ---
-function showPage(id) {
-    document.querySelectorAll('#landing, #parent-portal, #trainer, #admin').forEach(el => el.classList.add('hide'));
-    document.getElementById(id).classList.remove('hide');
-    document.getElementById(id).classList.add('fade-in');
-}
-function scrollToSection(id) { document.getElementById(id).scrollIntoView({behavior:'smooth'}); }
-function loadView(role) {
-    if(role === 'admin') { showPage('admin'); loadAdminDashboard(); }
-    else if(role === 'parent') { showPage('parent-portal'); loadParentData(currentUser.email); }
-}
+            `<button onclick="openAdminModal(${l.id})" class="text-white bg-blue-600 px-3 py-1 rounded text-xs font-bold
