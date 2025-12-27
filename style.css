@@ -42,50 +42,14 @@ body { font-family: 'Nunito', sans-serif; }
 .stat-value { font-size: 24px; font-weight: 800; color: #1E293B; }
 .stat-label { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; }
 
-/* PACKAGE SELECTION */
-.package-card {
-    border: 2px solid #E2E8F0; border-radius: 12px; padding: 12px;
-    margin-bottom: 8px; cursor: pointer; transition: all 0.2s;
-}
-.package-card:hover { border-color: #3B82F6; background: #EFF6FF; }
-.package-card.selected { border-color: #2563EB; background: #EFF6FF; ring: 2px solid #2563EB; }
-
-/* SLOT INFO BOX */
-.slot-info {
-    background: #F8FAFC; border-left: 4px solid #3B82F6;
-    padding: 10px; font-size: 12px; color: #475569; margin-bottom: 15px;
-}
-
-/* PAYMENT QR */
-.qr-container {
-    background: #FFF; border: 2px dashed #CBD5E1; border-radius: 12px;
-    padding: 20px; text-align: center; margin-bottom: 15px;
-}
-
-/* DUAL QR GRID */
-.qr-grid {
-    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px;
-}
-.qr-box {
-    border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; text-align: center;
-    background: #F8FAFC;
-}
+/* V13 COMMERCE STYLES */
+.qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
+.qr-box { border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; text-align: center; background: #F8FAFC; }
 .qr-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; margin-bottom: 5px; }
 
-/* FILE UPLOAD */
-.file-upload-box {
-    border: 2px dashed #CBD5E1; padding: 15px; text-align: center; border-radius: 8px;
-    cursor: pointer; transition: 0.2s; color: #64748B; font-size: 12px;
-}
-.file-upload-box:hover { border-color: #3B82F6; color: #3B82F6; background: #EFF6FF; }
-
-/* REVIEW SECTION */
-.review-box {
-    background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 15px;
-}
-.review-header {
-    padding: 10px; background: #F1F5F9; font-weight: bold; font-size: 12px; 
-    display: flex; justify-content: space-between; cursor: pointer;
-}
+.review-box { background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
+.review-header { padding: 10px; background: #F1F5F9; font-weight: bold; font-size: 12px; display: flex; justify-content: space-between; cursor: pointer; color: #475569; }
 .review-body { padding: 15px; display: none; }
 .review-body.open { display: block; }
+
+.slot-info { background: #F0F9FF; border-left: 4px solid #3B82F6; padding: 10px; font-size: 12px; color: #0369A1; margin-bottom: 15px; line-height: 1.5; }
