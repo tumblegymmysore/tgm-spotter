@@ -2,17 +2,9 @@
 const SUPABASE_URL = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 
-// GYM DATA (From your image)
-const PACKAGES = [
-    { name: "2 Days/Week - 1 Month", price: "3,500" },
-    { name: "2 Days/Week - 3 Months", price: "9,000" },
-    { name: "2 Days/Week - 6 Months", price: "16,000" },
-    { name: "2 Days/Week - 12 Months", price: "25,000" },
-    { name: "Unlimited - 1 Month", price: "5,500" },
-    { name: "Unlimited - 3 Months", price: "15,000" },
-    { name: "Unlimited - 6 Months", price: "25,000" },
-    { name: "Unlimited - 12 Months", price: "35,000" }
-];
+// V13 PRICING DATA
+const REGISTRATION_FEE = 2000;
+const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
 
 let db = null;
 let currentUser = null;
@@ -22,7 +14,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = supabase; 
     db = createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log("DB Ready");
-
+    
     const { data: { session } } = await db.auth.getSession();
     if(session) handleSessionSuccess(session.user);
 });
@@ -33,7 +25,6 @@ function getAge(dob) {
     const diff = Date.now() - new Date(dob).getTime();
     return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 }
-
 function calculateAgeDisplay() {
     const dob = document.getElementById('dob').value;
     if(dob) {
@@ -41,14 +32,17 @@ function calculateAgeDisplay() {
         document.getElementById('age-display').classList.remove('hidden');
     }
 }
-
+function checkOther(el, targetId) {
+    const target = document.getElementById(targetId);
+    if(el.value.includes('Other')) target.classList.remove('hidden'); else target.classList.add('hidden');
+}
 function showToast(msg) {
     const t = document.getElementById('toast');
-    t.innerHTML = `<i class="fas fa-info-circle mr-2"></i> ${msg}`;
+    t.innerHTML = `<i class="fas fa-check-circle mr-2"></i> ${msg}`;
     t.className = "show"; setTimeout(() => t.className = "", 3000);
 }
 
-// --- AUTHENTICATION ---
+// --- AUTH ---
 async function handleLogin() {
     const email = document.getElementById('login-email').value;
     const pass = document.getElementById('login-password').value;
@@ -57,74 +51,76 @@ async function handleLogin() {
     else { document.getElementById('login-modal').classList.add('hidden'); handleSessionSuccess(data.user); }
 }
 
+async function handleMagicLink() {
+    const email = document.getElementById('login-email').value;
+    if(!email) { alert("Enter email first"); return; }
+    const { error } = await db.auth.signInWithOtp({ email: email });
+    if (error) alert("Error: " + error.message);
+    else alert("✅ Link Sent! Check your email.");
+}
+
 async function handleSessionSuccess(user) {
     currentUser = user;
     document.getElementById('nav-public').classList.add('hidden');
     document.getElementById('nav-private').classList.remove('hidden');
 
-    // GET ROLE AND REAL NAME
     const { data } = await db.from('user_roles').select('*').eq('id', user.id).single();
     const role = data ? data.role : 'parent';
-    currentUserName = data && data.full_name ? data.full_name : user.email.split('@')[0]; // Fallback to email prefix
+    if(data && data.full_name) currentUserName = data.full_name;
 
+    const switcher = document.getElementById('role-switcher');
+    if(role === 'admin') {
+        switcher.innerHTML = `<option value="admin">Admin</option><option value="parent">Parent View</option>`;
+        switcher.classList.remove('hidden');
+        loadAdminDashboard();
+    } else if(role === 'trainer') {
+        loadTrainerDashboard();
+    } else {
+        loadParentData(user.email);
+    }
     document.getElementById('user-role-badge').innerText = role.toUpperCase();
-
-    if(role === 'admin') { showPage('admin'); loadAdminDashboard(); }
-    else if(role === 'trainer') { showPage('trainer'); loadTrainerDashboard(); }
-    else { showPage('parent-portal'); loadParentData(user.email); }
+    showPage(role === 'parent' ? 'parent-portal' : role);
 }
 
-async function handleLogout() {
-    await db.auth.signOut();
-    window.location.reload();
-}
+async function handleLogout() { await db.auth.signOut(); window.location.reload(); }
 
-// --- PUBLIC INTAKE ---
+// --- INTAKE ---
 async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
     btn.innerText = "Processing..."; btn.disabled = true;
 
-    // Data Gathering
     const email = document.getElementById('email').value;
     const phone = document.getElementById('phone').value;
     
-    // ... (Existing Logic for Intent/Source) ...
     let intentVal = document.getElementById('intent').value;
     if(intentVal.includes('Other')) intentVal = document.getElementById('intent_other').value;
     let sourceVal = document.getElementById('source').value;
     if(sourceVal.includes('Other')) sourceVal = document.getElementById('source_other').value;
 
     const formData = {
-        parent_name: document.getElementById('p_name').value,
-        child_name: document.getElementById('k_name').value,
-        phone: phone, email: email,
-        address: document.getElementById('address').value,
-        dob: document.getElementById('dob').value,
-        gender: document.getElementById('gender').value,
-        intent: intentVal, medical_info: document.getElementById('medical').value,
-        how_heard: sourceVal, is_trial: true, status: 'Pending Trial',
-        age_group: 'Pending Assessment'
+        parent_name: document.getElementById('p_name').value, child_name: document.getElementById('k_name').value,
+        phone: phone, email: email, address: document.getElementById('address').value,
+        dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
+        intent: intentVal, medical_info: document.getElementById('medical').value, how_heard: sourceVal, 
+        is_trial: true, status: 'Pending Trial', age_group: 'Pending Assessment'
     };
 
     try {
         const { data: authData } = await db.auth.signUp({ email: email, password: phone });
         if(authData.user) {
             const { data: roleData } = await db.from('user_roles').select('*').eq('id', authData.user.id);
-            if(!roleData || roleData.length === 0) {
-                await db.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
-            }
+            if(!roleData || roleData.length === 0) await db.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
         }
         const { error } = await db.from('leads').insert([formData]);
         if (error) throw error;
-
-        alert("✅ Trial Request Sent! Login with Email & Phone.");
+        alert("✅ Request Sent! Check email for details.");
         window.location.reload();
     } catch (err) { alert("Error: " + err.message); } 
     finally { btn.disabled = false; }
 }
 
-// --- TRAINER LOGIC ---
+// --- TRAINER ---
 let currentTrialId = null;
 
 async function loadTrainerDashboard() {
@@ -158,16 +154,12 @@ async function loadTrainerDashboard() {
 
 function openTrialModal(id, name, age, status, feedback, batch) {
     currentTrialId = id;
-    document.getElementById('modal-child-name').innerText = name;
+    document.getElementById('modal-child-name').innerText = `${name} (${age} Yrs)`;
     document.getElementById('trainer-feedback').value = feedback;
     
-    // Auto-calculate batch if not set
     let rec = batch;
     if(!rec) {
-        if(age < 5) rec = '3-5 Yrs';
-        else if(age < 8) rec = '5-8 Yrs';
-        else if(age < 18) rec = '8+ Yrs';
-        else rec = 'Adult';
+        if(age < 5) rec = '3-5 Yrs'; else if(age < 8) rec = '5-8 Yrs'; else if(age < 18) rec = '8+ Yrs'; else rec = 'Adult';
     }
     document.getElementById('trainer-batch').value = rec;
     
@@ -180,7 +172,6 @@ async function submitTrialResult() {
     const feedback = document.getElementById('trainer-feedback').value;
     const batch = document.getElementById('trainer-batch').value;
     
-    // USE GLOBAL currentUserName (Coach Pradeep)
     if(!feedback) { alert("Feedback required"); return; }
 
     const { error } = await db.from('leads').update({
@@ -189,19 +180,12 @@ async function submitTrialResult() {
         trainer_name: currentUserName, age_group: batch 
     }).eq('id', currentTrialId);
 
-    if(error) alert("Error"); 
+    if(error) alert("Error: " + error.message); 
     else { showToast("Saved"); document.getElementById('trial-modal').classList.add('hidden'); loadTrainerDashboard(); }
 }
 
-// --- PARENT PORTAL & REGISTRATION ---
+// --- COMMERCE & REGISTRATION ---
 let currentRegistrationId = null;
-let currentStudentData = null; // Store for review
-
-// PRICING CONSTANTS
-const REGISTRATION_FEE = 2000;
-const SPECIAL_RATES = {
-    "Beginner": 700, "Intermediate": 850, "Advanced": 1000
-};
 
 async function loadParentData(email) {
     const content = document.getElementById('parent-content');
@@ -216,11 +200,10 @@ async function loadParentData(email) {
             actionArea = `
                 <div class="bg-blue-50 p-4 rounded mt-2 border border-blue-100">
                     <p class="font-bold text-blue-900 text-sm mb-2">🎉 Trial Successful!</p>
-                    <p class="text-xs text-slate-600 mb-2"><strong>${child.trainer_name}</strong> recommends: <strong>${child.recommended_batch}</strong></p>
+                    <p class="text-xs text-slate-600 mb-2">Coach <strong>${child.trainer_name || 'Staff'}</strong> recommends: <strong>${child.recommended_batch}</strong></p>
                     <button onclick="openRegistrationModal(${child.id})" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Register Now</button>
                 </div>`;
         } else if (child.status === 'Enrolled') {
-            // RENEWAL BUTTON
             actionArea = `
                 <div class="mt-2 bg-green-50 p-2 rounded text-green-800 text-xs text-center font-bold mb-2">✅ Active Student</div>
                 <button onclick="openRegistrationModal(${child.id}, true)" class="w-full bg-white border border-green-600 text-green-700 font-bold py-1 rounded text-xs">Renew Membership</button>
@@ -229,134 +212,92 @@ async function loadParentData(email) {
             actionArea = `<div class="mt-2 bg-yellow-50 p-2 rounded text-yellow-800 text-xs text-center font-bold">⏳ Verification Pending</div>`;
         }
 
-        html += `
-        <div class="mb-4 border-b pb-4">
-            <h3 class="font-bold text-xl">${child.child_name}</h3>
-            <p class="text-sm">Status: <span class="font-bold text-blue-600">${child.status}</span></p>
-            ${actionArea}
-        </div>`;
+        html += `<div class="mb-4 border-b pb-4"><h3 class="font-bold text-xl">${child.child_name}</h3><p class="text-sm">Status: <span class="font-bold text-blue-600">${child.status}</span></p>${actionArea}</div>`;
     });
     content.innerHTML = html;
 }
 
 async function openRegistrationModal(id, isRenewal = false) {
     currentRegistrationId = id;
-    
-    // Fetch fresh data for the form
     const { data } = await db.from('leads').select('*').eq('id', id).single();
-    currentStudentData = data;
-
     document.getElementById('reg-child-name').innerText = data.child_name;
-    document.getElementById('is-renewal').value = isRenewal; // Hidden flag
+    document.getElementById('is-renewal').value = isRenewal;
 
-    // 1. POPULATE REVIEW FIELDS
     document.getElementById('edit-name').value = data.child_name;
     document.getElementById('edit-phone').value = data.phone;
     document.getElementById('edit-email').value = data.email;
     
-    // 2. SHOW/HIDE REGISTRATION FEE WARNING
-    const feeRow = document.getElementById('reg-fee-row');
     if(isRenewal) {
-        feeRow.classList.add('hidden'); // Hide for renewals
+        document.getElementById('reg-fee-row').classList.add('hidden');
         document.getElementById('reg-fee-display').innerText = "0";
     } else {
-        feeRow.classList.remove('hidden'); // Show for new
+        document.getElementById('reg-fee-row').classList.remove('hidden');
         document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
     }
 
-    // 3. SHOW AGE-BASED SLOTS
     const age = getAge(data.dob);
-    let slotsHtml = "<strong>Available Slots:</strong><br>";
-    if(age <= 5) slotsHtml += "• Weekdays: 4-5 PM | Weekends: 11 AM";
-    else if(age <= 8) slotsHtml += "• Weekdays: 5-6 PM | Sat: 3 PM, Sun: 10 AM";
-    else slotsHtml += "• Weekdays: 6-7 PM | Sat: 4 PM, Sun: 12 PM";
-    document.getElementById('reg-slots-info').innerHTML = slotsHtml;
+    let slots = "<strong>Available Slots:</strong><br>";
+    if(age <= 5) slots += "• Tue-Fri: 4-5 PM<br>• Weekends: 11 AM";
+    else if(age <= 8) slots += "• Tue-Fri: 5-6 PM<br>• Sat: 3 PM, Sun: 10 AM";
+    else slots += "• Tue-Fri: 6-7 PM<br>• Sat: 4 PM, Sun: 12 PM";
+    document.getElementById('reg-slots-info').innerHTML = slots;
 
-    // 4. RESET FORM
     document.getElementById('reg-package').value = "";
     document.getElementById('training-level-group').classList.add('hidden');
     document.getElementById('total-price').innerText = "0";
     document.getElementById('reg-modal').classList.remove('hidden');
 }
 
-function toggleReview() {
-    document.getElementById('review-body').classList.toggle('open');
-}
-
 function handlePackageChange() {
     const pkg = document.getElementById('reg-package').value;
-    const levelGroup = document.getElementById('training-level-group');
-    
-    // Show/Hide Level Selector if "Special/Professional" is chosen
-    // (Assuming user selects "Special Training" option from dropdown)
-    if(pkg === 'Special') {
-        levelGroup.classList.remove('hidden');
-        calculateTotal();
-    } else {
-        levelGroup.classList.add('hidden');
-        calculateTotal();
-    }
+    if(pkg === 'Special') document.getElementById('training-level-group').classList.remove('hidden');
+    else document.getElementById('training-level-group').classList.add('hidden');
+    calculateTotal();
 }
 
 function calculateTotal() {
     const pkgVal = document.getElementById('reg-package').value;
     const isRenewal = document.getElementById('is-renewal').value === 'true';
-    let basePrice = 0;
+    let base = 0;
 
-    // 1. Get Base Price
     if (pkgVal === 'Special') {
-        const level = document.getElementById('reg-level').value;
-        basePrice = SPECIAL_RATES[level] || 0; 
-        // Note: Special rates usually per class? Assuming monthly for logic, or user manually enters quantity? 
-        // For simplicity V1, we treat it as "Base Fee".
+        base = SPECIAL_RATES[document.getElementById('reg-level').value] || 0;
     } else if (pkgVal) {
-        basePrice = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
+        base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
     }
 
-    // 2. Add Registration Fee (if not renewal)
-    let total = basePrice;
-    if (!isRenewal && basePrice > 0) total += REGISTRATION_FEE;
-
+    let total = base;
+    if (!isRenewal && base > 0) total += REGISTRATION_FEE;
     document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
 }
+
+function toggleReview() { document.getElementById('review-body').classList.toggle('open'); }
 
 async function submitRegistration() {
     const pkgVal = document.getElementById('reg-package').value;
     const total = document.getElementById('total-price').innerText;
     const fileInput = document.getElementById('payment-proof');
-    const isRenewal = document.getElementById('is-renewal').value === 'true';
+    
+    if(!pkgVal || total === "0") { alert("Select Package"); return; }
+    if(fileInput.files.length === 0) { alert("Upload Payment Screenshot"); return; }
 
-    if(!pkgVal || total === "0") { alert("Please select a package."); return; }
-    if(fileInput.files.length === 0) { alert("Please upload payment screenshot."); return; }
-
-    const btn = document.querySelector('#reg-modal button[onclick="submitRegistration()"]');
+    const btn = document.getElementById('btn-submit-reg');
     btn.innerText = "Uploading..."; btn.disabled = true;
 
     try {
-        // 1. UPLOAD IMAGE
         const file = fileInput.files[0];
-        const fileExt = file.name.split('.').pop();
-        const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
-        const { data: uploadData, error: uploadError } = await db.storage
-            .from('payment-proofs')
-            .upload(fileName, file);
-
+        const fileName = `${Date.now()}_${Math.random()}.${file.name.split('.').pop()}`;
+        const { error: uploadError } = await db.storage.from('payment-proofs').upload(fileName, file);
         if(uploadError) throw uploadError;
-
-        // Get Public URL
+        
         const { data: { publicUrl } } = db.storage.from('payment-proofs').getPublicUrl(fileName);
 
-        // 2. UPDATE PARENT INFO (If changed in Review)
-        const newName = document.getElementById('edit-name').value;
-        const newPhone = document.getElementById('edit-phone').value;
-        
-        // 3. SAVE TO DB
         let pkgName = pkgVal === 'Special' ? `Special - ${document.getElementById('reg-level').value}` : pkgVal.split('|')[0];
-
+        
         const { error } = await db.from('leads').update({
             status: 'Registration Requested',
-            child_name: newName, // Allow updating child name
-            phone: newPhone,     // Allow updating phone
+            child_name: document.getElementById('edit-name').value,
+            phone: document.getElementById('edit-phone').value,
             selected_package: pkgName,
             package_price: total,
             payment_proof_url: publicUrl,
@@ -365,47 +306,75 @@ async function submitRegistration() {
         }).eq('id', currentRegistrationId);
 
         if(error) throw error;
-
-        alert("✅ Request Submitted! Admin will verify payment.");
+        alert("✅ Submitted! Admin will verify.");
         document.getElementById('reg-modal').classList.add('hidden');
         loadParentData(currentUser.email);
 
-    } catch (err) {
-        alert("Error: " + err.message);
-    } finally {
-        btn.innerText = "Submit Request"; btn.disabled = false;
-    }
+    } catch (err) { alert("Error: " + err.message); } 
+    finally { btn.innerText = "Submit Request"; btn.disabled = false; }
+}
+
+// --- ADMIN ---
+async function loadAdminDashboard() {
+    if(!currentUser) return;
+    const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
+    
+    // Stats
+    const total = data.length;
+    const reqs = data.filter(l => l.status === 'Registration Requested').length;
+    document.getElementById('stat-total').innerText = total;
+    document.getElementById('stat-reqs').innerText = reqs;
+
+    const list = document.getElementById('admin-list');
+    list.innerHTML = '';
+    data.forEach(l => {
+        let alert = l.status === 'Registration Requested' ? '<span class="text-red-500 font-bold animate-pulse">!</span>' : '';
+        let btnAction = l.status === 'Registration Requested' ? 
+            `<button onclick="openAdminModal(${l.id})" class="text-blue-600 border border-blue-200 bg-blue-50 px-2 py-1 rounded text-xs font-bold">Verify</button>` : 
+            `<button onclick="openAdminModal(${l.id})" class="text-gray-500 border px-2 py-1 rounded text-xs">View</button>`;
+        
+        list.innerHTML += `<tr class="border-b"><td class="p-3 font-bold">${l.child_name} ${alert}</td><td class="p-3 text-sm">${l.status}</td><td class="p-3">${btnAction}</td></tr>`;
+    });
+}
+
+async function openAdminModal(id) {
+    const { data } = await db.from('leads').select('*').eq('id', id).single();
+    if(!data) return;
+
+    const content = document.getElementById('admin-modal-body');
+    let proofImg = data.payment_proof_url ? `<a href="${data.payment_proof_url}" target="_blank"><img src="${data.payment_proof_url}" class="h-32 object-contain border rounded mt-2"></a>` : 'No proof';
+
+    content.innerHTML = `
+        <div class="grid grid-cols-2 gap-2 text-sm mb-4 bg-gray-50 p-3 rounded">
+            <div><span class="text-xs text-gray-400">Child</span><br><b>${data.child_name}</b></div>
+            <div><span class="text-xs text-gray-400">Package</span><br><b>${data.selected_package}</b></div>
+            <div><span class="text-xs text-gray-400">Price</span><br><b>₹${data.package_price}</b></div>
+            <div><span class="text-xs text-gray-400">Start Date</span><br><b>${data.start_date || '-'}</b></div>
+        </div>
+        <div class="mb-4">
+            <label class="text-xs font-bold uppercase">Payment Proof</label><br>
+            ${proofImg}
+        </div>
+        <button onclick="adminApprove(${data.id})" class="w-full bg-green-600 text-white font-bold py-2 rounded mb-2">Approve & Enroll</button>
+    `;
+    document.getElementById('admin-modal').classList.remove('hidden');
+}
+
+async function adminApprove(id) {
+    if(!confirm("Confirm Payment Verified?")) return;
+    const { error } = await db.from('leads').update({ status: 'Enrolled', payment_status: 'Paid' }).eq('id', id);
+    if(error) alert("Error");
+    else { showToast("Student Enrolled!"); document.getElementById('admin-modal').classList.add('hidden'); loadAdminDashboard(); }
 }
 
 // --- SHARED ---
-function checkOther(el, targetId) {
-    const target = document.getElementById(targetId);
-    if(el.value.includes('Other')) target.classList.remove('hidden'); else target.classList.add('hidden');
-}
 function showPage(id) {
     document.querySelectorAll('#landing, #parent-portal, #trainer, #admin').forEach(el => el.classList.add('hide'));
     document.getElementById(id).classList.remove('hide');
     document.getElementById(id).classList.add('fade-in');
 }
 function scrollToSection(id) { document.getElementById(id).scrollIntoView({behavior:'smooth'}); }
-
-// ADMIN LOGIC (Keep existing fetchLeads/openAdminModal from V11 but add payment UTR display)
-async function loadAdminDashboard() {
-    if(!currentUser) return;
-    const list = document.getElementById('admin-list');
-    list.innerHTML = 'Loading...';
-    const { data } = await db.from('leads').select('*').order('created_at', { ascending: false });
-    
-    list.innerHTML = '';
-    data.forEach(l => {
-        let statusColor = l.status === 'Enrolled' ? 'green' : (l.status === 'Registration Requested' ? 'yellow' : 'gray');
-        let alert = l.status === 'Registration Requested' ? '<span class="text-red-500 font-bold animate-pulse">!</span>' : '';
-        
-        list.innerHTML += `
-        <tr class="border-b hover:bg-slate-50">
-            <td class="p-3 font-bold">${l.child_name} ${alert}</td>
-            <td class="p-3 text-sm">${l.status}</td>
-            <td class="p-3"><button onclick="alert('Manage Feature Coming in V13')" class="text-blue-600 text-xs font-bold border px-2 py-1 rounded">View</button></td>
-        </tr>`;
-    });
+function loadView(role) {
+    if(role === 'admin') { showPage('admin'); loadAdminDashboard(); }
+    else if(role === 'parent') { showPage('parent-portal'); loadParentData(currentUser.email); }
 }
