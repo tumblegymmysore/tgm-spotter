@@ -2,29 +2,27 @@
 const SUPABASE_URL = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 
-// PRICING DATA
+// V13 PRICING CONSTANTS
 const REGISTRATION_FEE = 2000;
 const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
 
-// GLOBAL VARIABLES
+// GLOBAL VARS
 let db = null;
 let currentUser = null;
 let currentUserName = "Staff"; 
 let currentTrialId = null;
 let currentRegistrationId = null;
 
-// --- INITIALIZATION ---
 document.addEventListener('DOMContentLoaded', async () => {
     const { createClient } = supabase; 
     db = createClient(SUPABASE_URL, SUPABASE_KEY);
     console.log("DB Ready");
     
-    // Check Session
     const { data: { session } } = await db.auth.getSession();
     if(session) handleSessionSuccess(session.user);
 });
 
-// --- HELPER FUNCTIONS ---
+// --- HELPERS ---
 function getAge(dob) {
     if(!dob) return 0;
     const diff = Date.now() - new Date(dob).getTime();
@@ -305,4 +303,114 @@ window.loadAdminDashboard = async function() {
     data.forEach(l => {
         let alert = l.status === 'Registration Requested' ? '<span class="text-red-500 font-bold animate-pulse">!</span>' : '';
         let btnAction = l.status === 'Registration Requested' ? 
-            `<button onclick="openAdminModal(${l.id})" class="text-white bg-blue-600 px-3 py-1 rounded text-xs font-bold
+            `<button onclick="openAdminModal(${l.id})" class="text-white bg-blue-600 px-3 py-1 rounded text-xs font-bold hover:bg-blue-700">Verify</button>` : 
+            `<button onclick="openAdminModal(${l.id})" class="text-slate-500 border px-3 py-1 rounded text-xs hover:bg-slate-50">View</button>`;
+        
+        list.innerHTML += `<tr class="border-b hover:bg-slate-50"><td class="p-4 font-bold text-slate-700">${l.child_name} ${alert}</td><td class="p-4 text-sm">${l.parent_name}</td><td class="p-4 text-xs font-bold text-slate-500 uppercase">${l.status}</td><td class="p-4">${btnAction}</td></tr>`;
+    });
+}
+
+window.openAdminModal = async function(id) {
+    const { data } = await db.from('leads').select('*').eq('id', id).single();
+    if(!data) return;
+
+    const content = document.getElementById('admin-modal-body');
+    let proofImg = data.payment_proof_url ? `<a href="${data.payment_proof_url}" target="_blank"><img src="${data.payment_proof_url}" class="h-40 w-full object-cover border rounded mt-2 hover:opacity-90"></a>` : '<div class="text-gray-400 text-xs mt-2">No proof uploaded</div>';
+
+    content.innerHTML = `
+        <div class="grid grid-cols-2 gap-3 text-sm mb-4 bg-slate-50 p-4 rounded-lg border border-slate-100">
+            <div><span class="text-xs font-bold text-slate-400 uppercase">Child</span><br><b>${data.child_name}</b></div>
+            <div><span class="text-xs font-bold text-slate-400 uppercase">Package</span><br><b>${data.selected_package || '-'}</b></div>
+            <div><span class="text-xs font-bold text-slate-400 uppercase">Price</span><br><b>₹${data.package_price || '-'}</b></div>
+            <div><span class="text-xs font-bold text-slate-400 uppercase">Start</span><br><b>${data.start_date || '-'}</b></div>
+        </div>
+        <div class="mb-4">
+            <label class="text-xs font-bold uppercase text-slate-500">Payment Proof</label><br>
+            ${proofImg}
+        </div>
+        ${data.status === 'Registration Requested' ? `<button onclick="adminApprove(${data.id})" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 shadow transition">Approve & Enroll Student</button>` : ''}
+    `;
+    document.getElementById('admin-modal').classList.remove('hidden');
+}
+
+window.adminApprove = async function(id) {
+    if(!confirm("Confirm Payment Verified? This will enroll the student.")) return;
+    const { error } = await db.from('leads').update({ status: 'Enrolled', payment_status: 'Paid' }).eq('id', id);
+    if(error) alert("Error");
+    else { showToast("Student Enrolled!"); document.getElementById('admin-modal').classList.add('hidden'); loadAdminDashboard(); }
+}
+
+// --- UTILITIES ---
+
+async function handleSessionSuccess(user) {
+    currentUser = user;
+    document.getElementById('nav-public').classList.add('hidden');
+    document.getElementById('nav-private').classList.remove('hidden');
+
+    const { data } = await db.from('user_roles').select('*').eq('id', user.id).single();
+    const role = data ? data.role : 'parent';
+    if(data && data.full_name) currentUserName = data.full_name;
+
+    const switcher = document.getElementById('role-switcher');
+    if(role === 'admin') {
+        switcher.innerHTML = `<option value="admin">Admin</option><option value="parent">Parent View</option>`;
+        switcher.classList.remove('hidden');
+        loadAdminDashboard();
+    } else if(role === 'trainer') {
+        loadTrainerDashboard();
+    } else {
+        loadParentData(user.email);
+    }
+    document.getElementById('user-role-badge').innerText = role.toUpperCase();
+    showPage(role === 'parent' ? 'parent-portal' : role);
+}
+
+window.loadView = function(role) {
+    if(role === 'admin') { showPage('admin'); loadAdminDashboard(); }
+    else if(role === 'parent') { showPage('parent-portal'); loadParentData(currentUser.email); }
+}
+
+async function loadParentData(email) {
+    const content = document.getElementById('parent-content');
+    const { data } = await db.from('leads').select('*').eq('email', email);
+    
+    if(!data || data.length === 0) { content.innerHTML = '<p class="text-center p-4 text-slate-500">No student records found.</p>'; return; }
+    
+    let html = '';
+    data.forEach(child => {
+        let actionArea = '';
+        if(child.status === 'Trial Completed') {
+            actionArea = `
+                <div class="bg-blue-50 p-4 rounded-xl mt-4 border border-blue-100">
+                    <p class="font-bold text-blue-900 text-sm mb-2"><i class="fas fa-check-circle mr-1"></i> Trial Successful!</p>
+                    <p class="text-xs text-slate-600 mb-3">Coach <strong>${child.trainer_name || 'Staff'}</strong> recommends: <span class="bg-white px-2 py-1 rounded border border-slate-200 font-bold">${child.recommended_batch}</span></p>
+                    <button onclick="openRegistrationModal(${child.id})" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg text-sm hover:bg-blue-700 shadow transition">Register Now</button>
+                </div>`;
+        } else if (child.status === 'Enrolled') {
+            actionArea = `
+                <div class="mt-4 bg-green-50 p-3 rounded-lg text-green-800 text-sm text-center font-bold border border-green-200">✅ Active Student</div>
+                <button onclick="openRegistrationModal(${child.id}, true)" class="w-full mt-2 bg-white border border-green-600 text-green-700 font-bold py-2 rounded-lg text-xs hover:bg-green-50">Renew Membership</button>
+            `;
+        } else if (child.status === 'Registration Requested') {
+            actionArea = `<div class="mt-4 bg-yellow-50 p-3 rounded-lg text-yellow-800 text-sm text-center font-bold border border-yellow-200">⏳ Verification Pending</div>`;
+        } else {
+            actionArea = `<div class="mt-4 text-center text-xs text-slate-400 italic">Pending Trial Completion</div>`;
+        }
+
+        html += `
+        <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+            <h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3>
+            <p class="text-sm text-slate-500">Status: <span class="font-bold text-blue-600">${child.status}</span></p>
+            ${actionArea}
+        </div>`;
+    });
+    content.innerHTML = html;
+}
+
+function showPage(id) {
+    document.querySelectorAll('#landing, #parent-portal, #trainer, #admin').forEach(el => el.classList.add('hide'));
+    document.getElementById(id).classList.remove('hide');
+    document.getElementById(id).classList.add('fade-in');
+}
+
+window.scrollToSection = function(id) { document.getElementById(id).scrollIntoView({behavior:'smooth'}); }
