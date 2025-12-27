@@ -131,11 +131,27 @@
 
     <div id="login-modal" class="modal-overlay hidden">
         <div class="modal-content text-center">
-            <h3 class="text-xl font-bold text-slate-800 mb-4">Login</h3>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Welcome Back</h3>
+            <p class="text-xs text-slate-500 mb-4">Login with Email & Password (Phone Number)<br>OR get a login link via email.</p>
+            
             <input type="email" id="login-email" class="input-field mb-3" placeholder="Email Address">
-            <input type="password" id="login-password" class="input-field mb-4" placeholder="Password">
-            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700">Login</button>
-            <p onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-4 cursor-pointer">Cancel</p>
+            <input type="password" id="login-password" class="input-field mb-4" placeholder="Password (Default: Phone #)">
+            
+            <button onclick="handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 mb-3">
+                Login with Password
+            </button>
+            
+            <div class="relative flex py-2 items-center">
+                <div class="flex-grow border-t border-slate-200"></div>
+                <span class="flex-shrink-0 mx-4 text-gray-400 text-xs">OR</span>
+                <div class="flex-grow border-t border-slate-200"></div>
+            </div>
+
+            <button onclick="handleMagicLink()" class="w-full bg-slate-100 text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-200 border border-slate-200">
+                <i class="fas fa-magic mr-2"></i> Email me a Login Link
+            </button>
+
+            <p onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-4 cursor-pointer hover:underline">Cancel</p>
         </div>
     </div>
 
