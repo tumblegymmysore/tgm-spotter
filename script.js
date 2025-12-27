@@ -47,6 +47,25 @@ async function handleLogin() {
     else { document.getElementById('login-modal').classList.add('hidden'); handleSessionSuccess(data.user); }
 }
 
+async function handleMagicLink() {
+    const email = document.getElementById('login-email').value;
+    if(!email) { alert("Please enter your email address first."); return; }
+
+    const btn = event.target; // Get the button clicked
+    const originalText = btn.innerText;
+    btn.innerText = "Sending..."; btn.disabled = true;
+
+    const { data, error } = await db.auth.signInWithOtp({ email: email });
+
+    if (error) {
+        alert("Error: " + error.message);
+    } else {
+        alert("✅ Magic Link Sent!\n\nCheck your email inbox. Click the link to login instantly without a password.");
+        document.getElementById('login-modal').classList.add('hidden');
+    }
+    btn.innerText = originalText; btn.disabled = false;
+}
+
 async function handleSessionSuccess(user) {
     currentUser = user;
     document.getElementById('nav-public').classList.add('hidden');
