@@ -8,7 +8,7 @@ body { font-family: 'Nunito', sans-serif; }
 .hero-gradient { background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%); }
 .card-shadow { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
 
-/* Toast */
+/* Toast Notification */
 #toast {
     visibility: hidden; min-width: 250px; background-color: #10B981; color: #fff;
     text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100;
@@ -20,21 +20,21 @@ body { font-family: 'Nunito', sans-serif; }
 .input-field { width: 100%; padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 600; outline: none; transition: 0.2s; }
 .input-field:focus { background: #fff; border-color: #3B82F6; }
 
-/* Terms Box */
-.terms-box { height: 150px; overflow-y: scroll; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; font-size: 11px; color: #64748B; line-height: 1.5; margin-bottom: 12px; }
-.checkbox-wrapper { display: flex; align-items: start; gap: 10px; margin-bottom: 8px; }
+/* Terms Box (Restored Height) */
+.terms-box { height: 180px; overflow-y: scroll; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; font-size: 11px; color: #64748B; line-height: 1.6; margin-bottom: 12px; text-align: justify; }
+.checkbox-wrapper { display: flex; align-items: start; gap: 10px; margin-bottom: 10px; }
 .checkbox-text { font-size: 12px; color: #475569; line-height: 1.4; }
 
-/* Modals */
+/* Modals (Improved Alignment) */
 .modal-overlay {
     position: fixed; top: 0; left: 0; width: 100%; height: 100%;
-    background: rgba(0,0,0,0.5); z-index: 50; display: flex;
+    background: rgba(0,0,0,0.6); z-index: 50; display: flex;
     justify-content: center; align-items: center; backdrop-filter: blur(4px);
 }
 .modal-content {
-    background: white; padding: 24px; border-radius: 16px;
-    width: 95%; max-width: 500px; box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
-    max-height: 90vh; overflow-y: auto;
+    background: white; padding: 30px; border-radius: 20px;
+    width: 90%; max-width: 500px; box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    max-height: 90vh; overflow-y: auto; position: relative;
 }
 
 /* Dashboard Stats */
@@ -42,14 +42,14 @@ body { font-family: 'Nunito', sans-serif; }
 .stat-value { font-size: 24px; font-weight: 800; color: #1E293B; }
 .stat-label { font-size: 12px; font-weight: 700; color: #64748B; text-transform: uppercase; }
 
-/* V13 COMMERCE STYLES */
-.qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 15px; }
-.qr-box { border: 1px solid #E2E8F0; padding: 10px; border-radius: 8px; text-align: center; background: #F8FAFC; }
-.qr-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; margin-bottom: 5px; }
+/* V13 Commerce Elements */
+.qr-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px; }
+.qr-box { border: 1px solid #E2E8F0; padding: 15px; border-radius: 12px; text-align: center; background: #F8FAFC; }
+.qr-label { font-size: 10px; font-weight: 800; color: #64748B; text-transform: uppercase; margin-bottom: 8px; }
 
-.review-box { background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 15px; overflow: hidden; }
-.review-header { padding: 10px; background: #F1F5F9; font-weight: bold; font-size: 12px; display: flex; justify-content: space-between; cursor: pointer; color: #475569; }
-.review-body { padding: 15px; display: none; }
+.review-box { background: #FFF; border: 1px solid #E2E8F0; border-radius: 8px; margin-bottom: 20px; overflow: hidden; }
+.review-header { padding: 12px 15px; background: #F8FAFC; font-weight: bold; font-size: 13px; display: flex; justify-content: space-between; align-items: center; cursor: pointer; color: #475569; border-bottom: 1px solid #E2E8F0; }
+.review-body { padding: 20px; display: none; }
 .review-body.open { display: block; }
 
-.slot-info { background: #F0F9FF; border-left: 4px solid #3B82F6; padding: 10px; font-size: 12px; color: #0369A1; margin-bottom: 15px; line-height: 1.5; }
+.slot-info { background: #EFF6FF; border-left: 4px solid #3B82F6; padding: 12px; font-size: 13px; color: #1E40AF; margin-bottom: 20px; line-height: 1.6; border-radius: 0 8px 8px 0; }
