@@ -152,11 +152,12 @@ async function loadTrainerDashboard() {
     const list = document.getElementById('trial-list');
     list.innerHTML = 'Loading...';
     
-    // Logic: Pending OR Completed within 24 hours
     const yesterday = new Date(new Date().getTime() - (24 * 60 * 60 * 1000)).toISOString();
-    const { data } = await db.from('leads').select('*')
+    const { data, error } = await db.from('leads').select('*')
         .or(`status.eq.Pending Trial,and(status.eq.Trial Completed,trial_completed_at.gt.${yesterday})`)
         .order('created_at', {ascending: true});
+
+    if(error) { console.error(error); list.innerHTML = 'Error loading data.'; return; }
 
     list.innerHTML = '';
     if(!data || data.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 p-4">No active trials</div>'; return; }
@@ -172,33 +173,31 @@ async function loadTrainerDashboard() {
                 <div class="text-xs text-slate-500">${l.intent}</div>
                 <div class="mt-1">${badge}</div>
             </div>
-            <button onclick="openTrialModal(${l.id}, '${l.child_name}', '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}', '${l.trainer_name||''}')" 
+            <button onclick="openTrialModal(${l.id}, '${l.child_name}', '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
                 class="bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold">Assess</button>
         </div>`;
     });
 }
 
-function openTrialModal(id, name, status, feedback, batch, trainer) {
+function openTrialModal(id, name, status, feedback, batch) {
     currentTrialId = id;
     document.getElementById('modal-child-name').innerText = name;
     document.getElementById('trainer-feedback').value = feedback;
     document.getElementById('trainer-batch').value = batch || '3-5 Yrs';
-    document.getElementById('trainer-name').value = trainer;
     
-    // View Only Check
     const isReadOnly = status === 'Trial Completed';
     document.getElementById('btn-save-trial').classList.toggle('hidden', isReadOnly);
     document.getElementById('btn-edit-trial').classList.toggle('hidden', !isReadOnly);
     
-    // Disable fields if read only
-    const fields = ['trainer-feedback', 'trainer-batch', 'trainer-name'];
-    fields.forEach(f => document.getElementById(f).disabled = isReadOnly);
+    document.getElementById('trainer-feedback').disabled = isReadOnly;
+    document.getElementById('trainer-batch').disabled = isReadOnly;
 
     document.getElementById('trial-modal').classList.remove('hidden');
 }
 
 function enableTrialEdit() {
-    ['trainer-feedback', 'trainer-batch', 'trainer-name'].forEach(f => document.getElementById(f).disabled = false);
+    document.getElementById('trainer-feedback').disabled = false;
+    document.getElementById('trainer-batch').disabled = false;
     document.getElementById('btn-save-trial').classList.remove('hidden');
     document.getElementById('btn-edit-trial').classList.add('hidden');
 }
@@ -206,17 +205,28 @@ function enableTrialEdit() {
 async function submitTrialResult() {
     const feedback = document.getElementById('trainer-feedback').value;
     const batch = document.getElementById('trainer-batch').value;
-    const name = document.getElementById('trainer-name').value;
-    if(!feedback || !name) { alert("Feedback & Name required"); return; }
+    
+    // AUTO-DETECT TRAINER NAME FROM LOGIN
+    const trainerName = currentUser.email; 
+    
+    if(!feedback) { alert("Feedback required"); return; }
 
     const { error } = await db.from('leads').update({
-        status: 'Trial Completed', trial_completed_at: new Date(),
-        trainer_feedback: feedback, recommended_batch: batch,
-        trainer_name: name, age_group: batch 
+        status: 'Trial Completed', 
+        trial_completed_at: new Date(),
+        trainer_feedback: feedback, 
+        recommended_batch: batch,
+        trainer_name: trainerName, 
+        age_group: batch 
     }).eq('id', currentTrialId);
 
-    if(error) alert("Error"); 
-    else { showToast("Assessment Saved"); document.getElementById('trial-modal').classList.add('hidden'); loadTrainerDashboard(); }
+    if(error) {
+        alert("System Error: " + error.message); // Now gives specific error details
+    } else { 
+        showToast("Assessment Saved!"); 
+        document.getElementById('trial-modal').classList.add('hidden'); 
+        loadTrainerDashboard(); 
+    }
 }
 
 // --- PARENT PORTAL (Updated Flow) ---
