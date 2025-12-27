@@ -4,227 +4,118 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Spotter | TGM</title>
-    
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-slate-50 text-slate-800">
 
     <div id="toast"><i class="fas fa-check-circle mr-2"></i> System Ready</div>
 
-    <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200 fixed w-full z-50 transition-all">
-        <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
-            <div class="flex items-center cursor-pointer" onclick="window.location.reload()">
-                <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain" onerror="this.style.display='none'; document.getElementById('backup-logo').style.display='flex';">
-                <div id="backup-logo" style="display:none;" class="flex items-center gap-2">
-                     <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">S</div>
-                     <span class="font-bold text-xl text-blue-900">Spotter</span>
-                </div>
+    <div id="auth-container">
+        <div class="auth-box">
+            <img src="logo.png" alt="TGM" class="h-16 mx-auto mb-4 object-contain">
+            <h2 class="text-2xl font-bold text-slate-800 mb-6">Welcome Back</h2>
+            
+            <div class="flex mb-6">
+                <div id="tab-login" class="auth-tab active" onclick="switchAuth('login')">Login</div>
+                <div id="tab-signup" class="auth-tab" onclick="switchAuth('signup')">Parent Signup</div>
             </div>
-            <div class="flex space-x-2">
-                <button onclick="showPage('parent-portal')" class="px-3 py-1 rounded text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100">My Child</button>
-                <button onclick="loginAs('trainer')" class="px-3 py-1 rounded text-xs font-bold text-slate-500 border hover:bg-slate-50">Trainer</button>
-                <button onclick="loginAs('admin')" class="px-3 py-1 rounded text-xs font-bold text-white bg-slate-800 hover:bg-black">Admin</button>
-            </div>
-        </div>
-    </nav>
 
-    <div id="landing" class="pt-16 fade-in">
-        <header class="hero-gradient text-white text-center py-20 px-4 rounded-b-[3rem] relative">
-            <div class="max-w-3xl mx-auto">
-                <h1 class="text-4xl md:text-5xl font-extrabold mb-4">Jump Start Your Journey</h1>
-                <p class="text-blue-100 text-lg mb-6">Register for classes or book a free trial today.</p>
-                <button onclick="scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">
-                    Start Here
-                </button>
-            </div>
-        </header>
+            <form id="login-form" onsubmit="handleLogin(event)" class="space-y-4">
+                <input type="email" id="login-email" class="input-field" placeholder="Email Address" required>
+                <input type="password" id="login-password" class="input-field" placeholder="Password" required>
+                <button type="submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700 shadow-lg">Login</button>
+                <p onclick="resetPassword()" class="text-xs text-blue-500 cursor-pointer hover:underline mt-2">Forgot Password?</p>
+            </form>
 
-        <section id="intake-form" class="max-w-4xl mx-auto mt-12 mb-24 px-4">
-             <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-                <div class="text-center mb-8">
-                    <h2 class="text-2xl font-bold text-slate-800">Student Enrollment</h2>
-                    <p class="text-slate-500 text-sm">All fields marked with * are mandatory.</p>
-                </div>
-
-                <form onsubmit="handleIntakeSubmit(event)" class="space-y-8">
-                    
-                    <div class="flex justify-center mb-6">
-                        <div class="bg-slate-100 p-1 rounded-xl flex">
-                            <button type="button" id="btn-trial" class="px-6 py-2 rounded-lg font-bold text-sm bg-white shadow text-blue-600 transition" onclick="toggleTrial(true)">Trial Class</button>
-                            <button type="button" id="btn-direct" class="px-6 py-2 rounded-lg font-bold text-sm text-slate-500 transition" onclick="toggleTrial(false)">Direct Admission</button>
-                        </div>
-                        <input type="hidden" id="is_trial" value="true">
-                    </div>
-
-                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                        <h3 class="text-blue-900 font-bold mb-4 flex items-center"><i class="fas fa-child mr-2"></i> Child's Details</h3>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
-                            
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 uppercase">DOB *</label>
-                                <input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required>
-                                <p id="age-display" class="text-xs font-bold text-blue-600 mt-2 hidden">Age: <span id="age-value"></span> Years</p>
-                            </div>
-                            
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 uppercase">Gender *</label>
-                                <select id="gender" class="input-field bg-white" required>
-                                    <option value="" disabled selected>Select Gender</option>
-                                    <option value="Male">Boy</option>
-                                    <option value="Female">Girl</option>
-                                </select>
-                            </div>
-                            
-                            <div>
-                                <label class="text-xs font-bold text-slate-500 uppercase">Intent / Goal *</label>
-                                <select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required>
-                                    <option value="" disabled selected>Select Goal</option>
-                                    <option>Fun & Fitness</option>
-                                    <option>Professional Training</option>
-                                    <option>Weight Loss</option>
-                                    <option value="Other">Other (Please specify)</option>
-                                </select>
-                                <input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Enter specific goal...">
-                            </div>
-                        </div>
-                    </div>
-
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                        <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent / Guardian</h3>
-                        <div class="grid md:grid-cols-2 gap-4">
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Alternate Phone *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
-                        </div>
-                    </div>
-
-                    <div class="grid md:grid-cols-2 gap-4">
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label>
-                            <textarea id="medical" class="input-field" rows="2" placeholder="List allergies/injuries or type 'None'..." required></textarea>
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">How did you hear about us? *</label>
-                            <select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required>
-                                <option value="" disabled selected>Select Source</option>
-                                <option value="Google">Google Search / Maps</option>
-                                <option value="Social">Instagram / Facebook</option>
-                                <option value="Referral">Friend / Family</option>
-                                <option value="Event">Event / Demo</option>
-                                <option value="Other">Other (Please specify)</option>
-                            </select>
-                            <input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Please specify...">
-                        </div>
-                    </div>
-
-                    <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
-                        <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver & Consent</h3>
-                        
-                        <div class="terms-box">
-                            <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program...</p>
-                            <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks...</p>
-                            <p><strong>3. Liability Waiver:</strong> I hereby release and hold harmless The Tumble Gym Mysore, its owners, staff, and instructors...</p>
-                            <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed...</p>
-                            <p><strong>5. Policy Agreement:</strong> I acknowledge that the membership and any associated packages are non-transferable...</p>
-                        </div>
-
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" id="terms_check" required class="mt-1">
-                            <label for="terms_check" class="checkbox-text font-bold">I Agree to the Terms & Conditions above. *</label>
-                        </div>
-                        <div class="checkbox-wrapper">
-                            <input type="checkbox" id="marketing_check" required class="mt-1">
-                            <label for="marketing_check" class="checkbox-text">By checking this box, I authorize The Tumble Gym to contact me via phone or email for feedback... *</label>
-                        </div>
-                    </div>
-
-                    <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white font-bold py-4 rounded-xl hover:bg-blue-700 transition shadow-lg text-lg">Submit Application</button>
-                </form>
-             </div>
-        </section>
-    </div>
-
-    <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto">
-        <div class="text-center mb-8">
-            <h1 class="text-3xl font-bold text-slate-800">My Child</h1>
-            <p class="text-slate-500">Check status & enrollment</p>
-        </div>
-        <div class="bg-white p-6 rounded-2xl shadow-lg mb-6">
-            <label class="text-xs font-bold text-slate-500 uppercase">Registered Phone</label>
-            <div class="flex gap-2 mt-2">
-                <input type="tel" id="parent-search-phone" class="input-field" placeholder="9880...">
-                <button onclick="searchParent()" class="bg-blue-600 text-white px-4 rounded-lg font-bold"><i class="fas fa-search"></i></button>
-            </div>
-        </div>
-        <div id="parent-result" class="hidden bg-white p-6 rounded-2xl shadow-lg border-l-4 border-yellow-500">
-            <h3 class="text-xl font-bold mb-1" id="res-child">Child Name</h3>
-            <p class="text-sm text-slate-500 mb-4">Status: <span id="res-status" class="font-bold text-blue-600">Pending</span></p>
-            <div id="res-batch" class="mb-4 text-xs font-bold bg-slate-100 p-2 rounded text-slate-600 hidden">Batch: <span id="batch-val"></span></div>
-            <div id="action-area"></div>
+            <form id="signup-form" onsubmit="handleSignup(event)" class="space-y-4 hidden">
+                <input type="email" id="signup-email" class="input-field" placeholder="Email Address" required>
+                <input type="password" id="signup-password" class="input-field" placeholder="Create Password" required>
+                <input type="text" id="signup-phone" class="input-field" placeholder="Phone Number" required>
+                <button type="submit" class="w-full bg-rose-600 text-white font-bold py-3 rounded-xl hover:bg-rose-700 shadow-lg">Create Parent Account</button>
+            </form>
+            
+            <div id="auth-message" class="text-xs text-red-500 font-bold mt-4"></div>
         </div>
     </div>
 
-    <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6">
-            <h1 class="text-2xl font-bold text-slate-800">Trial Class Manager</h1>
-            <button onclick="logout()" class="text-xs font-bold text-red-500">Logout</button>
+    <div id="app-content" class="hidden">
+        
+        <nav class="bg-white/95 backdrop-blur-md border-b border-slate-200 fixed w-full z-50 transition-all">
+            <div class="max-w-7xl mx-auto px-4 h-16 flex justify-between items-center">
+                <div class="flex items-center">
+                    <img src="logo.png" alt="TGM" class="h-10 w-auto object-contain">
+                    <span class="font-bold text-xl text-blue-900 ml-2 hidden sm:block">Spotter</span>
+                </div>
+                <div class="flex items-center gap-3">
+                    <span id="user-role-badge" class="text-xs font-bold uppercase bg-slate-100 text-slate-500 px-2 py-1 rounded">Guest</span>
+                    <button onclick="handleLogout()" class="text-xs font-bold text-red-500 border border-red-200 px-3 py-1 rounded hover:bg-red-50">Logout</button>
+                </div>
+            </div>
+        </nav>
+
+        <div id="landing" class="pt-16 fade-in">
+            <header class="hero-gradient text-white text-center py-12 px-4 rounded-b-[3rem]">
+                <h1 class="text-3xl font-bold mb-2">New Student Intake</h1>
+                <p class="text-blue-100">Submit details for Trial or Enrollment</p>
+            </header>
+            <section class="max-w-4xl mx-auto mt-8 mb-24 px-4">
+                <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
+                    <form onsubmit="handleIntakeSubmit(event)" class="space-y-6">
+                        <div class="flex justify-center mb-6">
+                            <div class="bg-slate-100 p-1 rounded-xl flex">
+                                <button type="button" id="btn-trial" class="px-6 py-2 rounded-lg font-bold text-sm bg-white shadow text-blue-600" onclick="toggleTrial(true)">Trial Class</button>
+                                <button type="button" id="btn-direct" class="px-6 py-2 rounded-lg font-bold text-sm text-slate-500" onclick="toggleTrial(false)">Direct Admission</button>
+                            </div>
+                            <input type="hidden" id="is_trial" value="true">
+                        </div>
+                        <div class="grid md:grid-cols-2 gap-4">
+                            <input type="text" id="k_name" class="input-field" placeholder="Child Name *" required>
+                            <input type="text" id="p_name" class="input-field" placeholder="Parent Name *" required>
+                            <input type="tel" id="phone" class="input-field" placeholder="Phone *" required>
+                            <input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required>
+                            <select id="gender" class="input-field bg-white" required><option value="">Gender</option><option>Male</option><option>Female</option></select>
+                            <select id="intent" class="input-field bg-white" required><option value="">Goal</option><option>Fun</option><option>Pro</option></select>
+                        </div>
+                        <p id="age-display" class="text-xs font-bold text-blue-600 hidden">Age: <span id="age-value"></span></p>
+                        <button type="submit" id="btn-submit" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl hover:bg-blue-700">Submit Application</button>
+                    </form>
+                </div>
+            </section>
         </div>
-        <div class="bg-white rounded-2xl shadow overflow-hidden">
-            <div class="p-4 bg-blue-50 border-b border-blue-100 font-bold text-blue-800">Pending Trials</div>
-            <div id="trial-list" class="divide-y divide-slate-100"></div>
+
+        <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto">
+            <div class="text-center mb-8"><h1 class="text-2xl font-bold">My Child</h1></div>
+            <div id="parent-content" class="bg-white p-6 rounded-2xl shadow-lg border-l-4 border-yellow-500">
+                <p class="text-center text-slate-500">Loading your data...</p>
+            </div>
         </div>
+
+        <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto">
+            <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold">Trial Manager</h1><button onclick="loadTrainerDashboard()" class="text-xs bg-slate-100 px-2 py-1 rounded">Refresh</button></div>
+            <div id="trial-list" class="space-y-3"></div>
+        </div>
+
+        <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto">
+            <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold">Admin Overview</h1><button onclick="fetchLeads()" class="text-xs bg-slate-100 px-2 py-1 rounded">Refresh</button></div>
+            <div class="bg-white p-6 rounded-2xl shadow overflow-x-auto">
+                <table class="w-full text-left text-sm"><thead class="bg-slate-50 font-bold"><tr><th class="p-3">Child</th><th class="p-3">Status</th><th class="p-3">Action</th></tr></thead><tbody id="leads-list"></tbody></table>
+            </div>
+        </div>
+
     </div>
 
     <div id="trial-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold text-slate-800 mb-2">Complete Trial Assessment</h3>
-            <p class="text-sm text-slate-500 mb-4">Student: <span id="modal-child-name" class="font-bold text-blue-600"></span></p>
-            
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Assessment / Feedback</label>
-            <textarea id="trainer-feedback" class="input-field mb-4" rows="3" placeholder="Strength, Flexibility, Listening..."></textarea>
-            
-            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Recommended Batch</label>
-            <select id="trainer-batch" class="input-field mb-6">
-                <option value="3-5 Yrs">3-5 Yrs</option>
-                <option value="5-8 Yrs">5-8 Yrs</option>
-                <option value="8+ Yrs">8+ Yrs</option>
-                <option value="Adult">Adult (18+)</option>
-            </select>
-            
-            <button id="btn-complete-trial" onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700">Mark Complete & Save</button>
-            <button onclick="closeTrialModal()" class="w-full text-slate-400 font-bold py-2 mt-2 text-xs">Cancel</button>
-        </div>
-    </div>
-
-    <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
-        <div class="flex justify-between items-end mb-8">
-            <h1 class="text-3xl font-bold text-slate-800">Admin View</h1>
-            <button onclick="logout()" class="text-xs font-bold text-red-500 bg-red-50 px-3 py-2 rounded">Logout</button>
-        </div>
-        <div class="bg-white p-6 rounded-2xl shadow border-l-4 border-blue-600">
-            <div class="flex justify-between items-center mb-4"><h3 class="font-bold text-lg">Applications</h3><button onclick="fetchLeads()" class="text-xs bg-slate-100 px-3 py-1 rounded">Refresh</button></div>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left">
-                    <thead class="bg-slate-50 text-slate-500 text-xs uppercase font-bold">
-                        <tr>
-                            <th class="p-4 rounded-tl-lg">Child</th>
-                            <th class="p-4">Parent</th>
-                            <th class="p-4">Status</th>
-                            <th class="p-4">Recommended</th>
-                            <th class="p-4 rounded-tr-lg">Action</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leads-list" class="divide-y divide-slate-100 text-sm font-medium"></tbody>
-                </table>
-            </div>
+            <h3 class="font-bold mb-2">Assessment</h3>
+            <p class="text-sm mb-4" id="modal-child-name"></p>
+            <textarea id="trainer-feedback" class="input-field mb-2" placeholder="Feedback"></textarea>
+            <select id="trainer-batch" class="input-field mb-4"><option>3-5 Yrs</option><option>5-8 Yrs</option><option>8+ Yrs</option></select>
+            <button onclick="submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-2 rounded">Save</button>
+            <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 text-xs mt-2">Close</button>
         </div>
     </div>
 
