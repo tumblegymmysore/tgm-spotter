@@ -150,7 +150,7 @@ let currentTrialId = null;
 async function loadTrainerDashboard() {
     if(!currentUser) return;
     const list = document.getElementById('trial-list');
-    list.innerHTML = 'Loading...';
+    list.innerHTML = '<div class="text-center p-4">Loading...</div>';
     
     const yesterday = new Date(new Date().getTime() - (24 * 60 * 60 * 1000)).toISOString();
     const { data, error } = await db.from('leads').select('*')
@@ -163,28 +163,42 @@ async function loadTrainerDashboard() {
     if(!data || data.length === 0) { list.innerHTML = '<div class="text-center text-gray-400 p-4">No active trials</div>'; return; }
     
     data.forEach(l => {
+        const age = getAge(l.dob); // Calculate age here
         const isDone = l.status === 'Trial Completed';
         const badge = isDone ? `<span class="bg-green-100 text-green-700 px-2 text-xs rounded">Done</span>` : `<span class="bg-yellow-100 text-yellow-700 px-2 text-xs rounded">Pending</span>`;
         
+        // PASS 'age' into openTrialModal
         list.innerHTML += `
         <div class="bg-white p-4 rounded-lg shadow-sm border border-slate-100 flex justify-between items-center mb-2">
             <div>
-                <div class="font-bold text-slate-800">${l.child_name} <span class="text-xs font-normal text-slate-500">(${getAge(l.dob)}y)</span></div>
+                <div class="font-bold text-slate-800">${l.child_name} <span class="text-xs font-normal text-slate-500">(${age}y)</span></div>
                 <div class="text-xs text-slate-500">${l.intent}</div>
                 <div class="mt-1">${badge}</div>
             </div>
-            <button onclick="openTrialModal(${l.id}, '${l.child_name}', '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
+            <button onclick="openTrialModal(${l.id}, '${l.child_name}', ${age}, '${l.status}', '${l.trainer_feedback||''}', '${l.recommended_batch||''}')" 
                 class="bg-blue-600 text-white px-3 py-2 rounded text-xs font-bold">Assess</button>
         </div>`;
     });
 }
 
-function openTrialModal(id, name, status, feedback, batch) {
+function openTrialModal(id, name, age, status, feedback, batch) {
     currentTrialId = id;
-    document.getElementById('modal-child-name').innerText = name;
+    document.getElementById('modal-child-name').innerText = `${name} (${age} Yrs)`; // Show age in modal title
     document.getElementById('trainer-feedback').value = feedback;
-    document.getElementById('trainer-batch').value = batch || '3-5 Yrs';
     
+    // SMART BATCH SELECTION
+    let selectedBatch = batch; // Use saved batch if it exists
+    
+    if (!selectedBatch) {
+        // If no saved batch, calculate based on Age
+        if (age < 5) selectedBatch = '3-5 Yrs';
+        else if (age >= 5 && age < 8) selectedBatch = '5-8 Yrs';
+        else if (age >= 8 && age < 18) selectedBatch = '8+ Yrs';
+        else if (age >= 18) selectedBatch = 'Adult';
+    }
+    document.getElementById('trainer-batch').value = selectedBatch;
+    
+    // View Only Check
     const isReadOnly = status === 'Trial Completed';
     document.getElementById('btn-save-trial').classList.toggle('hidden', isReadOnly);
     document.getElementById('btn-edit-trial').classList.toggle('hidden', !isReadOnly);
@@ -206,7 +220,7 @@ async function submitTrialResult() {
     const feedback = document.getElementById('trainer-feedback').value;
     const batch = document.getElementById('trainer-batch').value;
     
-    // AUTO-DETECT TRAINER NAME FROM LOGIN
+    // Auto-detect Trainer Name
     const trainerName = currentUser.email; 
     
     if(!feedback) { alert("Feedback required"); return; }
@@ -221,7 +235,7 @@ async function submitTrialResult() {
     }).eq('id', currentTrialId);
 
     if(error) {
-        alert("System Error: " + error.message); // Now gives specific error details
+        alert("System Error: " + error.message);
     } else { 
         showToast("Assessment Saved!"); 
         document.getElementById('trial-modal').classList.add('hidden'); 
