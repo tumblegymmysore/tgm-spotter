@@ -194,7 +194,14 @@ async function submitTrialResult() {
 }
 
 // --- PARENT PORTAL & REGISTRATION ---
-let currentRegistrationAge = 0;
+let currentRegistrationId = null;
+let currentStudentData = null; // Store for review
+
+// PRICING CONSTANTS
+const REGISTRATION_FEE = 2000;
+const SPECIAL_RATES = {
+    "Beginner": 700, "Intermediate": 850, "Advanced": 1000
+};
 
 async function loadParentData(email) {
     const content = document.getElementById('parent-content');
@@ -210,12 +217,16 @@ async function loadParentData(email) {
                 <div class="bg-blue-50 p-4 rounded mt-2 border border-blue-100">
                     <p class="font-bold text-blue-900 text-sm mb-2">🎉 Trial Successful!</p>
                     <p class="text-xs text-slate-600 mb-2"><strong>${child.trainer_name}</strong> recommends: <strong>${child.recommended_batch}</strong></p>
-                    <button onclick="openRegistrationModal(${child.id}, '${child.child_name}', '${child.dob}')" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Select Plan & Register</button>
+                    <button onclick="openRegistrationModal(${child.id})" class="w-full bg-blue-600 text-white font-bold py-2 rounded text-sm hover:bg-blue-700">Register Now</button>
                 </div>`;
         } else if (child.status === 'Enrolled') {
-            actionArea = `<div class="mt-2 bg-green-50 p-2 rounded text-green-800 text-xs text-center font-bold">✅ Enrolled (Active)</div>`;
+            // RENEWAL BUTTON
+            actionArea = `
+                <div class="mt-2 bg-green-50 p-2 rounded text-green-800 text-xs text-center font-bold mb-2">✅ Active Student</div>
+                <button onclick="openRegistrationModal(${child.id}, true)" class="w-full bg-white border border-green-600 text-green-700 font-bold py-1 rounded text-xs">Renew Membership</button>
+            `;
         } else if (child.status === 'Registration Requested') {
-            actionArea = `<div class="mt-2 bg-yellow-50 p-2 rounded text-yellow-800 text-xs text-center font-bold">⏳ Payment Verification Pending</div>`;
+            actionArea = `<div class="mt-2 bg-yellow-50 p-2 rounded text-yellow-800 text-xs text-center font-bold">⏳ Verification Pending</div>`;
         }
 
         html += `
@@ -228,57 +239,141 @@ async function loadParentData(email) {
     content.innerHTML = html;
 }
 
-function openRegistrationModal(id, name, dob) {
-    currentTrialId = id;
-    const age = getAge(dob);
-    document.getElementById('reg-child-name').innerText = `${name} (${age} Yrs)`;
+async function openRegistrationModal(id, isRenewal = false) {
+    currentRegistrationId = id;
     
-    // 1. GENERATE DYNAMIC SLOTS based on Age Logic
-    let slotsHtml = "<strong>Based on age, available slots:</strong><br>";
+    // Fetch fresh data for the form
+    const { data } = await db.from('leads').select('*').eq('id', id).single();
+    currentStudentData = data;
+
+    document.getElementById('reg-child-name').innerText = data.child_name;
+    document.getElementById('is-renewal').value = isRenewal; // Hidden flag
+
+    // 1. POPULATE REVIEW FIELDS
+    document.getElementById('edit-name').value = data.child_name;
+    document.getElementById('edit-phone').value = data.phone;
+    document.getElementById('edit-email').value = data.email;
     
-    if(age >= 3 && age <= 5) {
-        slotsHtml += "• Weekdays (Tue-Fri): 4:00 PM - 5:00 PM<br>• Saturday: 11:00 AM<br>• Sunday: 11:00 AM";
-    } else if(age > 5 && age <= 8) {
-        slotsHtml += "• Weekdays (Tue-Fri): 5:00 PM - 6:00 PM<br>• Saturday: 3:00 PM<br>• Sunday: 10:00 AM";
-    } else if(age > 8) {
-        slotsHtml += "• Weekdays (Tue-Fri): 6:00 PM - 7:00 PM<br>• Saturday: 4:00 PM<br>• Sunday: 12:00 PM";
+    // 2. SHOW/HIDE REGISTRATION FEE WARNING
+    const feeRow = document.getElementById('reg-fee-row');
+    if(isRenewal) {
+        feeRow.classList.add('hidden'); // Hide for renewals
+        document.getElementById('reg-fee-display').innerText = "0";
     } else {
-        slotsHtml += "• Please contact Admin for Toddler slots.";
+        feeRow.classList.remove('hidden'); // Show for new
+        document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
     }
+
+    // 3. SHOW AGE-BASED SLOTS
+    const age = getAge(data.dob);
+    let slotsHtml = "<strong>Available Slots:</strong><br>";
+    if(age <= 5) slotsHtml += "• Weekdays: 4-5 PM | Weekends: 11 AM";
+    else if(age <= 8) slotsHtml += "• Weekdays: 5-6 PM | Sat: 3 PM, Sun: 10 AM";
+    else slotsHtml += "• Weekdays: 6-7 PM | Sat: 4 PM, Sun: 12 PM";
     document.getElementById('reg-slots-info').innerHTML = slotsHtml;
 
-    // 2. GENERATE PACKAGES
-    const pkgSelect = document.getElementById('reg-package');
-    pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package</option>';
-    PACKAGES.forEach(p => {
-        pkgSelect.innerHTML += `<option value="${p.name}|${p.price}">${p.name} - ₹${p.price}</option>`;
-    });
-
+    // 4. RESET FORM
+    document.getElementById('reg-package').value = "";
+    document.getElementById('training-level-group').classList.add('hidden');
+    document.getElementById('total-price').innerText = "0";
     document.getElementById('reg-modal').classList.remove('hidden');
+}
+
+function toggleReview() {
+    document.getElementById('review-body').classList.toggle('open');
+}
+
+function handlePackageChange() {
+    const pkg = document.getElementById('reg-package').value;
+    const levelGroup = document.getElementById('training-level-group');
+    
+    // Show/Hide Level Selector if "Special/Professional" is chosen
+    // (Assuming user selects "Special Training" option from dropdown)
+    if(pkg === 'Special') {
+        levelGroup.classList.remove('hidden');
+        calculateTotal();
+    } else {
+        levelGroup.classList.add('hidden');
+        calculateTotal();
+    }
+}
+
+function calculateTotal() {
+    const pkgVal = document.getElementById('reg-package').value;
+    const isRenewal = document.getElementById('is-renewal').value === 'true';
+    let basePrice = 0;
+
+    // 1. Get Base Price
+    if (pkgVal === 'Special') {
+        const level = document.getElementById('reg-level').value;
+        basePrice = SPECIAL_RATES[level] || 0; 
+        // Note: Special rates usually per class? Assuming monthly for logic, or user manually enters quantity? 
+        // For simplicity V1, we treat it as "Base Fee".
+    } else if (pkgVal) {
+        basePrice = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
+    }
+
+    // 2. Add Registration Fee (if not renewal)
+    let total = basePrice;
+    if (!isRenewal && basePrice > 0) total += REGISTRATION_FEE;
+
+    document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
 }
 
 async function submitRegistration() {
     const pkgVal = document.getElementById('reg-package').value;
-    const start = document.getElementById('reg-date').value;
-    const utr = document.getElementById('reg-utr').value;
-    
-    if(!pkgVal || !start || !utr) { alert("Please fill all details including Payment UTR."); return; }
+    const total = document.getElementById('total-price').innerText;
+    const fileInput = document.getElementById('payment-proof');
+    const isRenewal = document.getElementById('is-renewal').value === 'true';
 
-    const [pkgName, pkgPrice] = pkgVal.split('|');
+    if(!pkgVal || total === "0") { alert("Please select a package."); return; }
+    if(fileInput.files.length === 0) { alert("Please upload payment screenshot."); return; }
 
-    const { error } = await db.from('leads').update({
-        status: 'Registration Requested',
-        start_date: start,
-        selected_package: pkgName,
-        package_price: pkgPrice,
-        payment_utr: utr
-    }).eq('id', currentTrialId);
+    const btn = document.querySelector('#reg-modal button[onclick="submitRegistration()"]');
+    btn.innerText = "Uploading..."; btn.disabled = true;
 
-    if(error) alert("Error");
-    else { 
-        showToast("Registration Sent!"); 
-        document.getElementById('reg-modal').classList.add('hidden'); 
-        loadParentData(currentUser.email); 
+    try {
+        // 1. UPLOAD IMAGE
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${Date.now()}_${Math.random()}.${fileExt}`;
+        const { data: uploadData, error: uploadError } = await db.storage
+            .from('payment-proofs')
+            .upload(fileName, file);
+
+        if(uploadError) throw uploadError;
+
+        // Get Public URL
+        const { data: { publicUrl } } = db.storage.from('payment-proofs').getPublicUrl(fileName);
+
+        // 2. UPDATE PARENT INFO (If changed in Review)
+        const newName = document.getElementById('edit-name').value;
+        const newPhone = document.getElementById('edit-phone').value;
+        
+        // 3. SAVE TO DB
+        let pkgName = pkgVal === 'Special' ? `Special - ${document.getElementById('reg-level').value}` : pkgVal.split('|')[0];
+
+        const { error } = await db.from('leads').update({
+            status: 'Registration Requested',
+            child_name: newName, // Allow updating child name
+            phone: newPhone,     // Allow updating phone
+            selected_package: pkgName,
+            package_price: total,
+            payment_proof_url: publicUrl,
+            start_date: document.getElementById('reg-date').value,
+            payment_status: 'Verification Pending'
+        }).eq('id', currentRegistrationId);
+
+        if(error) throw error;
+
+        alert("✅ Request Submitted! Admin will verify payment.");
+        document.getElementById('reg-modal').classList.add('hidden');
+        loadParentData(currentUser.email);
+
+    } catch (err) {
+        alert("Error: " + err.message);
+    } finally {
+        btn.innerText = "Submit Request"; btn.disabled = false;
     }
 }
 
