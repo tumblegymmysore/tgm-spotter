@@ -179,29 +179,82 @@
 
 <div id="reg-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-1">Register for Classes</h3>
-            <p class="text-sm mb-4 text-slate-500">Student: <span id="reg-child-name" class="font-bold text-blue-600"></span></p>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Checkout & Registration</h3>
             
-            <div id="reg-slots-info" class="slot-info mb-4 text-xs leading-relaxed"></div>
-            
-            <label class="text-xs font-bold uppercase">Select Package</label>
-            <select id="reg-package" class="input-field mb-4"></select>
-            
-            <label class="text-xs font-bold uppercase">Start Date</label>
-            <input type="date" id="reg-date" class="input-field mb-4">
+            <input type="hidden" id="is-renewal">
 
-            <div class="qr-container">
-                <p class="text-xs font-bold text-slate-400 mb-2">SCAN TO PAY</p>
-                <img src="qr.png" class="w-32 h-32 mx-auto">
-                    [ QR CODE HERE ]
+            <div class="review-box">
+                <div class="review-header" onclick="toggleReview()">
+                    <span><i class="fas fa-edit mr-2"></i> Review Personal Details</span>
+                    <i class="fas fa-chevron-down"></i>
                 </div>
-                <p class="text-[10px] text-slate-400 mt-2">Registration Fee: ₹2000 (One Time)</p>
+                <div id="review-body" class="review-body">
+                    <label class="text-xs font-bold uppercase">Child Name</label>
+                    <input type="text" id="edit-name" class="input-field mb-2 h-8 text-sm">
+                    <label class="text-xs font-bold uppercase">Phone</label>
+                    <input type="tel" id="edit-phone" class="input-field mb-2 h-8 text-sm">
+                    <label class="text-xs font-bold uppercase">Email</label>
+                    <input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100" readonly>
+                </div>
             </div>
 
-            <label class="text-xs font-bold uppercase">Payment UTR / Transaction ID</label>
-            <input type="text" id="reg-utr" class="input-field mb-6" placeholder="e.g. 3049XXXXXXXX">
+            <p class="text-sm mb-1 font-bold">Select Plan <span id="reg-child-name" class="text-blue-600"></span></p>
+            <div id="reg-slots-info" class="slot-info mb-4"></div>
+
+            <select id="reg-package" class="input-field mb-2" onchange="handlePackageChange()">
+                <option value="" disabled selected>Select Package</option>
+                <optgroup label="Regular Gymnastics">
+                    <option value="2 Days/Week - 1 Month|3,500">2 Days/Week - 1 Month (₹3,500)</option>
+                    <option value="2 Days/Week - 3 Months|9,000">2 Days/Week - 3 Months (₹9,000)</option>
+                    <option value="2 Days/Week - 6 Months|16,000">2 Days/Week - 6 Months (₹16,000)</option>
+                    <option value="Unlimited - 1 Month|5,500">Unlimited - 1 Month (₹5,500)</option>
+                    <option value="Unlimited - 3 Months|15,000">Unlimited - 3 Months (₹15,000)</option>
+                </optgroup>
+                <optgroup label="Professional">
+                    <option value="Special">Special / Professional Training</option>
+                </optgroup>
+            </select>
+
+            <div id="training-level-group" class="hidden mb-4 pl-2 border-l-2 border-blue-500">
+                <label class="text-xs font-bold uppercase text-blue-600">Select Level</label>
+                <select id="reg-level" class="input-field h-10" onchange="calculateTotal()">
+                    <option value="Beginner">Beginner (₹700/class)</option>
+                    <option value="Intermediate">Intermediate (₹850/class)</option>
+                    <option value="Advanced">Advanced (₹1,000/class)</option>
+                </select>
+            </div>
+
+            <label class="text-xs font-bold uppercase mt-2">Start Date</label>
+            <input type="date" id="reg-date" class="input-field mb-4">
+
+            <div class="bg-gray-50 p-3 rounded mb-4 text-sm">
+                <div id="reg-fee-row" class="flex justify-between mb-1 text-slate-500">
+                    <span>Registration Fee (One Time)</span>
+                    <span>₹<span id="reg-fee-display">2000</span></span>
+                </div>
+                <div class="flex justify-between font-bold text-lg text-slate-800 border-t pt-2">
+                    <span>Total To Pay</span>
+                    <span>₹<span id="total-price">0</span></span>
+                </div>
+            </div>
+
+            <div class="qr-grid">
+                <div class="qr-box">
+                    <div class="qr-label">Main UPI</div>
+                    <div class="h-24 w-24 bg-gray-200 mx-auto flex items-center justify-center text-xs">QR 1</div>
+                </div>
+                <div class="qr-box">
+                    <div class="qr-label">Backup UPI</div>
+                    <div class="h-24 w-24 bg-gray-200 mx-auto flex items-center justify-center text-xs">QR 2</div>
+                </div>
+            </div>
+
+            <div class="mb-4">
+                <label class="text-xs font-bold uppercase mb-1 block">Upload Payment Screenshot *</label>
+                <input type="file" id="payment-proof" accept="image/*" class="w-full text-xs text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+            </div>
             
-            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit for Approval</button>
+            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit Request</button>
             <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-3 text-xs">Cancel</button>
         </div>
     </div>
