@@ -1,0 +1,31 @@
+@import url('https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap');
+
+body { font-family: 'Nunito', sans-serif; }
+.hide { display: none; }
+.fade-in { animation: fadeIn 0.4s ease-out; }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+/* Design Elements */
+.hero-gradient { background: linear-gradient(135deg, #2563EB 0%, #1E40AF 100%); }
+.card-shadow { box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04); }
+
+/* Toast Notification */
+#toast {
+    visibility: hidden; min-width: 250px; background-color: #10B981; color: #fff;
+    text-align: center; border-radius: 8px; padding: 16px; position: fixed; z-index: 100;
+    right: 30px; top: 30px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); font-weight: bold; opacity: 0; transition: opacity 0.5s, top 0.5s;
+}
+#toast.show { visibility: visible; opacity: 1; top: 50px; }
+
+/* Custom Inputs */
+.input-field { width: 100%; padding: 12px; background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; font-weight: 600; outline: none; transition: 0.2s; }
+.input-field:focus { background: #fff; border-color: #3B82F6; }
+
+/* Terms Box */
+.terms-box { height: 150px; overflow-y: scroll; background: #F8FAFC; border: 1px solid #E2E8F0; padding: 12px; border-radius: 8px; font-size: 11px; color: #64748B; line-height: 1.5; margin-bottom: 12px; }
+.checkbox-wrapper { display: flex; align-items: start; gap: 10px; margin-bottom: 8px; }
+.checkbox-text { font-size: 12px; color: #475569; line-height: 1.4; }
+
+/* Age Buttons */
+.age-btn { background: white; border: 2px solid #E5E7EB; color: #6B7280; width: 100%; transition: 0.2s; }
+.age-btn-active { background: #EFF6FF !important; border-color: #2563EB !important; color: #2563EB !important; font-weight: 800 !important; transform: scale(1.05); }
