@@ -1,4 +1,4 @@
-i<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -68,7 +68,7 @@ i<!DOCTYPE html>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">DOB *</label><input type="date" id="dob" class="input-field" onchange="calculateAgeDisplay()" required><p id="age-display" class="text-xs font-bold text-blue-600 mt-2 hidden">Age: <span id="age-value"></span> Years</p></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Gender *</label><select id="gender" class="input-field bg-white" required><option value="" disabled selected>Select</option><option>Male</option><option>Female</option></select></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Professional Training</option><option>Weight Loss</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Goal *</label><select id="intent" class="input-field bg-white" onchange="checkOther(this, 'intent_other')" required><option value="" disabled selected>Select</option><option>Fun & Fitness</option><option>Pro</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                         </div>
                     </div>
 
@@ -76,29 +76,27 @@ i<!DOCTYPE html>
                         <h3 class="text-slate-800 font-bold mb-4 flex items-center"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
                         <div class="grid md:grid-cols-2 gap-4">
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Mobile (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Phone *</label><input type="tel" id="phone" class="input-field" required></div>
                             <div><label class="text-xs font-bold text-slate-500 uppercase">Email *</label><input type="email" id="email" class="input-field" required></div>
-                            <div><label class="text-xs font-bold text-slate-500 uppercase">Alternate Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
+                            <div><label class="text-xs font-bold text-slate-500 uppercase">Emergency Contact *</label><input type="tel" id="alt_phone" class="input-field" placeholder="Emergency Contact" required></div>
                             <div class="md:col-span-2"><label class="text-xs font-bold text-slate-500 uppercase">Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
 
                     <div class="grid md:grid-cols-2 gap-4">
                         <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List allergies or 'None'..." required></textarea></div>
-                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Facebook / Instagram</option><option>Google Search / Maps</option><option>Friends / Family</option><option>Events / Demo</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
+                        <div class="md:col-span-2"><label class="block text-xs font-bold text-slate-500 uppercase mb-1">Source *</label><select id="source" class="input-field bg-white" onchange="checkOther(this, 'source_other')" required><option value="" disabled selected>Select</option><option>Google</option><option>Social</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                     </div>
 
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
                         <h3 class="text-yellow-800 font-bold mb-2"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
                         <div class="terms-box">
-                            <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program. I hereby declare that all the information provided in this registration form is true and accurate to the best of my knowledge.</p><br>
-                            <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation in The Tumble Gym's activities.</p><br>
-                            <p><strong>3. Liability Waiver:</strong> I hereby release and hold harmless The Tumble Gym Mysore, its owners, staff, and instructors from any liability for any injury or accident that may occur during my child's participation in the gymnastics program, including but not limited to any injuries resulting from the use of equipment, facilities, or participation in any activities conducted by The Tumble Gym.</p><br>
-                            <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed during classes and events. These images and videos may be used for promotional purposes, including social media, brochures, and other marketing materials.</p><br>
-                            <p><strong>5. Policy Agreement:</strong> I acknowledge that the membership and any associated packages are non-transferable and non-refundable. I have read, understood, and agree to abide by the terms and conditions outlined by The Tumble Gym.</p>
+                            <p><strong>1. Waiver:</strong> I release The Tumble Gym from liability...</p>
+                            <p><strong>2. Medical:</strong> Child is fit to participate...</p>
+                            <p><strong>3. Media:</strong> Consent for photos/videos...</p>
                         </div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to the Terms & Conditions above. *</label></div>
-                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">By checking this box, I authorize The Tumble Gym to contact me via phone/WhatsApp or email for feedback regarding my child's participation and to provide information about future programs, events, and special offers. *</label></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required class="mt-1"><label for="terms_check" class="checkbox-text font-bold">I Agree to Terms *</label></div>
+                        <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required class="mt-1"><label for="marketing_check" class="checkbox-text">Allow Communication *</label></div>
                     </div>
 
                     <button type="submit" id="btn-submit" class="w-full bg-rose-500 text-white font-bold py-4 rounded-xl hover:bg-rose-600 transition shadow-lg text-lg">Request Free Slot</button>
