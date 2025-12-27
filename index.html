@@ -177,19 +177,32 @@
         </div>
     </div>
 
-    <div id="reg-modal" class="modal-overlay hidden">
+<div id="reg-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-2">Register for Classes</h3>
-            <p class="text-sm mb-4">Student: <span id="reg-child-name" class="font-bold text-blue-600"></span></p>
+            <h3 class="text-lg font-bold mb-1">Register for Classes</h3>
+            <p class="text-sm mb-4 text-slate-500">Student: <span id="reg-child-name" class="font-bold text-blue-600"></span></p>
             
-            <label class="text-xs font-bold uppercase">Preferred Days</label>
-            <select id="reg-days" class="input-field mb-3"><option>Mon / Thu</option><option>Tue / Fri</option><option>Wed / Sat</option><option>Weekend Only</option></select>
+            <div id="reg-slots-info" class="slot-info mb-4 text-xs leading-relaxed"></div>
+            
+            <label class="text-xs font-bold uppercase">Select Package</label>
+            <select id="reg-package" class="input-field mb-4"></select>
             
             <label class="text-xs font-bold uppercase">Start Date</label>
             <input type="date" id="reg-date" class="input-field mb-4">
+
+            <div class="qr-container">
+                <p class="text-xs font-bold text-slate-400 mb-2">SCAN TO PAY</p>
+                <div class="w-32 h-32 bg-slate-200 mx-auto flex items-center justify-center text-slate-400 text-xs font-bold">
+                    [ QR CODE HERE ]
+                </div>
+                <p class="text-[10px] text-slate-400 mt-2">Registration Fee: ₹2000 (One Time)</p>
+            </div>
+
+            <label class="text-xs font-bold uppercase">Payment UTR / Transaction ID</label>
+            <input type="text" id="reg-utr" class="input-field mb-6" placeholder="e.g. 3049XXXXXXXX">
             
-            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">Submit Request</button>
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Cancel</button>
+            <button onclick="submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-lg">Submit for Approval</button>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-full text-slate-400 mt-3 text-xs">Cancel</button>
         </div>
     </div>
 
