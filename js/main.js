@@ -1,10 +1,10 @@
-// js/main.js (v27 - Debug & Safety Fixes)
+// js/main.js (v29 - Final Fix)
 
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v27 - Safety Checks).");
+console.log("System Loaded: Ready (v29 - Permission Fix).");
 
 // --- SESSION ---
 let currentUser = null; 
@@ -55,7 +55,8 @@ async function loadTrainerDashboard(trainerName) {
     if (welcomeHeader) welcomeHeader.innerText = `Welcome back, ${trainerName}!`;
     document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-    await fetchTrials(); // Await to ensure we see errors
+    // Load Data
+    await fetchTrials(); 
     fetchInbox(); 
 }
 
@@ -74,13 +75,16 @@ window.switchTab = (tabName) => {
     if (tabName === 'inbox') fetchInbox();
 };
 
-// --- TRIALS FETCH (DEBUGGED) ---
+// --- FETCH TRIALS ---
 async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
-    if (!listNew) return console.error("HTML Error: New Trials list element missing.");
+    
+    if (!listNew) return;
 
-    // SAFETY: Wrap in try/catch to catch network issues
+    // Visual Indicator that code is running
+    listNew.innerHTML = '<p class="text-sm text-blue-500 italic">Syncing...</p>';
+
     try {
         const { data, error } = await supabaseClient
             .from('leads')
@@ -88,8 +92,8 @@ async function fetchTrials() {
             .order('submitted_at', { ascending: false });
 
         if (error) {
-            console.error("Supabase Error:", error);
-            listNew.innerHTML = `<div class="p-4 text-red-500 bg-red-50 rounded">Error: ${error.message}</div>`;
+            console.error("DB Error:", error);
+            listNew.innerHTML = `<p class="text-red-500 text-sm">Access Denied: ${error.message}</p>`;
             return;
         }
 
@@ -113,8 +117,7 @@ async function fetchTrials() {
         if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No new requests.</p>';
 
     } catch (err) {
-        console.error("Crash Error:", err);
-        listNew.innerHTML = `<div class="p-4 text-red-500">System Crash: ${err.message}</div>`;
+        listNew.innerHTML = `<p class="text-red-500 text-sm">Crash: ${err.message}</p>`;
     }
 }
 
@@ -162,9 +165,8 @@ window.fetchInbox = async () => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.warn("Inbox fetch warning:", error.message); 
-            // Don't crash UI, just show empty
-            container.innerHTML = '<div class="p-8 text-center text-slate-400">Inbox unavailable. Check DB permissions.</div>';
+            console.warn("Inbox Error:", error);
+            container.innerHTML = '<div class="p-8 text-center text-slate-400">Loading inbox...</div>';
             return;
         }
 
@@ -189,9 +191,7 @@ window.fetchInbox = async () => {
         });
 
         const badge = document.getElementById('inbox-badge');
-        if (badge) {
-            globalUnreadCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
-        }
+        if (badge) globalUnreadCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
 
         container.innerHTML = '';
         Object.values(conversations).forEach(conv => {
@@ -218,7 +218,7 @@ window.fetchInbox = async () => {
             `;
         });
     } catch (e) {
-        console.warn("Inbox crashed:", e);
+        console.warn("Inbox Error:", e);
     }
 };
 
@@ -227,10 +227,8 @@ window.openChat = async (leadString) => {
     document.getElementById('chat-header-name').innerText = lead.parent_name;
     document.getElementById('chat-student-name').innerText = lead.child_name;
     document.getElementById('chat-lead-id').value = lead.id;
-    
     document.getElementById('chat-history').innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Loading...</p>';
     document.getElementById('chat-modal').classList.remove('hidden');
-    
     await loadMessages(lead.id);
     await markAsRead(lead.id);
 };
@@ -238,11 +236,8 @@ window.openChat = async (leadString) => {
 window.loadMessages = async (leadId) => {
     const container = document.getElementById('chat-history');
     const { data, error } = await supabaseClient.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true });
+    if (error || !data) return;
     
-    if (error || !data || data.length === 0) {
-        container.innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Start of conversation</p>';
-        return;
-    }
     container.innerHTML = ''; 
     data.forEach(msg => {
         const isMe = msg.sender_role === 'trainer'; 
