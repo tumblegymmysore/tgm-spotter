@@ -5,11 +5,18 @@
 // --------------------------------------------------------------------------
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
-
-// FIX: We name this 'supabaseClient' (not 'supabase') to avoid the name collision
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 console.log("System Loaded: Ready.");
+
+// --------------------------------------------------------------------------
+// HELPER: Show Custom Error Modal
+// --------------------------------------------------------------------------
+function showError(title, message) {
+    document.getElementById('error-title').innerText = title;
+    document.getElementById('error-msg').innerText = message;
+    document.getElementById('error-modal').classList.remove('hidden');
+}
 
 // --------------------------------------------------------------------------
 // 2. MAIN SUBMISSION HANDLER
@@ -31,19 +38,36 @@ window.handleIntakeSubmit = async (e) => {
     const cleanPhone = rawPhone.replace(/\D/g, ''); 
     const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
 
-    // 2. Check Main Phone (Strict 10 Digits)
+    // 2. Validate MAIN MOBILE (Strict 10 Digits)
+    // Must be exactly 10 digits.
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
-        alert("⚠️ Invalid Mobile Number\n\nPlease enter exactly 10 digits (e.g., 9900000000). Do not include +91.");
+        showError(
+            "Invalid Mobile Number", 
+            "Please check the 'Mobile (WhatsApp)' field. It must be exactly 10 digits (e.g., 9900000000)."
+        );
         return; 
     }
 
-    // 3. Check Alternate Phone (If entered)
+    // 3. Validate ALTERNATE PHONE (Flexible Landline Logic)
     if (rawAltPhone.length > 0) {
-        const isMobile = /^[0-9]{10}$/.test(cleanAltPhone);
-        const isLandline = cleanAltPhone.startsWith('0') && cleanAltPhone.length === 11;
+        let isValid = false;
 
-        if (!isMobile && !isLandline) {
-             alert("⚠️ Invalid Alternate Number\n\nMust be 10 digits (Mobile) or 11 digits starting with 0 (Landline).");
+        // Case A: Starts with 0 (Landline) -> Allow 10 to 12 digits total
+        if (cleanAltPhone.startsWith('0')) {
+             if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) {
+                 isValid = true;
+             }
+        } 
+        // Case B: Does NOT start with 0 (Mobile) -> Must be 10 digits
+        else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
+             isValid = true;
+        }
+
+        if (!isValid) {
+             showError(
+                 "Invalid Emergency Contact", 
+                 "The 'Emergency Contact' number seems incorrect. If it is a Landline, ensure it starts with '0' (Std Code)."
+             );
              return; 
         }
     }
@@ -71,7 +95,6 @@ window.handleIntakeSubmit = async (e) => {
 
     try {
         // --- SEND TO DATABASE ---
-        // We use 'supabaseClient' here
         const { data, error } = await supabaseClient
             .from('leads')
             .insert([formData])
@@ -82,13 +105,19 @@ window.handleIntakeSubmit = async (e) => {
             console.error("Supabase Error:", error);
 
             if (error.code === '23505' || error.message.includes('unique constraint')) {
-                alert("⚠️ Registration Exists!\n\nThis student is already registered. Please Login or contact Admin.");
+                showError(
+                    "Registration Exists", 
+                    "This student is already registered with us. You cannot take an additional trial session.\n\nPlease check with Admin, or Login if you are already a member."
+                );
             } 
             else if (error.code === '23514' || error.message.includes('check_phone_format')) {
-                alert("⚠️ System Rejected Phone Number.\n\nPlease ensure it is exactly 10 digits.");
+                showError(
+                    "System Rejected Phone", 
+                    "The phone number format was rejected by the system. Please ensure it is strictly 10 digits."
+                );
             }
             else {
-                alert("Error: " + error.message);
+                showError("System Error", error.message);
             }
 
             btn.disabled = false;
@@ -102,7 +131,7 @@ window.handleIntakeSubmit = async (e) => {
 
     } catch (err) {
         console.error("Unexpected Error:", err);
-        alert("Something went wrong. Please try again.");
+        showError("Unexpected Error", "Something went wrong. Please check your internet connection and try again.");
         btn.disabled = false;
         btn.innerText = originalText;
     }
