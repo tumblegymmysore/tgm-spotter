@@ -1,6 +1,7 @@
-// js/parent.js
-import { supabaseClient, REGISTRATION_FEE, SPECIAL_RATES } from './config.js';
-import { showView, showSuccessModal, calculateAge } from './utils.js';
+// js/roles/parent.js
+// Note: Imports go UP one level (../) to find config and utils
+import { supabaseClient, REGISTRATION_FEE, SPECIAL_RATES } from '../config.js';
+import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
 let currentRegistrationId = null;
 
@@ -13,7 +14,6 @@ export async function handleIntakeSubmit(e) {
 
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim().replace(/\D/g, '');
-
     let intentVal = document.getElementById('intent').value;
     if(intentVal.includes('Other')) intentVal = document.getElementById('intent_other').value;
     let sourceVal = document.getElementById('source').value;
@@ -53,8 +53,7 @@ export async function loadParentDashboard(email) {
 
     const { data, error } = await supabaseClient.from('leads').select('*').eq('email', email).order('created_at', { ascending: false });
 
-    if (error) { container.innerHTML = `<p class="text-red-500 text-center">Error: ${error.message}</p>`; return; }
-    if (!data || data.length === 0) { 
+    if (error || !data || data.length === 0) { 
         container.innerHTML = `<div class="text-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-sm mx-auto mt-10"><h3 class="text-lg font-bold text-slate-800">No Students Yet</h3><button onclick="window.location.reload()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg mt-4">Register Now</button></div>`; 
         return; 
     }
@@ -77,19 +76,16 @@ export async function loadParentDashboard(email) {
             statusIcon = '<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><i class="fas fa-star"></i></div>';
             statusBadge = 'Ready to Register';
             
-            // --- LOGIC FIX: Match Email Template ---
             const isSpecial = child.special_needs;
-            const isPT = child.skills_rating?.personal_training; // Check JSONB
+            const isPT = child.skills_rating?.personal_training; 
             const batch = child.recommended_batch || 'Standard Batch';
             let displayRec = "";
 
             if (isSpecial) {
-                // Case: Special Needs
-                if (isPT) displayRec = "Special Needs Program + Personal Training";
-                else displayRec = `Special Needs Program + ${batch}`;
+                if (isPT) displayRec = "Special Needs + Personal Training";
+                else displayRec = `Special Needs + ${batch}`;
             } else {
-                // Case: Regular
-                if (isPT) displayRec = "Personal Training Recommended"; // Hide Batch
+                if (isPT) displayRec = "Personal Training Recommended";
                 else displayRec = `Recommended: ${batch}`;
             }
 
@@ -111,12 +107,9 @@ export async function loadParentDashboard(email) {
             primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="w-full border-2 border-green-600 text-green-700 font-bold py-3 rounded-xl hover:bg-green-50">Renew Membership</button>`;
         }
 
-        // Unread Badge (With Unique ID for instant hiding)
         const { count } = await supabaseClient.from('messages').select('*', { count: 'exact', head: true }).eq('lead_id', child.id).eq('sender_role', 'trainer').eq('is_read', false);
-        const badgeHidden = count > 0 ? '' : 'hidden';
-        const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeHidden} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
-
-        // Avatar Color
+        const badgeClass = count > 0 ? '' : 'hidden';
+        const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeClass} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
         const colors = ['bg-rose-100 text-rose-600', 'bg-blue-100 text-blue-600', 'bg-emerald-100 text-emerald-600', 'bg-purple-100 text-purple-600'];
         const avatarColor = colors[child.child_name.length % colors.length];
 
@@ -152,15 +145,11 @@ export async function loadParentDashboard(email) {
     container.innerHTML = html;
 }
 
-// --- 3. CHAT OPENER (Fixes Notification) ---
+// --- 3. CHAT OPENER ---
 export function openParentChat(leadString) {
     const lead = JSON.parse(decodeURIComponent(leadString));
-    
-    // 1. INSTANTLY HIDE BADGE (UX Fix)
     const badge = document.getElementById(`msg-badge-${lead.id}`);
     if(badge) badge.classList.add('hidden');
-
-    // 2. Open Chat
     window.openChat(encodeURIComponent(JSON.stringify(lead)));
 }
 
@@ -234,7 +223,7 @@ export async function submitRegistration() {
     } catch (err) { alert("Error submitting."); } finally { btn.innerText = "Submit Request"; btn.disabled = false; }
 }
 
-// --- 5. UTILS ---
+// --- 5. EDIT & FEEDBACK ---
 export function openEditModal(leadString) {
     const child = JSON.parse(decodeURIComponent(leadString));
     document.getElementById('edit-lead-id').value = child.id;
