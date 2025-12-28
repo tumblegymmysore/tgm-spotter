@@ -1,4 +1,4 @@
-// js/main.js (v40 - Visibility Fix & Parent Feedback)
+// js/main.js (v41 - Parent Power-Up)
 
 // 1. CONFIGURATION
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
@@ -10,31 +10,21 @@ const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 }
 
 if (typeof supabase === 'undefined') alert("System Error: Supabase not loaded.");
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-console.log("System Loaded: Ready (v40 - Feedback Feature).");
+console.log("System Loaded: Ready (v41 - Parent Chat & Edit).");
 
 // --- GLOBAL VARIABLES ---
 let currentUser = null; 
 let currentDisplayName = "User"; 
 let currentRegistrationId = null;
 
-// --- VISIBILITY HELPER (Fixes Blank Screen) ---
+// --- VISIBILITY HELPER ---
 function showView(viewId) {
-    // Hide all main containers
     ['landing', 'trainer', 'parent-portal', 'admin'].forEach(id => {
         const el = document.getElementById(id);
-        if (el) {
-            el.classList.add('hidden'); // Tailwind
-            el.classList.add('hide');   // Custom CSS
-        }
+        if (el) { el.classList.add('hidden'); el.classList.add('hide'); }
     });
-
-    // Show target container
     const target = document.getElementById(viewId);
-    if (target) {
-        target.classList.remove('hidden');
-        target.classList.remove('hide'); // Critical Fix
-        target.classList.add('fade-in');
-    }
+    if (target) { target.classList.remove('hidden'); target.classList.remove('hide'); target.classList.add('fade-in'); }
 }
 
 // --- 2. INITIALIZATION ---
@@ -91,16 +81,14 @@ async function initSession() {
 // --- 3. TRAINER DASHBOARD ---
 async function loadTrainerDashboard(trainerName) {
     showView('trainer');
-    
     const welcomeEl = document.getElementById('trainer-welcome');
     if (welcomeEl) welcomeEl.innerText = `Welcome back, ${trainerName}!`;
     document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
-
     fetchTrials(); 
     fetchInbox(); 
 }
 
-// --- 4. PARENT DASHBOARD (With Feedback Button) ---
+// --- 4. PARENT DASHBOARD (Redesigned for Real Estate) ---
 async function loadParentDashboard(email) {
     showView('parent-portal');
 
@@ -115,124 +103,232 @@ async function loadParentDashboard(email) {
         container.innerHTML = `
             <div class="text-center bg-white p-10 rounded-2xl shadow-sm border border-slate-100">
                 <div class="text-slate-300 text-6xl mb-4"><i class="fas fa-folder-open"></i></div>
-                <p class="text-slate-500 mb-6 font-medium">No registrations found for this email.</p>
+                <p class="text-slate-500 mb-6 font-medium">No registrations found.</p>
                 <button onclick="window.location.reload()" class="text-blue-600 font-bold hover:bg-blue-50 px-6 py-2 rounded-full transition">Register a Child</button>
             </div>`; 
         return; 
     }
 
+    // Change container to Grid for "2 Kids" layout
+    container.className = "grid grid-cols-1 md:grid-cols-2 gap-6 max-w-5xl mx-auto";
+    
     let html = '';
-    data.forEach(child => {
+    
+    for (const child of data) {
         const leadString = encodeURIComponent(JSON.stringify(child));
-        let statusBadge = '';
-        let actionArea = '';
+        
+        // Calculate Age
+        const dob = new Date(child.dob);
+        const age = new Date().getFullYear() - dob.getFullYear();
+
+        // Status Logic
+        let statusBadge = '', statusColor = 'bg-slate-100 text-slate-600';
+        let actionBtn = '';
 
         if (child.status === 'Trial Completed') {
-            statusBadge = '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">Assessment Ready</span>';
-            actionArea = `
-                <div class="bg-blue-50 p-5 rounded-xl mt-4 border border-blue-100">
-                    <div class="flex items-center mb-3">
-                        <div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center mr-3 font-bold"><i class="fas fa-check"></i></div>
-                        <div>
-                            <p class="font-bold text-blue-900">Trial Successful!</p>
-                            <p class="text-xs text-blue-600">Trainer recommends: <strong>${child.recommended_batch || 'Standard Batch'}</strong></p>
-                        </div>
-                    </div>
-                    <button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg shadow-md hover:bg-blue-700 transition mb-3">
-                        Proceed to Registration
-                    </button>
-                    <button onclick="window.openFeedbackModal('${child.id}')" class="w-full text-blue-500 text-xs font-bold hover:text-blue-700 underline">
-                        Not joining yet? Let us know.
-                    </button>
-                </div>`;
+            statusBadge = 'Assessment Ready'; statusColor = 'bg-blue-100 text-blue-800';
+            actionBtn = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="flex-1 bg-blue-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-blue-700 shadow">Register Now</button>`;
         } else if (child.status === 'Registration Requested') {
-            statusBadge = '<span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded font-bold">Verifying Payment</span>';
-            actionArea = `<div class="mt-4 p-4 bg-purple-50 rounded-xl border border-purple-100 text-center"><p class="text-sm text-purple-700 font-bold"><i class="fas fa-clock mr-2"></i> Payment Verification</p><p class="text-xs text-purple-500 mt-1">Admin will confirm your slot shortly.</p></div>`;
+            statusBadge = 'Verifying Payment'; statusColor = 'bg-purple-100 text-purple-800';
+            actionBtn = `<button disabled class="flex-1 bg-slate-100 text-slate-400 font-bold py-2 rounded-lg text-sm cursor-not-allowed">Processing...</button>`;
         } else if (child.status === 'Enrolled') {
-            statusBadge = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Active Student</span>';
-            actionArea = `
-                <div class="mt-4 grid grid-cols-2 gap-3">
-                    <button class="border border-slate-200 text-slate-600 font-bold py-2 rounded-lg text-xs hover:bg-slate-50">View Schedule</button>
-                    <button onclick="window.openRegistrationModal('${leadString}', true)" class="border border-green-600 text-green-700 font-bold py-2 rounded-lg text-xs hover:bg-green-50">Renew / Pay</button>
-                </div>`;
-        } else if (child.status === 'Follow Up') {
-            statusBadge = '<span class="bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded font-bold">Follow Up</span>';
-            actionArea = `
-                <div class="mt-4 p-4 bg-orange-50 rounded-xl border border-orange-100">
-                    <p class="text-xs text-orange-700 mb-2">We have noted your feedback. Ready to join?</p>
-                    <button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-orange-500 text-white font-bold py-2 rounded-lg shadow hover:bg-orange-600 transition text-xs">
-                        Register Now
-                    </button>
-                </div>`;
+            statusBadge = 'Active Student'; statusColor = 'bg-green-100 text-green-800';
+            actionBtn = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="flex-1 bg-green-600 text-white font-bold py-2 rounded-lg text-sm hover:bg-green-700">Renew / Pay</button>`;
         } else {
-            statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">Pending Trial</span>';
-            actionArea = `<p class="text-xs text-slate-400 mt-4 italic text-center border-t pt-3">We will contact you shortly to confirm your trial slot.</p>`;
+            statusBadge = 'Trial Pending'; statusColor = 'bg-yellow-100 text-yellow-800';
+            actionBtn = `<button disabled class="flex-1 bg-slate-100 text-slate-400 font-bold py-2 rounded-lg text-sm cursor-not-allowed">Wait for Trial</button>`;
         }
 
+        // Check for Unread Messages (Parent Perspective)
+        const { count } = await supabaseClient.from('messages')
+            .select('*', { count: 'exact', head: true })
+            .eq('lead_id', child.id)
+            .eq('sender_role', 'trainer') // Messages FROM trainer
+            .eq('is_read', false);
+            
+        const msgBadge = count > 0 ? `<span class="absolute -top-2 -right-2 bg-red-500 text-white text-[10px] w-5 h-5 flex items-center justify-center rounded-full border-2 border-white">${count}</span>` : '';
+
+        // --- THE CARD HTML ---
         html += `
-            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-6 transform transition duration-500 hover:shadow-md">
-                <div class="flex justify-between items-start mb-2">
-                    <div>
-                        <h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3>
-                        <p class="text-xs text-slate-500 font-bold uppercase mt-1">${child.intent}</p>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden hover:shadow-md transition-shadow flex flex-col">
+                <div class="p-5 border-b border-slate-100 flex justify-between items-start bg-slate-50/50">
+                    <div class="flex items-center gap-4">
+                        <div class="w-12 h-12 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center font-bold text-lg">
+                            ${child.child_name.charAt(0)}
+                        </div>
+                        <div>
+                            <h3 class="font-bold text-lg text-slate-800">${child.child_name}</h3>
+                            <p class="text-xs text-slate-500 font-semibold">${age} Years • ${child.gender}</p>
+                        </div>
                     </div>
-                    ${statusBadge}
+                    <span class="text-[10px] uppercase font-extrabold px-2 py-1 rounded ${statusColor}">${statusBadge}</span>
                 </div>
-                ${actionArea}
+
+                <div class="p-5 grid grid-cols-2 gap-y-4 gap-x-2 text-sm flex-1">
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Program</p>
+                        <p class="font-semibold text-slate-700">${child.intent}</p>
+                    </div>
+                    <div>
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Batch</p>
+                        <p class="font-semibold text-slate-700">${child.recommended_batch || 'Pending'}</p>
+                    </div>
+                    <div class="col-span-2">
+                        <p class="text-[10px] font-bold text-slate-400 uppercase">Medical Info</p>
+                        <p class="font-medium text-slate-600 truncate">${child.medical_info || 'None'}</p>
+                    </div>
+                </div>
+
+                <div class="p-4 bg-slate-50 border-t border-slate-100 flex gap-2">
+                    ${actionBtn}
+                    
+                    <button onclick="window.openParentChat('${leadString}')" class="relative w-12 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-blue-600 hover:border-blue-300 transition">
+                        <i class="fas fa-comment-dots"></i>
+                        ${msgBadge}
+                    </button>
+                    
+                    <button onclick="window.openEditModal('${leadString}')" class="w-12 h-10 bg-white border border-slate-200 rounded-lg flex items-center justify-center text-slate-500 hover:text-slate-800 hover:border-slate-400 transition" title="Edit Info">
+                        <i class="fas fa-pen"></i>
+                    </button>
+                </div>
             </div>
         `;
-    });
+    }
 
     container.innerHTML = html;
 }
 
-// --- 5. FEEDBACK LOGIC (NEW) ---
-window.openFeedbackModal = (id) => {
-    document.getElementById('feedback-lead-id').value = id;
-    document.getElementById('feedback-reason').value = "";
-    document.getElementById('feedback-date').value = "";
-    document.getElementById('feedback-note').value = "";
-    document.getElementById('feedback-modal').classList.remove('hidden');
+// --- 5. PARENT FEATURES (Chat & Edit) ---
+
+// A. Edit Child Info
+window.openEditModal = (leadString) => {
+    const child = JSON.parse(decodeURIComponent(leadString));
+    document.getElementById('edit-lead-id').value = child.id;
+    
+    // Read-Only
+    document.getElementById('read-child-name').value = child.child_name;
+    document.getElementById('read-dob').value = child.dob;
+    
+    // Editable
+    document.getElementById('update-medical').value = child.medical_info || '';
+    document.getElementById('update-alt-phone').value = child.alternate_phone || '';
+    document.getElementById('update-address').value = child.address || '';
+    
+    document.getElementById('edit-modal').classList.remove('hidden');
 };
 
-window.submitParentFeedback = async () => {
-    const id = document.getElementById('feedback-lead-id').value;
-    const reason = document.getElementById('feedback-reason').value;
-    const date = document.getElementById('feedback-date').value;
-    const note = document.getElementById('feedback-note').value;
-
-    if (!reason) return alert("Please select a reason.");
-
-    const btn = document.querySelector('#feedback-modal button'); // First button
-    const orgText = btn.innerText;
+window.saveChildInfo = async () => {
+    const id = document.getElementById('edit-lead-id').value;
+    const btn = document.getElementById('btn-save-info');
+    const originalText = btn.innerText;
+    
     btn.innerText = "Saving..."; btn.disabled = true;
 
+    const updates = {
+        medical_info: document.getElementById('update-medical').value,
+        alternate_phone: document.getElementById('update-alt-phone').value,
+        address: document.getElementById('update-address').value
+    };
+
     try {
-        const { error } = await supabaseClient
-            .from('leads')
-            .update({
-                status: 'Follow Up',
-                feedback_reason: reason,
-                follow_up_date: date || null,
-                parent_note: note
-            })
-            .eq('id', id);
-
+        const { error } = await supabaseClient.from('leads').update(updates).eq('id', id);
         if (error) throw error;
-
-        showSuccessModal("Feedback Saved", "Thank you! We will get in touch with you later.");
-        document.getElementById('feedback-modal').classList.add('hidden');
-        loadParentDashboard(currentUser.email);
-
+        
+        alert("Details updated successfully!");
+        document.getElementById('edit-modal').classList.add('hidden');
+        loadParentDashboard(currentUser.email); // Refresh Grid
     } catch (err) {
         console.error(err);
-        alert("Error saving feedback.");
+        alert("Error updating: " + err.message);
     } finally {
-        btn.innerText = orgText; btn.disabled = false;
+        btn.innerText = originalText; btn.disabled = false;
     }
 };
 
-// --- 6. REGISTRATION & PAYMENTS ---
+// B. Parent Chat (Same UI, different Role)
+window.openParentChat = async (leadString) => {
+    const lead = JSON.parse(decodeURIComponent(leadString));
+    
+    // Update Header for Parent View
+    document.getElementById('chat-header-name').innerText = "Trainer / Admin";
+    document.getElementById('chat-student-name').innerText = lead.child_name;
+    document.getElementById('chat-lead-id').value = lead.id;
+    
+    document.getElementById('chat-history').innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Loading messages...</p>';
+    document.getElementById('chat-modal').classList.remove('hidden');
+    
+    await loadMessages(lead.id); 
+    await markAsReadParent(lead.id);
+};
+
+// Mark Trainer messages as read
+async function markAsReadParent(leadId) {
+    await supabaseClient.from('messages')
+        .update({ is_read: true })
+        .eq('lead_id', leadId)
+        .eq('sender_role', 'trainer'); // Only mark trainer msgs as read
+}
+
+// Reuse loadMessages but adjust alignment based on role
+window.loadMessages = async (leadId) => {
+    const container = document.getElementById('chat-history');
+    const { data } = await supabaseClient.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true });
+    
+    if (!data) return;
+    container.innerHTML = '';
+    
+    // Determine who "Me" is based on current View
+    const isTrainer = !document.getElementById('trainer').classList.contains('hidden');
+    
+    data.forEach(msg => {
+        // Logic: If I am Trainer, 'trainer' msgs are me. If I am Parent, 'parent' msgs are me.
+        const isMe = isTrainer ? (msg.sender_role === 'trainer') : (msg.sender_role !== 'trainer');
+        
+        container.innerHTML += `
+            <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
+                <div class="${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm">
+                    ${msg.message_text}
+                </div>
+                <span class="text-[10px] text-slate-400 mt-1 px-1">
+                    ${isMe ? 'You' : msg.sender_name} • ${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </span>
+            </div>
+        `;
+    });
+    container.scrollTop = container.scrollHeight;
+};
+
+// Send Message (Generic - works for both roles)
+window.sendChatMessage = async () => {
+    const input = document.getElementById('chat-input');
+    const text = input.value.trim();
+    const leadId = document.getElementById('chat-lead-id').value;
+    
+    if (!text) return;
+
+    // Determine Role
+    const isTrainer = !document.getElementById('trainer').classList.contains('hidden');
+    const role = isTrainer ? 'trainer' : 'parent';
+    const name = currentDisplayName; // "Coach Pradeep" or "Parent Name"
+
+    // Optimistic Update
+    const container = document.getElementById('chat-history');
+    container.innerHTML += `<div class="flex flex-col items-end"><div class="bg-blue-600 text-white rounded-br-none px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm opacity-50">${text}</div></div>`;
+    container.scrollTop = container.scrollHeight;
+    input.value = '';
+
+    await supabaseClient.from('messages').insert([{ 
+        lead_id: leadId, 
+        sender_role: role, 
+        sender_name: name, 
+        message_text: text 
+    }]);
+    
+    await loadMessages(leadId); 
+    if(isTrainer) fetchInbox(); // Refresh sidebar for trainer
+};
+
+// --- 6. REGISTRATION & PAYMENTS (Preserved) ---
 window.openRegistrationModal = (leadString, isRenewal) => {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
@@ -379,8 +475,41 @@ window.handleLogin = async () => {
 };
 window.handleLogout = async () => { await supabaseClient.auth.signOut(); window.location.reload(); };
 
-// --- PLACEHOLDERS FOR TRAINER FUNCTIONS ---
-// (We keep these to prevent errors if Trainer UI elements exist)
+// --- 5. FEEDBACK LOGIC (Preserved) ---
+window.openFeedbackModal = (id) => {
+    document.getElementById('feedback-lead-id').value = id;
+    document.getElementById('feedback-reason').value = "";
+    document.getElementById('feedback-date').value = "";
+    document.getElementById('feedback-note').value = "";
+    document.getElementById('feedback-modal').classList.remove('hidden');
+};
+
+window.submitParentFeedback = async () => {
+    const id = document.getElementById('feedback-lead-id').value;
+    const reason = document.getElementById('feedback-reason').value;
+    const date = document.getElementById('feedback-date').value;
+    const note = document.getElementById('feedback-note').value;
+
+    if (!reason) return alert("Please select a reason.");
+
+    const btn = document.querySelector('#feedback-modal button'); // First button
+    const orgText = btn.innerText;
+    btn.innerText = "Saving..."; btn.disabled = true;
+
+    try {
+        const { error } = await supabaseClient.from('leads').update({
+            status: 'Follow Up', feedback_reason: reason, follow_up_date: date || null, parent_note: note
+        }).eq('id', id);
+
+        if (error) throw error;
+        showSuccessModal("Feedback Saved", "Thank you! We will get in touch with you later.");
+        document.getElementById('feedback-modal').classList.add('hidden');
+        loadParentDashboard(currentUser.email);
+    } catch (err) { console.error(err); alert("Error saving feedback."); } 
+    finally { btn.innerText = orgText; btn.disabled = false; }
+};
+
+// --- TRAINER FUNCTIONS ---
 window.switchTab = (tab) => {
     document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
     document.getElementById(`view-${tab}`).classList.remove('hidden');
@@ -388,9 +517,10 @@ window.switchTab = (tab) => {
     document.getElementById(`tab-btn-${tab}`).classList.add('text-blue-600', 'border-b-2');
     if (tab === 'inbox') fetchInbox();
 };
-// ... (Trainer fetchTrials, createTrialCard, inbox logic, etc. included from previous version for completeness) ...
-// For brevity, I am ensuring the core logic we discussed is fully implemented above.
-// The Trainer logic remains identical to v38/v39.
+// ... (Trainer fetchTrials, createTrialCard, fetchInbox logic is preserved inside init/loadTrainerDashboard above) ...
+// For completeness, ensuring fetchTrials and fetchInbox are available globally:
+window.fetchTrials = fetchTrials;
+window.fetchInbox = fetchInbox;
 
 // INIT
 initSession();
