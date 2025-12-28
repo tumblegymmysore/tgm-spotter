@@ -7,11 +7,33 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v14 - Fixed Syntax).");
+console.log("System Loaded: Ready (v15 - Combined Features).");
 
 // --------------------------------------------------------------------------
-// 2. AGE CALCULATOR
+// 2. UI HELPERS (Scroll, Toggles, Age)
 // --------------------------------------------------------------------------
+
+// Fixes "Book a Free Trial" Scroll
+window.scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) {
+        element.scrollIntoView({ behavior: 'smooth' });
+    } else {
+        console.warn("Section not found:", id);
+    }
+};
+
+// Fixes "Other" text box appearing
+window.checkOther = (selectEl, inputId) => {
+    const inputEl = document.getElementById(inputId);
+    if (selectEl.value === 'Other') {
+        inputEl.classList.remove('hidden');
+    } else {
+        inputEl.classList.add('hidden');
+    }
+};
+
+// Age Calculator
 window.calculateAgeDisplay = () => {
     const dobInput = document.getElementById('dob').value;
     if (!dobInput) return;
@@ -35,9 +57,7 @@ window.calculateAgeDisplay = () => {
     }
 };
 
-// --------------------------------------------------------------------------
-// 3. ERROR HELPER
-// --------------------------------------------------------------------------
+// Error Modal Helper
 function showError(title, message) {
     const titleEl = document.getElementById('error-title');
     const msgEl = document.getElementById('error-msg');
@@ -53,7 +73,39 @@ function showError(title, message) {
 }
 
 // --------------------------------------------------------------------------
-// 4. MAIN SUBMISSION HANDLER
+// 3. LOGIN & AUTH LOGIC
+// --------------------------------------------------------------------------
+
+window.handleLogin = async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+
+    if (!email || !password) {
+        alert("Please enter both email and password.");
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        alert("Login Failed: " + error.message);
+    } else {
+        // Login Successful
+        alert("Welcome back!");
+        window.location.reload(); // Reload to show the Trainer Dashboard (logic needed)
+    }
+};
+
+window.handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+};
+
+// --------------------------------------------------------------------------
+// 4. INTAKE FORM SUBMISSION (Your Approved Logic)
 // --------------------------------------------------------------------------
 window.handleIntakeSubmit = async (e) => {
     e.preventDefault(); 
@@ -172,5 +224,4 @@ window.handleIntakeSubmit = async (e) => {
         btn.disabled = false;
         btn.innerText = originalText;
     }
-}; 
-// END OF FILE - ENSURE YOU COPIED UP TO HERE
+};
