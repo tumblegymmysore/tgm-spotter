@@ -1,6 +1,6 @@
 // supabase/functions/notify/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1" // <--- Added Supabase Client
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
 import { generateWelcomeEmail } from "./templates.ts"
 import { sendWhatsAppTrial } from "./whatsapp.ts"
 
@@ -8,7 +8,6 @@ const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const META_PHONE_ID = Deno.env.get('META_PHONE_ID')
 const META_ACCESS_TOKEN = Deno.env.get('META_ACCESS_TOKEN')
 
-// Automatically available in Supabase Edge Functions
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')
 
@@ -18,45 +17,55 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const { record } = await req.json()
     
     // ---------------------------------------------------------
-    // VALIDATION 1: Phone Number (10 digits, numeric only)
+    // VALIDATION 1: Phone Number (Strict 10 Digits)
     // ---------------------------------------------------------
-    const cleanPhone = record.phone.replace(/\D/g, ''); // Remove non-numbers
+    // We strip all non-numbers (spaces, dashes, +91) to check the core digits
+    const cleanPhone = record.phone.replace(/\D/g, ''); 
+    
+    // Regex: Start(^) to End($) must be exactly 10 digits [0-9]
     const isValidPhone = /^[0-9]{10}$/.test(cleanPhone);
 
     if (!isValidPhone) {
       console.error(`Invalid Phone: ${record.phone}`);
-      return new Response(JSON.stringify({ error: "Phone number must be exactly 10 digits." }), {
+      return new Response(JSON.stringify({ 
+        error: "Invalid Phone Number. Please enter exactly 10 digits without spaces or code." 
+      }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400, // Bad Request
       });
     }
 
     // ---------------------------------------------------------
-    // VALIDATION 2: Duplicate Check (Soft Check)
+    // VALIDATION 2: Duplicate Check (The "Gatekeeper")
     // ---------------------------------------------------------
-    // We check if this child is already in the system to avoid spamming you.
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
     
-    // Note: Replace 'leads' with your actual table name if different
-    const { data: duplicates } = await supabase
+    // Check if this specific child (Name + DOB + Parent Email) exists
+    // We exclude the current record ID (if it was just inserted) to avoid false positives
+    const { data: duplicates, error: dbError } = await supabase
       .from('leads') 
       .select('id')
       .eq('child_name', record.child_name)
       .eq('dob', record.dob)
       .eq('parent_email', record.parent_email)
-      .neq('id', record.id || -1) // Don't count "self" if this record is already saved
+      .neq('id', record.id || -1) 
     
     if (duplicates && duplicates.length > 0) {
-       console.log("Duplicate submission detected. Skipping notifications.");
-       return new Response(JSON.stringify({ message: "Duplicate detected. No notification sent." }), {
+       console.log("Duplicate submission detected.");
+       
+       // 409 Conflict - The Frontend should display this message in Red
+       return new Response(JSON.stringify({ 
+         error: "This student info is already registered. You cannot take an additional trial session. Please check with Admin, or Login/Register if you have already completed the trial." 
+       }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200, // We return 200 so the frontend doesn't crash, but we do nothing.
+        status: 409, 
       });
     }
 
@@ -66,14 +75,15 @@ serve(async (req) => {
     if (record.status !== 'Pending Trial') {
         return new Response(JSON.stringify({ message: "Skipped: Not a trial request" }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
         })
     }
 
     // ---------------------------------------------------------
-    // ACTION: Send Notifications
+    // ACTION: Send Notifications (If validations pass)
     // ---------------------------------------------------------
     
-    // 1. Send Email
+    // 1. Send Email (To You/Admin)
     const emailHtml = generateWelcomeEmail(record);
     const emailReq = fetch('https://api.resend.com/emails', {
       method: 'POST',
@@ -84,12 +94,12 @@ serve(async (req) => {
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
         to: ['tumblegymmysore@gmail.com'], 
-        subject: `Welcome to The Tumble Gym, ${record.child_name}!`,
+        subject: `New Trial Request: ${record.child_name}`,
         html: emailHtml,
       }),
     });
 
-    // 2. Send WhatsApp
+    // 2. Send WhatsApp (To You/Admin)
     const whatsappReq = sendWhatsAppTrial(record, META_PHONE_ID!, META_ACCESS_TOKEN!);
 
     // Wait for both
