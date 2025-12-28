@@ -1,66 +1,95 @@
 // supabase/functions/notify/templates.ts
 
-export const generateWelcomeEmail = (record: any) => {
-  // 1. Receipt Section (The Data)
-  const receiptHtml = `
-    <div style="margin-top: 30px; padding: 20px; background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; font-family: sans-serif; font-size: 14px; color: #475569;">
-      <h3 style="margin-top: 0; color: #1e293b; border-bottom: 1px solid #cbd5e1; padding-bottom: 10px;">📋 Submission Receipt</h3>
-      <table style="width: 100%; border-collapse: collapse;">
-        <tr><td style="padding: 5px 0; font-weight: bold;">Reference ID:</td><td>${record.id}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Child Name:</td><td>${record.child_name}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Date of Birth:</td><td>${record.dob}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Gender:</td><td>${record.gender}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Parent Name:</td><td>${record.parent_name}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Goal:</td><td>${record.intent}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Medical Info:</td><td>${record.medical_info}</td></tr>
-        <tr><td style="padding: 5px 0; font-weight: bold;">Source:</td><td>${record.how_heard}</td></tr>
-      </table>
-      
-      <div style="margin-top: 15px; padding-top: 15px; border-top: 1px dashed #cbd5e1;">
-        <p style="margin: 0; font-weight: bold; color: #059669;">✅ Declarations Accepted</p>
-        <ul style="margin: 5px 0 0 0; padding-left: 20px; font-size: 12px; color: #64748b;">
-          <li>Parent/Guardian Confirmation</li>
-          <li>Risk Acknowledgement & Liability Waiver</li>
-          <li>Medical Fitness Declaration</li>
-          <li>Media Consent Agreement</li>
-          <li>Policy & Non-Refundable Fee Agreement</li>
-        </ul>
-        <p style="margin-top: 10px; font-size: 12px;">Accepted on: ${new Date().toLocaleDateString()}</p>
-      </div>
-    </div>
-  `;
+export const generateWelcomeEmail = (data: any) => {
+  // Format Date of Birth nicely
+  const dobDate = new Date(data.dob);
+  const formattedDOB = dobDate.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+  
+  // Calculate Age roughly
+  const ageDiffMs = Date.now() - dobDate.getTime();
+  const ageDate = new Date(ageDiffMs);
+  const age = Math.abs(ageDate.getUTCFullYear() - 1970);
 
-  // 2. Main Email Body (The Message)
+  // Marketing Badge Logic
+  const consentBadge = data.marketing_consent 
+    ? `<span style="background-color: #dcfce7; color: #166534; padding: 4px 8px; border-radius: 99px; font-size: 12px; font-weight: bold;">✅ Communication Allowed</span>` 
+    : `<span style="background-color: #fee2e2; color: #991b1b; padding: 4px 8px; border-radius: 99px; font-size: 12px; font-weight: bold;">❌ No Marketing</span>`;
+
   return `
-    <div style="font-family: sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto;">
-      <div style="text-align: center; margin-bottom: 20px;">
-        <h2 style="color: #e11d48;">Welcome to The Tumble Gym!</h2>
-      </div>
-      
-      <p>Dear ${record.parent_name},</p>
-      
-      <p>Thank you for registering your child, <strong>${record.child_name}</strong>, for a trial session at The Tumble Gym, Mysore! We are excited to welcome your child and introduce them to the wonderful world of gymnastics.</p>
-      
-      <div style="background-color: #fff1f2; border-left: 4px solid #e11d48; padding: 15px; margin: 20px 0;">
-        <strong style="color: #9f1239;">Next Steps:</strong>
-        <ul style="margin-bottom: 0;">
-          <li><strong>Preparation:</strong> Please ensure your child wears comfortable clothing suitable for physical activity (e.g., shorts/leggings and a t-shirt).</li>
-          <li><strong>Arrival:</strong> Plan to arrive 10 minutes early to settle in.</li>
-        </ul>
-      </div>
+    <!DOCTYPE html>
+    <html>
+      <head>
+        <style>
+          body { font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif; background-color: #f8fafc; color: #334155; margin: 0; padding: 0; }
+          .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 12px; overflow: hidden; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); border: 1px solid #e2e8f0; }
+          .header { background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%); padding: 30px; text-align: center; color: white; }
+          .header h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.5px; }
+          .header p { margin: 10px 0 0; font-size: 16px; opacity: 0.9; }
+          
+          /* Compact Contact Bar */
+          .contact-bar { background: #eff6ff; padding: 12px; text-align: center; font-size: 14px; color: #1e3a8a; border-bottom: 1px solid #dbeafe; font-weight: 600; }
+          .contact-bar span { margin: 0 8px; }
 
-      <p>If you have any questions or need to reschedule, please do not hesitate to contact us at <a href="mailto:tumblegymmysore@gmail.com" style="color: #e11d48;">tumblegymmysore@gmail.com</a> or <strong>+91 8618684685</strong>.</p>
-      
-      <p>We look forward to seeing you and your child soon!</p>
-      
-      <p>Warm regards,<br/>
-      <strong>The Tumble Gym Team</strong></p>
-      
-      ${receiptHtml}
-      
-      <p style="text-align: center; font-size: 11px; color: #94a3b8; margin-top: 30px;">
-        This message was sent to ${record.email} as part of your registration.
-      </p>
-    </div>
-  `;
-};
+          .content { padding: 30px; }
+          .section-title { font-size: 12px; font-weight: 700; text-transform: uppercase; color: #94a3b8; letter-spacing: 1px; margin-bottom: 8px; margin-top: 20px; }
+          .data-box { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 15px; }
+          .row { display: flex; justify-content: space-between; margin-bottom: 8px; padding-bottom: 8px; border-bottom: 1px solid #e2e8f0; }
+          .row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+          .label { font-weight: 600; color: #64748b; font-size: 14px; }
+          .value { font-weight: 500; color: #0f172a; font-size: 14px; text-align: right; }
+
+          .footer { text-align: center; padding: 20px; font-size: 12px; color: #94a3b8; background-color: #f1f5f9; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>${data.child_name}</h1>
+            <p>New Trial Request</p>
+          </div>
+
+          <div class="contact-bar">
+             ${data.parent_name} <span>•</span> <a href="https://wa.me/91${data.phone}" style="text-decoration:none; color:#1e3a8a;">+91 ${data.phone}</a> <span>•</span> ${data.email}
+          </div>
+
+          <div class="content">
+            <div class="section-title">Child Details</div>
+            <div class="data-box">
+              <div class="row"><span class="label">Age</span> <span class="value">${age} Years</span></div>
+              <div class="row"><span class="label">Date of Birth</span> <span class="value">${formattedDOB}</span></div>
+              <div class="row"><span class="label">Gender</span> <span class="value">${data.gender}</span></div>
+            </div>
+
+            <div class="section-title">Contact & Address</div>
+            <div class="data-box">
+              <div class="row">
+                <span class="label">Alternate No.</span> 
+                <span class="value">${data.alternate_phone || 'None'}</span>
+              </div>
+              <div class="row" style="flex-direction:column; gap:4px; text-align:left;">
+                <span class="label">Address</span> 
+                <span class="value" style="text-align:left; line-height:1.4;">${data.address || 'Not Provided'}</span>
+              </div>
+            </div>
+
+            <div class="section-title">Marketing Data</div>
+            <div class="data-box">
+              <div class="row"><span class="label">Source</span> <span class="value">${data.source || 'Unknown'}</span></div>
+              <div class="row"><span class="label">Intent</span> <span class="value">${data.intent || 'Not Specified'}</span></div>
+              <div class="row"><span class="label">Consent</span> <span class="value">${consentBadge}</span></div>
+            </div>
+
+            <div class="section-title" style="color:#ef4444;">Medical Info</div>
+            <div class="data-box" style="background:#fef2f2; border-color:#fecaca;">
+              <p style="margin:0; font-size:14px; color:#991b1b;">${data.medical_info || 'None'}</p>
+            </div>
+
+          </div>
+          <div class="footer">
+            Sent automatically by Tumble Gym Spotter System
+          </div>
+        </div>
+      </body>
+    </html>
+  `
+}
