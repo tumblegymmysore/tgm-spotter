@@ -1,5 +1,7 @@
 // supabase/functions/notify/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+// Import the template from the file next door
+import { generateWelcomeEmail } from "./templates.ts"
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 
@@ -9,43 +11,22 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response('ok', { headers: corsHeaders })
-  }
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const { record } = await req.json()
     
-    // 1. DETERMINE EMAIL TYPE
-    // If it's neither a Trial nor a Registration, we skip sending an email.
-    const isTrial = record.status === 'Pending Trial';
-    const isRegistration = record.status === 'Registration Requested';
-
-    if (!isTrial && !isRegistration) {
-        return new Response(JSON.stringify({ message: "Skipped: Status not relevant" }), {
+    // 1. Filter: Only send for Trial Requests
+    if (record.status !== 'Pending Trial') {
+        return new Response(JSON.stringify({ message: "Skipped: Not a trial request" }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         })
     }
 
-    // 2. CUSTOMIZE CONTENT
-    const subject = isTrial 
-        ? `🤸 New Trial Request: ${record.child_name}` 
-        : `💰 Payment Verification Needed: ${record.child_name}`;
+    // 2. Generate Content using the Template
+    const emailHtml = generateWelcomeEmail(record);
 
-    const emailHtml = `
-      <h2>${isTrial ? "New Free Trial Request" : "New Registration Payment"}</h2>
-      <p><strong>Child:</strong> ${record.child_name}</p>
-      <p><strong>Parent:</strong> ${record.parent_name}</p>
-      <p><strong>Phone:</strong> ${record.phone}</p>
-      <p><strong>Status:</strong> ${record.status}</p>
-      ${isRegistration ? `<p><strong>Plan:</strong> ${record.selected_package}</p>` : ''}
-      ${isRegistration ? `<p><strong>Price:</strong> ${record.package_price}</p>` : ''}
-      <br/>
-      ${isRegistration ? `<a href="${record.payment_proof_url}" style="padding:10px; background:blue; color:white;">View Payment Proof</a>` : ''}
-    `
-
-    // 3. SEND EMAIL
-    // IMPORTANT: 'to' must be the email you used to sign up for Resend (until you verify a domain)
+    // 3. SEND EMAIL (Hardcoded to Admin for now)
     const res = await fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -54,13 +35,18 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
-        to: ['tumblegymmysore@gmail.com'], // <--- MUST MATCH YOUR RESEND ACCOUNT EMAIL
-        subject: subject,
+        to: ['tumblegymmysore@gmail.com'], // <--- FORCED TO ADMIN
+        subject: `Welcome to The Tumble Gym, ${record.child_name}!`,
         html: emailHtml,
       }),
     })
 
     const data = await res.json()
+
+    if (!res.ok) {
+        console.error("Resend Error:", JSON.stringify(data));
+        throw new Error("Failed to send email");
+    }
 
     return new Response(JSON.stringify(data), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
