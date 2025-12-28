@@ -7,10 +7,10 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v23 - Skills in Email).");
+console.log("System Loaded: Ready (v24 - Skills Payload Fixed).");
 
 // --------------------------------------------------------------------------
-// 2. SESSION & LOGIN MANAGER (Preserved)
+// 2. SESSION & LOGIN MANAGER
 // --------------------------------------------------------------------------
 let currentUser = null; 
 
@@ -55,7 +55,7 @@ window.handleLogout = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 3. TRAINER DASHBOARD LOGIC (Preserved)
+// 3. TRAINER DASHBOARD LOGIC
 // --------------------------------------------------------------------------
 async function loadTrainerDashboard(trainerName) {
     const trainerSection = document.getElementById('trainer');
@@ -142,7 +142,7 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. ASSESSMENT LOGIC (UPDATED)
+// 4. ASSESSMENT LOGIC
 // --------------------------------------------------------------------------
 let currentAssessmentLead = null;
 
@@ -167,8 +167,6 @@ window.openAssessment = (leadString) => {
     let age = today.getFullYear() - dob.getFullYear();
     if (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate())) age--;
 
-    console.log(`Auto-detecting batch for age: ${age}`);
-
     let recommendedBatch = "Toddler (3-5 Yrs)";
     if (age >= 18) recommendedBatch = "Adult Fitness";
     else if (age >= 8) recommendedBatch = "Intermediate (8+ Yrs)";
@@ -186,6 +184,7 @@ window.submitAssessment = async () => {
     const batch = document.getElementById('assess-batch').value;
     const ptRecommended = document.getElementById('assess-pt').checked;
     
+    // Capture Skills
     const skills = {
         listening: document.getElementById('skill-listen')?.checked || false,
         flexibility: document.getElementById('skill-flex')?.checked || false,
@@ -193,6 +192,8 @@ window.submitAssessment = async () => {
         balance: document.getElementById('skill-balance')?.checked || false,
         personal_training: ptRecommended 
     };
+
+    console.log("Submitting Skills:", skills); // Debugging
 
     if (!batch) return alert("Please select a Recommended Batch.");
 
@@ -212,13 +213,13 @@ window.submitAssessment = async () => {
 
         if (error) throw error;
 
-        // Trigger Email
+        // Trigger Email - Ensure skills_rating is passed explicitly!
         const emailPayload = {
             record: {
                 ...currentAssessmentLead, 
-                feedback, 
+                feedback: feedback, 
                 recommended_batch: batch,
-                skills_rating: skills, // <--- THE KEY FIX: Sending skills to email
+                skills_rating: skills, // <--- Crucial Line
                 pt_recommended: ptRecommended, 
                 type: 'feedback_email' 
             }
@@ -245,7 +246,7 @@ window.submitAssessment = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 5. PUBLIC FORM HELPERS (Preserved)
+// 5. PUBLIC FORM HELPERS
 // --------------------------------------------------------------------------
 window.scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -297,11 +298,10 @@ function showError(title, message) {
 }
 
 // --------------------------------------------------------------------------
-// 6. MAIN FORM SUBMISSION (Preserved)
+// 6. MAIN FORM SUBMISSION
 // --------------------------------------------------------------------------
 window.handleIntakeSubmit = async (e) => {
     e.preventDefault(); 
-    
     const btn = document.getElementById('btn-submit');
     const originalText = btn.innerText;
 
