@@ -7,7 +7,7 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v22 - Full Age Logic).");
+console.log("System Loaded: Ready (v23 - Skills in Email).");
 
 // --------------------------------------------------------------------------
 // 2. SESSION & LOGIN MANAGER (Preserved)
@@ -22,7 +22,6 @@ let currentUser = null;
         const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
         
-        // Hide Public, Show Private
         document.getElementById('landing').classList.add('hidden');
         document.getElementById('nav-public').classList.add('hidden');
         document.getElementById('nav-private').classList.remove('hidden');
@@ -143,7 +142,7 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. ASSESSMENT LOGIC (FIXED: Full Age Range & PT)
+// 4. ASSESSMENT LOGIC (UPDATED)
 // --------------------------------------------------------------------------
 let currentAssessmentLead = null;
 
@@ -162,8 +161,7 @@ window.openAssessment = (leadString) => {
     });
     document.getElementById('assess-pt').checked = false; 
 
-    // --- AUTO-BATCH LOGIC ---
-    // 1. Calculate precise age
+    // Auto-Batch Logic
     const dob = new Date(lead.dob);
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
@@ -171,24 +169,12 @@ window.openAssessment = (leadString) => {
 
     console.log(`Auto-detecting batch for age: ${age}`);
 
-    // 2. Select Batch String (Exact Matches to HTML)
-    // Default to "Toddler" so < 3 also goes here
     let recommendedBatch = "Toddler (3-5 Yrs)";
-
-    if (age >= 18) {
-        recommendedBatch = "Adult Fitness";
-    } 
-    else if (age >= 8) {
-        recommendedBatch = "Intermediate (8+ Yrs)";
-    } 
-    else if (age >= 5) {
-        recommendedBatch = "Beginner (5-8 Yrs)";
-    } 
-    // Ages 0-4 fall through to the default "Toddler"
+    if (age >= 18) recommendedBatch = "Adult Fitness";
+    else if (age >= 8) recommendedBatch = "Intermediate (8+ Yrs)";
+    else if (age >= 5) recommendedBatch = "Beginner (5-8 Yrs)";
     
     document.getElementById('assess-batch').value = recommendedBatch;
-    // ----------------------------------
-
     document.getElementById('assessment-modal').classList.remove('hidden');
 };
 
@@ -198,7 +184,7 @@ window.submitAssessment = async () => {
     
     const feedback = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
-    const ptRecommended = document.getElementById('assess-pt').checked; // Checkbox Value
+    const ptRecommended = document.getElementById('assess-pt').checked;
     
     const skills = {
         listening: document.getElementById('skill-listen')?.checked || false,
@@ -232,6 +218,7 @@ window.submitAssessment = async () => {
                 ...currentAssessmentLead, 
                 feedback, 
                 recommended_batch: batch,
+                skills_rating: skills, // <--- THE KEY FIX: Sending skills to email
                 pt_recommended: ptRecommended, 
                 type: 'feedback_email' 
             }
@@ -243,7 +230,6 @@ window.submitAssessment = async () => {
             body: JSON.stringify(emailPayload) 
         });
 
-        // Success Message
         alert(`Great job! 🌟\n\nThe assessment for ${currentAssessmentLead.child_name} has been saved and the parent has been notified.\n\nYou're all set!`);
         
         document.getElementById('assessment-modal').classList.add('hidden');
@@ -325,27 +311,24 @@ window.handleIntakeSubmit = async (e) => {
     const cleanPhone = rawPhone.replace(/\D/g, ''); 
     const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
 
-    // Validation 1: Mobile
+    // Validation
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
         showError("Invalid Mobile Number", "Please check the 'Mobile (WhatsApp)' field. It must be exactly 10 digits (e.g., 9900000000). Do not include +91.");
         return; 
     }
-
-    // Validation 2: Alt Phone
     if (rawAltPhone.length > 0) {
         let isValid = false;
         if (cleanAltPhone.startsWith('0')) {
              if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) isValid = true;
-        } else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
-             isValid = true;
-        }
+        } else if (/^[0-9]{10}$/.test(cleanAltPhone)) isValid = true;
+        
         if (!isValid) {
              showError("Invalid Emergency Contact", "If Mobile: 10 Digits.\nIf Landline: Must start with '0'.");
              return; 
         }
     }
 
-    // Prepare Payload
+    // Payload
     const sourceSelect = document.getElementById('source').value;
     const finalSource = sourceSelect === 'Other' ? document.getElementById('source_other').value : sourceSelect;
     const intentSelect = document.getElementById('intent').value;
@@ -372,7 +355,6 @@ window.handleIntakeSubmit = async (e) => {
     btn.innerText = "Saving...";
 
     try {
-        // Save to DB
         const { error } = await supabaseClient.from('leads').insert([formData]);
 
         if (error) {
@@ -389,7 +371,6 @@ window.handleIntakeSubmit = async (e) => {
             return;
         }
 
-        // Trigger Welcome Email
         btn.innerText = "Notifying...";
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
             method: 'POST',
@@ -400,7 +381,6 @@ window.handleIntakeSubmit = async (e) => {
             body: JSON.stringify({ record: formData }) 
         });
 
-        // Success
         document.getElementById('success-modal').classList.remove('hidden');
         btn.innerText = "Sent!";
 
