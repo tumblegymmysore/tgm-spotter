@@ -7,7 +7,7 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v21 - Master File).");
+console.log("System Loaded: Ready (v22 - Full Age Logic).");
 
 // --------------------------------------------------------------------------
 // 2. SESSION & LOGIN MANAGER (Preserved)
@@ -143,7 +143,7 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. ASSESSMENT LOGIC (UPDATED: Auto-Batch & PT Checkbox)
+// 4. ASSESSMENT LOGIC (FIXED: Full Age Range & PT)
 // --------------------------------------------------------------------------
 let currentAssessmentLead = null;
 
@@ -172,7 +172,8 @@ window.openAssessment = (leadString) => {
     console.log(`Auto-detecting batch for age: ${age}`);
 
     // 2. Select Batch String (Exact Matches to HTML)
-    let recommendedBatch = "";
+    // Default to "Toddler" so < 3 also goes here
+    let recommendedBatch = "Toddler (3-5 Yrs)";
 
     if (age >= 18) {
         recommendedBatch = "Adult Fitness";
@@ -183,11 +184,8 @@ window.openAssessment = (leadString) => {
     else if (age >= 5) {
         recommendedBatch = "Beginner (5-8 Yrs)";
     } 
-    else if (age >= 3) {
-        recommendedBatch = "Toddler (3-5 Yrs)";
-    }
+    // Ages 0-4 fall through to the default "Toddler"
     
-    // Set the dropdown
     document.getElementById('assess-batch').value = recommendedBatch;
     // ----------------------------------
 
@@ -245,7 +243,7 @@ window.submitAssessment = async () => {
             body: JSON.stringify(emailPayload) 
         });
 
-        // New Success Message
+        // Success Message
         alert(`Great job! 🌟\n\nThe assessment for ${currentAssessmentLead.child_name} has been saved and the parent has been notified.\n\nYou're all set!`);
         
         document.getElementById('assessment-modal').classList.add('hidden');
