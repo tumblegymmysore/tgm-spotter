@@ -316,12 +316,10 @@
                         <option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>
                         <option value="Intermediate">Intermediate</option>
                         <option value="Advanced">Advanced Squad</option>
-                        <option value="Adult Fitness">Adult Fitness</option>
-                    </select>
+                        <option value="Adult Fitness">Adult Fitness</option> </select>
 
-                    <div class="flex items-center p-3 bg-blue-50 border border-blue-100 rounded-lg">
-                        <input type="checkbox" id="assess-pt" class="w-5 h-5 text-blue-600 rounded mr-3">
-                        <label for="assess-pt" class="text-sm font-bold text-blue-800">Recommend Personal Training?</label>
+                    <div class="flex items-center p-3 bg-blue-50 border border-blue-100 rounded-lg transition hover:bg-blue-100 cursor-pointer" onclick="document.getElementById('assess-pt').click()">
+                        <input type="checkbox" id="assess-pt" class="w-5 h-5 text-blue-600 rounded mr-3 pointer-events-none"> <label class="text-sm font-bold text-blue-800 cursor-pointer">Recommend Personal Training?</label>
                     </div>
                 </div>
             </div>
