@@ -13,9 +13,19 @@ console.log("System Loaded: Ready.");
 // HELPER: Show Custom Error Modal
 // --------------------------------------------------------------------------
 function showError(title, message) {
-    document.getElementById('error-title').innerText = title;
-    document.getElementById('error-msg').innerText = message;
-    document.getElementById('error-modal').classList.remove('hidden');
+    // If the error modal elements exist, use them. 
+    // Otherwise fallback to alert (safety net).
+    const titleEl = document.getElementById('error-title');
+    const msgEl = document.getElementById('error-msg');
+    const modalEl = document.getElementById('error-modal');
+
+    if (titleEl && msgEl && modalEl) {
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        modalEl.classList.remove('hidden');
+    } else {
+        alert(`⚠️ ${title}\n\n${message}`);
+    }
 }
 
 // --------------------------------------------------------------------------
@@ -39,7 +49,6 @@ window.handleIntakeSubmit = async (e) => {
     const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
 
     // 2. Validate MAIN MOBILE (Strict 10 Digits)
-    // Must be exactly 10 digits.
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
         showError(
             "Invalid Mobile Number", 
@@ -51,15 +60,11 @@ window.handleIntakeSubmit = async (e) => {
     // 3. Validate ALTERNATE PHONE (Flexible Landline Logic)
     if (rawAltPhone.length > 0) {
         let isValid = false;
-
-        // Case A: Starts with 0 (Landline) -> Allow 10 to 12 digits total
         if (cleanAltPhone.startsWith('0')) {
-             if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) {
-                 isValid = true;
-             }
-        } 
-        // Case B: Does NOT start with 0 (Mobile) -> Must be 10 digits
-        else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
+             // Landline: 10-12 digits allowed
+             if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) isValid = true;
+        } else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
+             // Mobile: 10 digits
              isValid = true;
         }
 
@@ -74,7 +79,7 @@ window.handleIntakeSubmit = async (e) => {
 
     // --- LOCK BUTTON ---
     btn.disabled = true;
-    btn.innerText = "Sending...";
+    btn.innerText = "Saving...";
 
     // --- PREPARE DATA ---
     const formData = {
@@ -94,44 +99,44 @@ window.handleIntakeSubmit = async (e) => {
     };
 
     try {
-        // --- SEND TO DATABASE ---
+        // --- 4. SEND TO DATABASE ---
         const { data, error } = await supabaseClient
             .from('leads')
             .insert([formData])
-            .select();
+            .select(); // Returns the saved record (important for Step 5)
 
-        // --- HANDLE ERRORS ---
         if (error) {
             console.error("Supabase Error:", error);
-
             if (error.code === '23505' || error.message.includes('unique constraint')) {
-                showError(
-                    "Registration Exists", 
-                    "This student is already registered with us. You cannot take an additional trial session.\n\nPlease check with Admin, or Login if you are already a member."
-                );
-            } 
-            else if (error.code === '23514' || error.message.includes('check_phone_format')) {
-                showError(
-                    "System Rejected Phone", 
-                    "The phone number format was rejected by the system. Please ensure it is strictly 10 digits."
-                );
-            }
-            else {
+                showError("Registration Exists", "This student is already registered with us. Please Login or contact Admin.");
+            } else if (error.code === '23514' || error.message.includes('check_phone_format')) {
+                showError("System Rejected Phone", "The phone number format was rejected by the system. Please ensure it is strictly 10 digits.");
+            } else {
                 showError("System Error", error.message);
             }
-
             btn.disabled = false;
             btn.innerText = originalText;
             return;
         }
 
-        // --- SUCCESS ---
+        // --- 5. TRIGGER EMAIL & WHATSAPP (RESTORED!) ---
+        btn.innerText = "Notifying...";
+        
+        // We call the 'notify' Edge Function manually
+        // Note: We use 'no-cors' mode or simple fetch. We don't await the result strictly so the user sees Success immediately.
+        fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({ record: data[0] }) // Send the data we just saved
+        }).catch(err => console.error("Notification Error:", err));
+
+        // --- 6. SUCCESS UI ---
         document.getElementById('success-modal').classList.remove('hidden');
         btn.innerText = "Sent!";
 
     } catch (err) {
         console.error("Unexpected Error:", err);
-        showError("Unexpected Error", "Something went wrong. Please check your internet connection and try again.");
+        showError("Unexpected Error", "Something went wrong. Please check your connection.");
         btn.disabled = false;
         btn.innerText = originalText;
     }
