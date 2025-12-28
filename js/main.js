@@ -41,6 +41,9 @@ window.fetchInbox = Trainer.fetchInbox;
 window.switchTab = Trainer.switchTab;
 
 // Admin (Bind specific admin functions if you have them, e.g. window.loadAdminStats = Admin.loadStats)
+window.approvePayment = Admin.approvePayment;
+window.rejectPayment = Admin.rejectPayment;
+window.fetchPendingRegistrations = Admin.fetchPendingRegistrations;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {
