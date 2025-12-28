@@ -244,35 +244,109 @@
         </div>
     </div>
 
-    <div id="reg-modal" class="modal-overlay hidden">
-        <div class="modal-content">
-            <h3 class="text-xl font-bold text-slate-800 mb-2">Registration</h3>
-            <input type="hidden" id="is-renewal">
-            <div class="review-box">
-                <div class="review-header" onclick="window.toggleReview()"><span>Review Details</span><i class="fas fa-chevron-down"></i></div>
-                <div id="review-body" class="review-body">
-                    <div class="grid gap-3">
-                        <label>Name</label><input type="text" id="edit-name" class="input-field h-8 text-sm">
-                        <label>Phone</label><input type="tel" id="edit-phone" class="input-field h-8 text-sm">
-                        <label>Email</label><input type="email" id="edit-email" class="input-field h-8 text-sm bg-gray-100" readonly>
+    <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
+        <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800">Complete Registration</h2>
+                    <p class="text-xs text-slate-500 font-medium mt-1">Finalize enrollment for <span id="reg-child-name" class="text-blue-600 font-bold">Child</span></p>
+                </div>
+                <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition flex items-center justify-center shadow-sm">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+    
+            <div class="p-6 overflow-y-auto space-y-8">
+                <input type="hidden" id="is-renewal">
+    
+                <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100">
+                    <h3 class="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Preferences</h3>
+                    <p class="text-xs text-blue-700 mb-3">Please select the days that work best (Classes not available on Mondays).</p>
+                    
+                    <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Tuesday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Tuesday</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Wednesday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Wednesday</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Thursday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Thursday</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Friday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Friday</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Saturday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Saturday</span>
+                        </label>
+                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                            <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Sunday" name="session_days">
+                            <span class="text-sm text-slate-700 font-medium">Sunday</span>
+                        </label>
                     </div>
                 </div>
+    
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-cube mr-2"></i> Select Package</h3>
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <select id="reg-package" onchange="window.handlePackageChange()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium">
+                            <option value="" disabled selected>Choose a Plan...</option>
+                            <option value="2 Days / Week|3500">2 Days / Week - ₹3,500</option>
+                            <option value="3 Days / Week|4500">3 Days / Week - ₹4,500</option>
+                            <option value="Weekend Batch|3000">Weekend Batch - ₹3,000</option>
+                            <option value="Special">Special / Personal Training</option>
+                        </select>
+                        
+                        <div id="training-level-group" class="hidden">
+                            <select id="reg-level" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium">
+                                <option value="Beginner">Beginner Rate</option>
+                                <option value="Intermediate">Intermediate Rate</option>
+                                <option value="Advanced">Advanced Rate</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+    
+                <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-bold text-slate-500">Registration Fee</span>
+                        <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
+                    </div>
+                    <div class="flex justify-between items-center mb-4 pt-4 border-t border-slate-200">
+                        <span class="text-lg font-bold text-slate-800">Total Payable</span>
+                        <span class="text-2xl font-black text-blue-600">₹<span id="total-price">0</span></span>
+                    </div>
+    
+                    <div class="space-y-3">
+                        <label class="block text-xs font-bold text-slate-500 uppercase">Start Date</label>
+                        <input type="date" id="reg-date" class="input-field p-3 rounded-xl bg-white text-sm">
+                        
+                        <label class="block text-xs font-bold text-slate-500 uppercase mt-4">Upload Payment Screenshot</label>
+                        <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                    </div>
+                </div>
+    
+                <div class="flex items-start gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                    <input type="checkbox" id="reg-consent" class="mt-1 form-checkbox text-blue-600 rounded cursor-pointer">
+                    <label for="reg-consent" class="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                        I acknowledge that participation in gymnastics carries inherent risks. I release Tumble Gym Mysore from liability for injuries. I agree to the <a href="#" class="text-blue-600 underline">Terms & Conditions</a>. (Membership is non-transferable/non-refundable).
+                    </label>
+                </div>
             </div>
-            <div id="reg-slots-info" class="slot-info mb-4"></div>
-            <select id="reg-package" class="input-field mb-4" onchange="window.handlePackageChange()">
-                <option value="" disabled selected>Select Package</option>
-                <optgroup label="Regular"><option value="2 Days/Week - 1 Month|3,500">2 Days - 1 Month (₹3,500)</option><option value="Unlimited - 1 Month|5,500">Unlimited - 1 Month (₹5,500)</option></optgroup>
-                <optgroup label="Professional"><option value="Special">Special Training</option></optgroup>
-            </select>
-            <div id="training-level-group" class="hidden mb-4 pl-3 border-l-4 border-blue-500"><select id="reg-level" class="input-field" onchange="window.calculateTotal()"><option value="Beginner">Beginner</option><option value="Advanced">Advanced</option></select></div>
-            <label>Start Date</label><input type="date" id="reg-date" class="input-field mb-4">
-            <div class="bg-slate-50 p-4 rounded-lg mb-4"><div id="reg-fee-row" class="flex justify-between mb-2"><span>Registration Fee</span><span>₹<span id="reg-fee-display">2000</span></span></div><div class="flex justify-between font-bold"><span>Total</span><span>₹<span id="total-price">0</span></span></div></div>
-            <div class="qr-grid"><div class="qr-box">Main UPI<img src="qr1.png" class="h-24 mx-auto"></div><div class="qr-box">Backup UPI<img src="qr2.png" class="h-24 mx-auto"></div></div>
-            <div class="mb-6"><label>Upload Payment Screenshot *</label><input type="file" id="payment-proof" class="w-full"></div>
-            <button id="btn-submit-reg" onclick="window.submitRegistration()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg">Submit Request</button>
+    
+            <div class="bg-white p-4 border-t border-slate-100 flex gap-3 sticky bottom-0 z-10">
+                <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-50 transition">Cancel</button>
+                <button id="btn-submit-reg" onclick="window.submitRegistration()" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-slate-900 transition">Submit Registration</button>
+            </div>
         </div>
     </div>
-
+    
     <div id="admin-modal" class="modal-overlay hidden">
         <div class="modal-content"><div id="admin-modal-body"></div><button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button></div>
     </div>
