@@ -1,3 +1,4 @@
+//test 
 // supabase/functions/notify/whatsapp.ts
 
 export const sendWhatsAppTrial = async (record: any, phoneId: string, token: string) => {
