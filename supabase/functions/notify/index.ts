@@ -3,7 +3,8 @@ import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
 import { generateWelcomeEmail } from "./templates.ts"
 import { sendWhatsAppTrial } from "./whatsapp.ts"
-import { validatePhone, MESSAGES } from "./utils.ts" // <--- Import your tools
+// Consolidated imports from utils.ts
+import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts" 
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
 const META_PHONE_ID = Deno.env.get('META_PHONE_ID')
@@ -18,21 +19,17 @@ const corsHeaders = {
 }
 
 serve(async (req) => {
+  // Handle CORS preflight request
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
 
   try {
     const { record } = await req.json()
     
-// Import the new functions
-import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts" 
-
-// ... inside serve(async (req) => { ...
-
     // ---------------------------------------------------------
     // 1. VALIDATION: Phone Numbers
     // ---------------------------------------------------------
     
-    // A. Primary Mobile (Strict)
+    // A. Primary Mobile (Strict 10 digits)
     if (!validateMobile(record.phone)) {
       console.error(`Invalid Mobile: ${record.phone}`);
       return new Response(JSON.stringify({ error: MESSAGES.MOBILE_ERROR }), {
@@ -41,7 +38,8 @@ import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts"
       });
     }
 
-    // B. Alternate Phone (Flexible) - Only check if it exists
+    // B. Alternate Phone (Flexible: 10 digits OR 11 digits with 0)
+    // Only check if the user actually typed something
     if (record.alternate_phone && !validateAnyPhone(record.alternate_phone)) {
       console.error(`Invalid Alternate Phone: ${record.alternate_phone}`);
       return new Response(JSON.stringify({ error: MESSAGES.ALTERNATE_ERROR }), {
@@ -60,7 +58,7 @@ import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts"
       .select('id')
       .eq('child_name', record.child_name)
       .eq('dob', record.dob)
-      .eq('email', record.email) // Ensure this matches your DB Column
+      .eq('email', record.email) // Matches your DB Column
       .neq('id', record.id || -1) 
     
     if (duplicates && duplicates.length > 0) {
