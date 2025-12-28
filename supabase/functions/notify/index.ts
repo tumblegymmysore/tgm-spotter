@@ -1,9 +1,9 @@
 // supabase/functions/notify/index.ts
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
-import { generateWelcomeEmail } from "./templates.ts"
+import { generateWelcomeEmail, generateFeedbackEmail } from "./templates.ts" // Added Feedback Template
 import { sendWhatsAppTrial } from "./whatsapp.ts"
-// Consolidated imports from utils.ts
 import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts" 
 
 const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
@@ -25,10 +25,42 @@ serve(async (req) => {
   try {
     const { record } = await req.json()
     
-    // ---------------------------------------------------------
+    // =========================================================
+    // SCENARIO A: TRAINER FEEDBACK (Skip Validations)
+    // =========================================================
+    if (record.type === 'feedback_email') {
+        console.log(`Processing Feedback Email for: ${record.child_name}`);
+
+        const emailHtml = generateFeedbackEmail(record);
+        
+        // Send Feedback Email ONLY (No WhatsApp for now)
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: 'onboarding@resend.dev', 
+            to: ['tumblegymmysore@gmail.com'], // Hardcoded as per your request
+            subject: `Trial Feedback: ${record.child_name} 🤸`,
+            html: emailHtml,
+          }),
+        });
+
+        const emailData = await emailRes.json();
+        return new Response(JSON.stringify({ message: "Feedback Sent", data: emailData }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+
+    // =========================================================
+    // SCENARIO B: NEW REGISTRATION (Run Strict Validations)
+    // =========================================================
+
     // 1. VALIDATION: Phone Numbers
     // ---------------------------------------------------------
-    
     // A. Primary Mobile (Strict 10 digits)
     if (!validateMobile(record.phone)) {
       console.error(`Invalid Mobile: ${record.phone}`);
@@ -39,7 +71,6 @@ serve(async (req) => {
     }
 
     // B. Alternate Phone (Flexible: 10 digits OR 11 digits with 0)
-    // Only check if the user actually typed something
     if (record.alternate_phone && !validateAnyPhone(record.alternate_phone)) {
       console.error(`Invalid Alternate Phone: ${record.alternate_phone}`);
       return new Response(JSON.stringify({ error: MESSAGES.ALTERNATE_ERROR }), {
@@ -48,7 +79,6 @@ serve(async (req) => {
       });
     }
 
-    // ---------------------------------------------------------
     // 2. VALIDATION: Duplicate Check
     // ---------------------------------------------------------
     const supabase = createClient(SUPABASE_URL!, SUPABASE_SERVICE_ROLE_KEY!)
@@ -58,7 +88,7 @@ serve(async (req) => {
       .select('id')
       .eq('child_name', record.child_name)
       .eq('dob', record.dob)
-      .eq('email', record.email) // Matches your DB Column
+      .eq('email', record.email)
       .neq('id', record.id || -1) 
     
     if (duplicates && duplicates.length > 0) {
@@ -69,9 +99,9 @@ serve(async (req) => {
       });
     }
 
+    // 3. LOGIC: Ensure it is a Pending Trial
     // ---------------------------------------------------------
-    // 3. LOGIC: Trial Only
-    // ---------------------------------------------------------
+    // We only send the "Welcome" email if the status is strictly 'Pending Trial'
     if (record.status !== 'Pending Trial') {
         return new Response(JSON.stringify({ message: MESSAGES.NOT_TRIAL }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -79,12 +109,11 @@ serve(async (req) => {
         })
     }
 
-    // ---------------------------------------------------------
-    // 4. ACTION: Send Notifications
+    // 4. ACTION: Send Welcome Notifications
     // ---------------------------------------------------------
     const emailHtml = generateWelcomeEmail(record);
     
-    // Send Email
+    // Send Welcome Email
     const emailReq = fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -99,7 +128,7 @@ serve(async (req) => {
       }),
     });
 
-    // Send WhatsApp
+    // Send Welcome WhatsApp
     const whatsappReq = sendWhatsAppTrial(record, META_PHONE_ID!, META_ACCESS_TOKEN!);
 
     // Wait for both
