@@ -1,3 +1,4 @@
+//trigger
 // supabase/functions/notify/index.ts
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { generateWelcomeEmail } from "./templates.ts"
