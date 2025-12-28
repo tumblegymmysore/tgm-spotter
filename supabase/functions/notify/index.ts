@@ -54,7 +54,7 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
-        to: ['TUMBLEGYMMYSORE@GMAIL.COM'], // <--- MAKE SURE THIS IS YOUR EMAIL
+        to: ['tumblegymmysore@gmail.com'], // <--- MUST MATCH YOUR RESEND ACCOUNT EMAIL
         subject: subject,
         html: emailHtml,
       }),
