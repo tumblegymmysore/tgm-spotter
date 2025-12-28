@@ -36,17 +36,28 @@ export function showToast(msg) {
     }
 }
 
-// 5. Success Modal
-export function showSuccessModal(title, message) {
+// UPDATED: Success Modal with Callback support
+export function showSuccessModal(title, message, onCloseCallback = null) {
     const modal = document.getElementById('success-modal');
     if (modal) {
-        const titleEl = modal.querySelector('h3');
-        const msgEl = modal.querySelector('p');
-        if (titleEl) titleEl.innerText = title;
-        if (msgEl) msgEl.innerText = message;
+        modal.querySelector('h3').innerText = title;
+        modal.querySelector('p').innerText = message;
         modal.classList.remove('hidden');
+
+        // Handle the "OK" button click
+        const okBtn = modal.querySelector('button');
+        
+        // Remove old listeners to prevent stacking
+        const newBtn = okBtn.cloneNode(true);
+        okBtn.parentNode.replaceChild(newBtn, okBtn);
+        
+        newBtn.addEventListener('click', () => {
+            modal.classList.add('hidden');
+            if (onCloseCallback) onCloseCallback();
+        });
     } else {
         alert(`${title}\n${message}`);
+        if (onCloseCallback) onCloseCallback();
     }
 }
 
