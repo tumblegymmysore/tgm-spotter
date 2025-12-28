@@ -1,89 +1,68 @@
-// js/main.js (v29 - Final Fix)
+// js/main.js (v30 - Guaranteed Execution)
 
+// 1. CONFIGURATION
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v29 - Permission Fix).");
+// --- SAFETY CHECK: Verify code is new ---
+// If you don't see this alert, your browser is caching old files!
+console.log("System Loaded: Ready (v30).");
+// alert("System Check: v30 Loaded! If you see this, the code updated."); 
 
-// --- SESSION ---
+// --- GLOBAL VARIABLES ---
 let currentUser = null; 
 let currentTrainerName = "Trainer"; 
 
-(async function initSession() {
-    const { data: { session } } = await supabaseClient.auth.getSession();
-    if (session) {
-        currentUser = session.user;
-        const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
-        currentTrainerName = formattedName;
-        
-        document.getElementById('landing').classList.add('hidden');
-        document.getElementById('nav-public').classList.add('hidden');
-        document.getElementById('nav-private').classList.remove('hidden');
-        document.getElementById('nav-private').classList.add('flex');
-        const badge = document.getElementById('user-role-badge');
-        if(badge) badge.innerText = formattedName;
+// --- 2. CORE FUNCTIONS (Hoisted) ---
 
-        loadTrainerDashboard(formattedName);
-    } else {
-        document.getElementById('landing').classList.remove('hidden');
+async function initSession() {
+    try {
+        const { data: { session } } = await supabaseClient.auth.getSession();
+        if (session) {
+            currentUser = session.user;
+            const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
+            currentTrainerName = name.charAt(0).toUpperCase() + name.slice(1);
+            
+            // UI Updates
+            document.getElementById('landing').classList.add('hidden');
+            document.getElementById('nav-public').classList.add('hidden');
+            document.getElementById('nav-private').classList.remove('hidden');
+            document.getElementById('nav-private').classList.add('flex');
+            
+            const badge = document.getElementById('user-role-badge');
+            if(badge) badge.innerText = currentTrainerName;
+
+            console.log("Session Valid. Loading Dashboard...");
+            loadTrainerDashboard(currentTrainerName);
+        } else {
+            console.log("No Session. Showing Landing.");
+            document.getElementById('landing').classList.remove('hidden');
+        }
+    } catch (e) {
+        console.error("Session Error:", e);
     }
-})();
+}
 
-window.handleLogin = async () => {
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
-    if (!email || !password) return alert("Please enter email and password");
-    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-    if (error) alert("Login Failed: " + error.message);
-    else {
-        document.getElementById('login-modal').classList.add('hidden');
-        window.location.reload(); 
-    }
-};
-
-window.handleLogout = async () => {
-    await supabaseClient.auth.signOut();
-    window.location.reload();
-};
-
-// --- DASHBOARD ---
 async function loadTrainerDashboard(trainerName) {
     document.getElementById('trainer').classList.remove('hidden');
     const welcomeHeader = document.querySelector('#trainer h1 + p');
     if (welcomeHeader) welcomeHeader.innerText = `Welcome back, ${trainerName}!`;
     document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
 
-    // Load Data
+    // Explicitly call fetch functions
     await fetchTrials(); 
     fetchInbox(); 
 }
 
-window.switchTab = (tabName) => {
-    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
-    document.querySelectorAll('.tab-btn').forEach(btn => {
-        btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
-        btn.classList.add('text-slate-500');
-    });
-    document.getElementById(`view-${tabName}`).classList.remove('hidden');
-    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-    if (activeBtn) {
-        activeBtn.classList.remove('text-slate-500');
-        activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
-    }
-    if (tabName === 'inbox') fetchInbox();
-};
-
-// --- FETCH TRIALS ---
 async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
     
     if (!listNew) return;
 
-    // Visual Indicator that code is running
-    listNew.innerHTML = '<p class="text-sm text-blue-500 italic">Syncing...</p>';
+    // VISUAL CONFIRMATION (Blue Text)
+    listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Syncing data...</p>';
 
     try {
         const { data, error } = await supabaseClient
@@ -93,7 +72,7 @@ async function fetchTrials() {
 
         if (error) {
             console.error("DB Error:", error);
-            listNew.innerHTML = `<p class="text-red-500 text-sm">Access Denied: ${error.message}</p>`;
+            listNew.innerHTML = `<p class="text-red-500 text-sm">Error: ${error.message}</p>`;
             return;
         }
 
@@ -114,47 +93,14 @@ async function fetchTrials() {
             }
         });
         
-        if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No new requests.</p>';
+        if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending requests.</p>';
 
     } catch (err) {
         listNew.innerHTML = `<p class="text-red-500 text-sm">Crash: ${err.message}</p>`;
     }
 }
 
-function createTrialCard(lead) {
-    const leadString = encodeURIComponent(JSON.stringify(lead));
-    const isPending = lead.status === 'Pending Trial';
-    const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
-
-    return `
-    <div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 ${colorClass} hover:shadow-md transition mb-3">
-        <div class="flex justify-between items-start">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
-                <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                <button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center">
-                    <i class="fas fa-comment-dots mr-2"></i> Message Parent
-                </button>
-            </div>
-            <div class="text-right">
-                <span class="text-xs font-bold px-2 py-1 rounded bg-white border border-slate-200">${lead.status}</span>
-            </div>
-        </div>
-        ${isPending ? `
-            <button onclick="window.openAssessment('${leadString}')" class="mt-3 w-full bg-slate-800 text-white text-xs font-bold py-2 rounded hover:bg-slate-900 transition shadow-lg">
-                Start Assessment
-            </button>
-        ` : `
-            <div class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
-                <strong>Result:</strong> ${lead.recommended_batch || 'N/A'}
-            </div>
-        `}
-    </div>
-    `;
-}
-
-// --- INBOX (Protected) ---
-window.fetchInbox = async () => {
+async function fetchInbox() {
     const container = document.getElementById('list-inbox');
     if (!container) return;
 
@@ -165,8 +111,7 @@ window.fetchInbox = async () => {
             .order('created_at', { ascending: false });
 
         if (error) {
-            console.warn("Inbox Error:", error);
-            container.innerHTML = '<div class="p-8 text-center text-slate-400">Loading inbox...</div>';
+            container.innerHTML = '<div class="p-8 text-center text-red-400">Inbox Error</div>';
             return;
         }
 
@@ -220,6 +165,74 @@ window.fetchInbox = async () => {
     } catch (e) {
         console.warn("Inbox Error:", e);
     }
+}
+
+// --- 3. HELPER FUNCTIONS ---
+
+function createTrialCard(lead) {
+    const leadString = encodeURIComponent(JSON.stringify(lead));
+    const isPending = lead.status === 'Pending Trial';
+    const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
+
+    return `
+    <div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 ${colorClass} hover:shadow-md transition mb-3">
+        <div class="flex justify-between items-start">
+            <div>
+                <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
+                <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
+                <button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center">
+                    <i class="fas fa-comment-dots mr-2"></i> Message Parent
+                </button>
+            </div>
+            <div class="text-right">
+                <span class="text-xs font-bold px-2 py-1 rounded bg-white border border-slate-200">${lead.status}</span>
+            </div>
+        </div>
+        ${isPending ? `
+            <button onclick="window.openAssessment('${leadString}')" class="mt-3 w-full bg-slate-800 text-white text-xs font-bold py-2 rounded hover:bg-slate-900 transition shadow-lg">
+                Start Assessment
+            </button>
+        ` : `
+            <div class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600">
+                <strong>Result:</strong> ${lead.recommended_batch || 'N/A'}
+            </div>
+        `}
+    </div>
+    `;
+}
+
+// --- 4. EXPORTED WINDOW FUNCTIONS (For HTML OnClick) ---
+
+window.switchTab = (tabName) => {
+    document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
+        btn.classList.add('text-slate-500');
+    });
+    document.getElementById(`view-${tabName}`).classList.remove('hidden');
+    const activeBtn = document.getElementById(`tab-btn-${tabName}`);
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-500');
+        activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+    if (tabName === 'inbox') fetchInbox();
+};
+
+window.handleLogin = async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    if (!email || !password) return alert("Please enter email and password");
+    const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+    if (error) alert("Login Failed: " + error.message);
+    else {
+        document.getElementById('login-modal').classList.add('hidden');
+        window.location.reload(); 
+    }
+};
+
+window.handleLogout = async () => {
+    await supabaseClient.auth.signOut();
+    window.location.reload();
 };
 
 window.openChat = async (leadString) => {
@@ -237,7 +250,6 @@ window.loadMessages = async (leadId) => {
     const container = document.getElementById('chat-history');
     const { data, error } = await supabaseClient.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true });
     if (error || !data) return;
-    
     container.innerHTML = ''; 
     data.forEach(msg => {
         const isMe = msg.sender_role === 'trainer'; 
@@ -258,18 +270,11 @@ window.sendChatMessage = async () => {
     const text = input.value.trim();
     const leadId = document.getElementById('chat-lead-id').value;
     if (!text) return;
-
     const container = document.getElementById('chat-history');
     container.innerHTML += `<div class="flex flex-col items-end"><div class="bg-blue-600 text-white rounded-br-none px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm opacity-50">${text}</div></div>`;
     container.scrollTop = container.scrollHeight;
     input.value = '';
-
-    await supabaseClient.from('messages').insert([{
-        lead_id: leadId,
-        sender_role: 'trainer',
-        sender_name: currentTrainerName,
-        message_text: text
-    }]);
+    await supabaseClient.from('messages').insert([{ lead_id: leadId, sender_role: 'trainer', sender_name: currentTrainerName, message_text: text }]);
     await loadMessages(leadId); 
     fetchInbox(); 
 };
@@ -279,7 +284,7 @@ async function markAsRead(leadId) {
     document.getElementById('inbox-badge')?.classList.add('hidden'); 
 }
 
-// --- ASSESSMENT & FORMS (PRESERVED) ---
+// --- ASSESSMENT UI & SUBMISSION ---
 let currentAssessmentLead = null;
 window.openAssessment = (leadString) => {
     const lead = JSON.parse(decodeURIComponent(leadString));
@@ -335,6 +340,7 @@ window.submitAssessment = async () => {
     finally { btn.disabled = false; btn.innerText = originalText; }
 };
 
+// --- PUBLIC FORM UI & SUBMISSION ---
 window.scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 window.checkOther = (selectEl, id) => document.getElementById(id).classList.toggle('hidden', selectEl.value !== 'Other');
 window.calculateAgeDisplay = () => {
@@ -365,3 +371,6 @@ window.handleIntakeSubmit = async (e) => {
         document.getElementById('success-modal').classList.remove('hidden'); btn.innerText = "Sent!";
     } catch (err) { alert(err.message); btn.disabled = false; btn.innerText = originalText; }
 };
+
+// --- INITIALIZE ---
+initSession();
