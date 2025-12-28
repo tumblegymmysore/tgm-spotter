@@ -1,24 +1,29 @@
-// js/main.js (v49 - Roles Folder Support)
+// js/main.js (v50 - Fixed Utils + Admin Support)
 import { supabaseClient } from './config.js';
 import { showView, calculateAgeDisplay, checkOther, scrollToSection } from './utils.js';
 import * as Auth from './auth.js';
 
-// --- CHANGED: Import from 'roles' folder ---
+// ROLES IMPORTS
 import * as Parent from './roles/parent.js';
 import * as Trainer from './roles/trainer.js';
+// Add Admin Import (If file exists, this works. If empty, ensure it has exports)
+import * as Admin from './roles/admin.js'; 
 
-console.log("System Loaded: Modular Router (v49).");
+console.log("System Loaded: Modular Router (v50).");
 
 // --- GLOBAL BINDINGS ---
+// Public
 window.handleIntakeSubmit = Parent.handleIntakeSubmit;
 window.calculateAgeDisplay = calculateAgeDisplay;
 window.checkOther = checkOther;
 window.scrollToSection = scrollToSection;
 
+// Auth
 window.handleLogin = Auth.handleLogin;
 window.handleLogout = Auth.handleLogout;
 window.handleMagicLink = Auth.handleMagicLink;
 
+// Parent
 window.openRegistrationModal = Parent.openRegistrationModal;
 window.submitRegistration = Parent.submitRegistration;
 window.handlePackageChange = Parent.handlePackageChange;
@@ -28,11 +33,14 @@ window.openParentChat = Parent.openParentChat;
 window.openFeedbackModal = Parent.openFeedbackModal;
 window.submitParentFeedback = Parent.submitParentFeedback;
 
+// Trainer
 window.openAssessment = Trainer.openAssessment;
 window.submitAssessment = Trainer.submitAssessment;
 window.fetchTrials = Trainer.fetchTrials;
 window.fetchInbox = Trainer.fetchInbox;
 window.switchTab = Trainer.switchTab;
+
+// Admin (Bind specific admin functions if you have them, e.g. window.loadAdminStats = Admin.loadStats)
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {
@@ -46,12 +54,15 @@ window.openChat = async (str) => {
 
     await loadMessages(l.id); 
     
-    const isTrainer = !document.getElementById('trainer').classList.contains('hidden');
-    if (isTrainer) {
+    // Mark Read Logic
+    const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    if (isParent) {
+        // Parent reading Trainer msg
+        await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).eq('sender_role', 'trainer');
+    } else {
+        // Staff reading Parent msg
         await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).neq('sender_role', 'trainer');
         document.getElementById('inbox-badge')?.classList.add('hidden');
-    } else {
-        await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).eq('sender_role', 'trainer');
     }
 };
 
@@ -60,9 +71,14 @@ window.loadMessages = async (leadId) => {
     const { data } = await supabaseClient.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true });
     if (!data) return;
     container.innerHTML = '';
-    const isTrainer = !document.getElementById('trainer').classList.contains('hidden');
+    
+    // Determine "Me" based on view
+    const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    
     data.forEach(msg => {
-        const isMe = isTrainer ? (msg.sender_role === 'trainer') : (msg.sender_role !== 'trainer');
+        // If I am Parent, 'parent' is Me. If I am Staff, 'trainer' is Me.
+        const isMe = isParent ? (msg.sender_role !== 'trainer') : (msg.sender_role === 'trainer');
+        
         container.innerHTML += `<div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}"><div class="${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm">${msg.message_text}</div><span class="text-[9px] text-slate-400 mt-1 px-1">${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span></div>`;
     });
     container.scrollTop = container.scrollHeight;
@@ -74,8 +90,9 @@ window.sendChatMessage = async () => {
     if (!text) return;
 
     const leadId = document.getElementById('chat-lead-id').value;
-    const isTrainer = !document.getElementById('trainer').classList.contains('hidden');
-    const role = isTrainer ? 'trainer' : 'parent';
+    const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    
+    const role = isParent ? 'parent' : 'trainer'; // Admin also uses 'trainer' role for chat usually
     const senderName = document.getElementById('user-role-badge') ? document.getElementById('user-role-badge').innerText : "User";
 
     const container = document.getElementById('chat-history');
@@ -85,12 +102,15 @@ window.sendChatMessage = async () => {
 
     await supabaseClient.from('messages').insert([{ lead_id: leadId, sender_role: role, sender_name: senderName, message_text: text }]);
     await window.loadMessages(leadId);
-    if(isTrainer) Trainer.fetchInbox();
+    
+    // Refresh Inbox if Trainer/Admin
+    if(!isParent) Trainer.fetchInbox();
 };
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden')); });
 document.getElementById('chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendChatMessage(); });
 
+// --- INITIALIZATION ---
 async function initSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
     if (session) {
@@ -114,7 +134,16 @@ async function initSession() {
         document.getElementById('nav-private').classList.add('flex');
 
         const trainerEmails = ['tumblegymmysore@gmail.com', 'trainer@tgm.com'];
-        if (finalRole === 'trainer' || finalRole === 'admin' || trainerEmails.includes(user.email) || user.email.includes('trainer')) {
+        
+        // --- ROUTING LOGIC ---
+        if (finalRole === 'admin') {
+            // If admin.js has a load function, use it. Otherwise fallback to Trainer view.
+            if (Admin && Admin.loadAdminDashboard) {
+                Admin.loadAdminDashboard(finalName);
+            } else {
+                Trainer.loadTrainerDashboard(finalName); // Fallback
+            }
+        } else if (finalRole === 'trainer' || trainerEmails.includes(user.email) || user.email.includes('trainer')) {
             Trainer.loadTrainerDashboard(finalName);
         } else {
             Parent.loadParentDashboard(user.email);
