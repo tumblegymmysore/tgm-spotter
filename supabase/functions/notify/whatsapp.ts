@@ -5,8 +5,8 @@ export const sendWhatsAppTrial = async (record: any, phoneId: string, token: str
   // 1. Define Admin Numbers (Must be verified in Test Mode)
   // Format: Country code + Number (No + or spaces)
   const adminNumbers = [
-      '919886925225', // Number 1 (Yours)
-      '919444897281'  // Number 2 (Your verified partner)
+      '919444897281', // Number 1 (Yours)
+      '919886925225'  // Number 2 (Your verified partner)
   ];
 
   // 2. Loop through numbers and send the "Hello World" template
