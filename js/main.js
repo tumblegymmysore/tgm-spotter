@@ -3,11 +3,10 @@
 // --------------------------------------------------------------------------
 // 1. SETUP SUPABASE
 // --------------------------------------------------------------------------
-// REPLACE THESE WITH YOUR ACTUAL KEYS FROM SUPABASE DASHBOARD
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
-const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc'; // <--- PASTE KEY HERE
+const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 
-// FIX: We name this 'supabaseClient' to avoid conflict with the library 'supabase'
+// FIX: We name this 'supabaseClient' (not 'supabase') to avoid the name collision
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
 console.log("System Loaded: Ready.");
@@ -72,7 +71,7 @@ window.handleIntakeSubmit = async (e) => {
 
     try {
         // --- SEND TO DATABASE ---
-        // We use 'supabaseClient' here (the name we fixed)
+        // We use 'supabaseClient' here
         const { data, error } = await supabaseClient
             .from('leads')
             .insert([formData])
@@ -108,5 +107,3 @@ window.handleIntakeSubmit = async (e) => {
         btn.innerText = originalText;
     }
 };
-
-// ... Rest of your code (Login/Logout) stays the same ...
