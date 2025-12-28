@@ -7,7 +7,7 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v13 - Direct Payload).");
+console.log("System Loaded: Ready (v14 - Fixed Syntax).");
 
 // --------------------------------------------------------------------------
 // 2. AGE CALCULATOR
@@ -68,7 +68,6 @@ window.handleIntakeSubmit = async (e) => {
     const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
 
     // --- VALIDATION 1: MOBILE ---
-    // Preserved your detailed message
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
         showError(
             "Invalid Mobile Number", 
@@ -78,7 +77,6 @@ window.handleIntakeSubmit = async (e) => {
     }
 
     // --- VALIDATION 2: ALTERNATE PHONE ---
-    // Preserved your Landline logic
     if (rawAltPhone.length > 0) {
         let isValid = false;
         if (cleanAltPhone.startsWith('0')) {
@@ -124,7 +122,6 @@ window.handleIntakeSubmit = async (e) => {
 
     try {
         // --- STEP A: SAVE TO DB ---
-        // Note: We do NOT rely on the returned data here anymore.
         const { error } = await supabaseClient
             .from('leads')
             .insert([formData]);
@@ -132,7 +129,6 @@ window.handleIntakeSubmit = async (e) => {
         if (error) {
             console.error("DB Error:", error);
             if (error.code === '23505' || error.message.includes('unique constraint')) {
-                // Preserved your specific duplicate message
                 showError(
                     "Registration Exists!", 
                     "This student is already registered with us. You cannot take an additional trial session.\n\nPlease check with Admin, or Login/Register if you have already completed the trial."
@@ -148,5 +144,33 @@ window.handleIntakeSubmit = async (e) => {
         }
 
         // --- STEP B: TRIGGER NOTIFICATION (Direct Mode) ---
-        // This fixes the "No Email" issue
-        btn.innerText =
+        btn.innerText = "Notifying...";
+        
+        const notifyResponse = await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${supabaseKey}` 
+            },
+            body: JSON.stringify({ record: formData }) 
+        });
+
+        if (!notifyResponse.ok) {
+            const errText = await notifyResponse.text();
+            console.warn("Email Warning: Data saved, but email failed:", errText);
+        } else {
+            console.log("Email Sent Successfully.");
+        }
+
+        // --- SUCCESS ---
+        document.getElementById('success-modal').classList.remove('hidden');
+        btn.innerText = "Sent!";
+
+    } catch (err) {
+        console.error("Crash:", err);
+        showError("Unexpected Error", "Something went wrong. Please check your connection.");
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
+}; 
+// END OF FILE - ENSURE YOU COPIED UP TO HERE
