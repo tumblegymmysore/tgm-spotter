@@ -153,26 +153,33 @@ export function openParentChat(leadString) {
     window.openChat(encodeURIComponent(JSON.stringify(lead)));
 }
 
-// --- 4. REGISTRATION ---
+// --- 4. REGISTRATION LOGIC (New Detailed Form) ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
     document.getElementById('reg-child-name').innerText = child.child_name;
     document.getElementById('is-renewal').value = isRenewal;
-    document.getElementById('edit-name').value = child.child_name;
-    document.getElementById('edit-phone').value = child.phone;
-    document.getElementById('edit-email').value = child.email;
     
-    const feeRow = document.getElementById('reg-fee-row');
-    if (isRenewal) { feeRow.classList.add('hidden'); document.getElementById('reg-fee-display').innerText = "0"; } 
-    else { feeRow.classList.remove('hidden'); document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE; }
+    // Fee Logic
+    const feeDisplay = document.getElementById('reg-fee-display');
+    if (isRenewal) { 
+        feeDisplay.parentElement.parentElement.classList.add('hidden'); // Hide Reg Fee row
+        feeDisplay.innerText = "0"; 
+    } else { 
+        feeDisplay.parentElement.parentElement.classList.remove('hidden'); 
+        feeDisplay.innerText = REGISTRATION_FEE; 
+    }
 
-    const age = calculateAge(child.dob);
-    let slots = age <= 5 ? "Weekdays 4-5 PM" : (age <= 8 ? "Weekdays 5-6 PM" : "Weekdays 6-7 PM");
-    document.getElementById('reg-slots-info').innerHTML = `<strong>Available Slots (${age} Yrs):</strong><br>${slots}`;
-    
+    // Reset Form
     document.getElementById('reg-package').value = "";
     document.getElementById('total-price').innerText = "0";
+    document.getElementById('reg-date').value = "";
+    document.getElementById('payment-proof').value = "";
+    document.getElementById('reg-consent').checked = false;
+    
+    // Uncheck all days
+    document.querySelectorAll('input[name="session_days"]').forEach(cb => cb.checked = false);
+
     document.getElementById('reg-modal').classList.remove('hidden');
 }
 
@@ -186,8 +193,13 @@ export function calculateTotal() {
     const pkgVal = document.getElementById('reg-package').value;
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     let base = 0;
-    if (pkgVal === 'Special') base = SPECIAL_RATES[document.getElementById('reg-level').value] || 0;
-    else if (pkgVal) base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
+    
+    if (pkgVal === 'Special') {
+        base = SPECIAL_RATES[document.getElementById('reg-level').value] || 0;
+    } else if (pkgVal) {
+        base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
+    }
+    
     let total = base;
     if (!isRenewal && base > 0) total += REGISTRATION_FEE;
     document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
@@ -197,8 +209,18 @@ export async function submitRegistration() {
     const pkgVal = document.getElementById('reg-package').value;
     const total = document.getElementById('total-price').innerText;
     const fileInput = document.getElementById('payment-proof');
-    if (!pkgVal || total === "0") return alert("Select Package");
-    if (fileInput.files.length === 0) return alert("Upload Proof");
+    const startDate = document.getElementById('reg-date').value;
+    const consent = document.getElementById('reg-consent').checked;
+
+    // Collect Days
+    const days = Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value);
+
+    // Validation
+    if (!pkgVal || total === "0") return alert("Please select a Package.");
+    if (days.length === 0) return alert("Please select at least one Session Day.");
+    if (!startDate) return alert("Please select a Start Date.");
+    if (fileInput.files.length === 0) return alert("Please upload Payment Proof.");
+    if (!consent) return alert("You must agree to the Terms & Conditions.");
 
     const btn = document.getElementById('btn-submit-reg');
     btn.innerText = "Uploading..."; btn.disabled = true;
@@ -206,21 +228,42 @@ export async function submitRegistration() {
     try {
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
+        
         const { error: uploadError } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
         if(uploadError) throw uploadError;
+        
         const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
         let pkgName = pkgVal === 'Special' ? `Special - ${document.getElementById('reg-level').value}` : pkgVal.split('|')[0];
 
+        // Ensure DB has 'session_days' column (if not, you might need to add it via SQL, or store in metadata)
+        // Assuming we store it in a new column or existing JSONB field if schema allows.
+        // For now, we will update standard fields.
+        
         const { error } = await supabaseClient.from('leads').update({
-            status: 'Registration Requested', selected_package: pkgName, package_price: total,
-            payment_proof_url: publicUrl, start_date: document.getElementById('reg-date').value, payment_status: 'Verification Pending'
+            status: 'Registration Requested', 
+            selected_package: pkgName, 
+            package_price: total,
+            payment_proof_url: publicUrl, 
+            start_date: startDate, 
+            payment_status: 'Verification Pending',
+            session_days: days // IMPORTANT: Ensure your DB has this column (text array or jsonb)
         }).eq('id', currentRegistrationId);
 
         if(error) throw error;
+
         document.getElementById('reg-modal').classList.add('hidden');
-        showSuccessModal("Submitted!", "Payment proof received. Verification pending.");
-        window.location.reload(); 
-    } catch (err) { alert("Error submitting."); } finally { btn.innerText = "Submit Request"; btn.disabled = false; }
+        showSuccessModal(
+            "Registration Submitted!", 
+            "We have received your details and payment. Admin will verify shortly.",
+            () => window.location.reload()
+        );
+
+    } catch (err) { 
+        console.error(err); 
+        alert("Error submitting: " + err.message); 
+    } finally { 
+        btn.innerText = "Submit Registration"; btn.disabled = false; 
+    }
 }
 
 // --- 5. EDIT & FEEDBACK ---
