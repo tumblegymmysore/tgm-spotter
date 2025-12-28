@@ -7,12 +7,12 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v17 - Assessments).");
+console.log("System Loaded: Ready (v18 - FULL MASTER).");
 
 // --------------------------------------------------------------------------
 // 2. SESSION & LOGIN MANAGER
 // --------------------------------------------------------------------------
-let currentUser = null; // Store user info here
+let currentUser = null; 
 
 (async function initSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -20,18 +20,20 @@ let currentUser = null; // Store user info here
     if (session) {
         currentUser = session.user;
         
-        // --- PERSONALIZATION FIX ---
-        // Try to get name from metadata, fallback to email alias
+        // Personalization: Get Name
         const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-        const formattedName = name.charAt(0).toUpperCase() + name.slice(1); // Capitalize
+        const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
         
-        // Hide Landing, Show Dashboard
+        // Switch View
         document.getElementById('landing').classList.add('hidden');
         document.getElementById('nav-public').classList.add('hidden');
         document.getElementById('nav-private').classList.remove('hidden');
         document.getElementById('nav-private').classList.add('flex');
-        document.getElementById('user-role-badge').innerText = formattedName; // Update Navbar Badge
         
+        // Update UI
+        const badge = document.getElementById('user-role-badge');
+        if(badge) badge.innerText = formattedName;
+
         loadTrainerDashboard(formattedName);
     } else {
         document.getElementById('landing').classList.remove('hidden');
@@ -60,12 +62,16 @@ window.handleLogout = async () => {
 // 3. TRAINER DASHBOARD LOGIC
 // --------------------------------------------------------------------------
 async function loadTrainerDashboard(trainerName) {
-    document.getElementById('trainer').classList.remove('hidden');
+    const trainerSection = document.getElementById('trainer');
+    if (!trainerSection) return;
     
-    // Update Welcome Message
+    trainerSection.classList.remove('hidden');
+    
+    // Welcome Message
     const welcomeHeader = document.querySelector('#trainer h1 + p');
     if (welcomeHeader) welcomeHeader.innerText = `Welcome back, ${trainerName}!`;
 
+    // Date
     const dateOptions = { weekday: 'long', month: 'short', day: 'numeric' };
     document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', dateOptions);
 
@@ -88,7 +94,6 @@ async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
     
-    // Fetch Data
     const { data, error } = await supabaseClient
         .from('leads')
         .select('*')
@@ -112,7 +117,6 @@ async function fetchTrials() {
 }
 
 function createTrialCard(lead) {
-    // We stringify the lead object so we can pass it to the onclick function safely
     const leadString = encodeURIComponent(JSON.stringify(lead));
     const isPending = lead.status === 'Pending Trial';
     const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
@@ -144,23 +148,21 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. ASSESSMENT LOGIC (The New Part)
+// 4. ASSESSMENT LOGIC
 // --------------------------------------------------------------------------
 let currentAssessmentLead = null;
 
 window.openAssessment = (leadString) => {
     const lead = JSON.parse(decodeURIComponent(leadString));
-    currentAssessmentLead = lead; // Save for submission
+    currentAssessmentLead = lead; 
     
-    // Populate Modal
     document.getElementById('assess-lead-id').value = lead.id;
     document.getElementById('assess-child-name').innerText = lead.child_name;
-    
-    // Reset Fields
     document.getElementById('assess-feedback').value = '';
     document.getElementById('assess-batch').value = '';
     ['listen', 'flex', 'strength', 'balance'].forEach(k => {
-        document.getElementById(`skill-${k}`).checked = false;
+        const el = document.getElementById(`skill-${k}`);
+        if(el) el.checked = false;
     });
 
     document.getElementById('assessment-modal').classList.remove('hidden');
@@ -170,14 +172,13 @@ window.submitAssessment = async () => {
     const btn = document.getElementById('btn-save-assess');
     const originalText = btn.innerText;
     
-    // 1. Gather Data
     const feedback = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
     const skills = {
-        listening: document.getElementById('skill-listen').checked,
-        flexibility: document.getElementById('skill-flex').checked,
-        strength: document.getElementById('skill-strength').checked,
-        balance: document.getElementById('skill-balance').checked,
+        listening: document.getElementById('skill-listen')?.checked || false,
+        flexibility: document.getElementById('skill-flex')?.checked || false,
+        strength: document.getElementById('skill-strength')?.checked || false,
+        balance: document.getElementById('skill-balance')?.checked || false,
     };
 
     if (!batch) return alert("Please select a Recommended Batch.");
@@ -186,7 +187,7 @@ window.submitAssessment = async () => {
     btn.innerText = "Saving & Emailing...";
 
     try {
-        // 2. Update Database (Status -> Trial Completed)
+        // Update DB
         const { error } = await supabaseClient
             .from('leads')
             .update({
@@ -199,14 +200,13 @@ window.submitAssessment = async () => {
 
         if (error) throw error;
 
-        // 3. Trigger "Post-Trial" Email
-        // We add a 'type' flag so the backend knows this is a FEEDBACK email, not a WELCOME email
+        // Trigger Feedback Email
         const emailPayload = {
             record: {
-                ...currentAssessmentLead, // The lead details
-                feedback, // Add new data
+                ...currentAssessmentLead, 
+                feedback, 
                 recommended_batch: batch,
-                type: 'feedback_email' // <--- Crucial Flag
+                type: 'feedback_email' 
             }
         };
 
@@ -216,10 +216,9 @@ window.submitAssessment = async () => {
             body: JSON.stringify(emailPayload) 
         });
 
-        // 4. Success
         alert("Assessment Saved! Parent has been emailed.");
         document.getElementById('assessment-modal').classList.add('hidden');
-        fetchTrials(); // Refresh dashboard
+        fetchTrials(); 
 
     } catch (err) {
         console.error(err);
@@ -231,65 +230,155 @@ window.submitAssessment = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 5. INTAKE FORM SUBMISSION & HELPERS (Existing Code)
+// 5. PUBLIC FORM HELPERS (Validations & UI)
 // --------------------------------------------------------------------------
-window.scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-window.checkOther = (select, id) => document.getElementById(id).classList.toggle('hidden', select.value !== 'Other');
-window.calculateAgeDisplay = () => {
-    const dob = document.getElementById('dob').value;
-    if(!dob) return;
-    const d = new Date(dob), t = new Date();
-    let age = t.getFullYear() - d.getFullYear();
-    if(t < new Date(t.getFullYear(), d.getMonth(), d.getDate())) age--;
-    document.getElementById('age-value').innerText = age;
-    document.getElementById('age-display').classList.remove('hidden');
+window.scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
 };
+
+window.checkOther = (selectEl, inputId) => {
+    const inputEl = document.getElementById(inputId);
+    if (selectEl.value === 'Other') {
+        inputEl.classList.remove('hidden');
+    } else {
+        inputEl.classList.add('hidden');
+    }
+};
+
+window.calculateAgeDisplay = () => {
+    const dobInput = document.getElementById('dob').value;
+    if (!dobInput) return;
+
+    const dob = new Date(dobInput);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    const monthDiff = today.getMonth() - dob.getMonth();
+    
+    if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
+        age--;
+    }
+
+    const displayEl = document.getElementById('age-display');
+    const valueEl = document.getElementById('age-value');
+    if (displayEl && valueEl) {
+        valueEl.innerText = age;
+        displayEl.classList.remove('hidden');
+    }
+};
+
+function showError(title, message) {
+    const titleEl = document.getElementById('error-title');
+    const msgEl = document.getElementById('error-msg');
+    const modalEl = document.getElementById('error-modal');
+
+    if (titleEl && msgEl && modalEl) {
+        titleEl.innerText = title;
+        msgEl.innerText = message;
+        modalEl.classList.remove('hidden');
+    } else {
+        alert(`⚠️ ${title}\n\n${message}`);
+    }
+}
+
+// --------------------------------------------------------------------------
+// 6. MAIN FORM SUBMISSION (Full Logic)
+// --------------------------------------------------------------------------
 window.handleIntakeSubmit = async (e) => {
-    /* ... (Your existing robust intake logic is preserved here implicitly) ... */
-    /* I am omitting the duplicate intake logic here to save space, but 
-       WHEN YOU PASTE, ENSURE THE INTAKE LOGIC FROM STEP 15 IS HERE.
-       If you want the full file with Intake Logic included, ask me to output "FULL FILE". */
-     
-     // TEMPORARY: Re-pasting the exact intake logic for safety:
     e.preventDefault(); 
+    
     const btn = document.getElementById('btn-submit');
     const originalText = btn.innerText;
-    const rawPhone = document.getElementById('phone').value.trim().replace(/\D/g, '');
-    const rawAlt = document.getElementById('alt_phone').value.trim().replace(/\D/g, '');
-    
-    if (!/^[0-9]{10}$/.test(rawPhone)) return alert("Invalid Mobile: Must be 10 digits.");
-    
+
+    // Get Data
+    const rawPhone = document.getElementById('phone').value.trim();
+    const rawAltPhone = document.getElementById('alt_phone').value.trim();
+    const cleanPhone = rawPhone.replace(/\D/g, ''); 
+    const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
+
+    // Validation 1: Mobile
+    if (!/^[0-9]{10}$/.test(cleanPhone)) {
+        showError("Invalid Mobile Number", "Please check the 'Mobile (WhatsApp)' field. It must be exactly 10 digits (e.g., 9900000000). Do not include +91.");
+        return; 
+    }
+
+    // Validation 2: Alt Phone
+    if (rawAltPhone.length > 0) {
+        let isValid = false;
+        if (cleanAltPhone.startsWith('0')) {
+             if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) isValid = true;
+        } else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
+             isValid = true;
+        }
+        if (!isValid) {
+             showError("Invalid Emergency Contact", "If Mobile: 10 Digits.\nIf Landline: Must start with '0'.");
+             return; 
+        }
+    }
+
+    // Prepare Payload
+    const sourceSelect = document.getElementById('source').value;
+    const finalSource = sourceSelect === 'Other' ? document.getElementById('source_other').value : sourceSelect;
+    const intentSelect = document.getElementById('intent').value;
+    const finalIntent = intentSelect === 'Other' ? document.getElementById('intent_other').value : intentSelect;
+
     const formData = {
         child_name: document.getElementById('k_name').value.trim(),
         dob: document.getElementById('dob').value,
         gender: document.getElementById('gender').value,
         parent_name: document.getElementById('p_name').value.trim(),
-        phone: rawPhone,      
+        phone: cleanPhone,      
         email: document.getElementById('email').value.trim(),
-        alternate_phone: rawAlt, 
+        alternate_phone: cleanAltPhone, 
         address: document.getElementById('address').value.trim(),
         medical_info: document.getElementById('medical').value.trim(),
-        source: document.getElementById('source').value,
-        intent: document.getElementById('intent').value,
+        source: finalSource, 
+        intent: finalIntent,
         marketing_consent: document.getElementById('marketing_check').checked,
         status: 'Pending Trial',
         submitted_at: new Date()
     };
 
-    btn.disabled = true; btn.innerText = "Saving...";
-    const { error } = await supabaseClient.from('leads').insert([formData]);
+    btn.disabled = true;
+    btn.innerText = "Saving...";
 
-    if (error) {
-        if(error.code === '23505') alert("Already Registered!");
-        else alert("Error: " + error.message);
-        btn.disabled = false; btn.innerText = originalText;
-    } else {
-        fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
-            method: 'POST', 
-            headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseKey}`},
-            body: JSON.stringify({record: formData})
+    try {
+        // Save to DB
+        const { error } = await supabaseClient.from('leads').insert([formData]);
+
+        if (error) {
+            console.error("DB Error:", error);
+            if (error.code === '23505' || error.message.includes('unique constraint')) {
+                showError("Registration Exists!", "This student is already registered. Please Login or contact Admin.");
+            } else if (error.code === '23514') {
+                showError("System Rejected Phone", "Phone must be 10 digits.");
+            } else {
+                showError("System Error", error.message);
+            }
+            btn.disabled = false;
+            btn.innerText = originalText;
+            return;
+        }
+
+        // Trigger Welcome Email
+        btn.innerText = "Notifying...";
+        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
+            method: 'POST',
+            headers: { 
+                'Content-Type': 'application/json', 
+                'Authorization': `Bearer ${supabaseKey}` 
+            },
+            body: JSON.stringify({ record: formData }) 
         });
+
+        // Success
         document.getElementById('success-modal').classList.remove('hidden');
         btn.innerText = "Sent!";
+
+    } catch (err) {
+        console.error("Crash:", err);
+        showError("Unexpected Error", "Something went wrong.");
+        btn.disabled = false;
+        btn.innerText = originalText;
     }
 };
