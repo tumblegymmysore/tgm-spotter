@@ -54,7 +54,7 @@ serve(async (req) => {
       .select('id')
       .eq('child_name', record.child_name)
       .eq('dob', record.dob)
-      .eq('parent_email', record.parent_email)
+      .eq('email', record.email)
       .neq('id', record.id || -1) 
     
     if (duplicates && duplicates.length > 0) {
