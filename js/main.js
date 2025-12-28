@@ -1,18 +1,23 @@
-// js/main.js (v37 - Special Needs Database Integration)
+// js/main.js (v39 - Parent Registration & Payments)
 
 // 1. CONFIGURATION
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 
+// Pricing Constants
+const REGISTRATION_FEE = 2000;
+const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
+
 if (typeof supabase === 'undefined') alert("System Error: Supabase not loaded.");
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-console.log("System Loaded: Ready (v37 - Special Needs DB).");
+console.log("System Loaded: Ready (v39 - Payments Active).");
 
 // --- GLOBAL VARIABLES ---
 let currentUser = null; 
 let currentDisplayName = "User"; 
+let currentRegistrationId = null; // Track which child is being registered
 
-// --- 2. INITIALIZATION ---
+// --- 2. INITIALIZATION & IDENTITY ---
 async function initSession() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -30,7 +35,7 @@ async function initSession() {
                 if (roleData.role) finalRole = roleData.role;
             }
 
-            // Check Leads (for Parents)
+            // Check Leads (Parents)
             if (!finalName) {
                 const { data: leadData } = await supabaseClient.from('leads').select('parent_name').eq('email', email).limit(1).maybeSingle();
                 if (leadData?.parent_name) finalName = leadData.parent_name;
@@ -99,23 +104,192 @@ async function loadParentDashboard(email) {
 
     let html = '';
     data.forEach(child => {
+        const leadString = encodeURIComponent(JSON.stringify(child));
         let statusBadge = '<span class="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded font-bold">Pending Trial</span>';
         let actionArea = `<p class="text-xs text-slate-400 mt-2 italic text-center">We will contact you shortly.</p>`;
 
         if (child.status === 'Trial Completed') {
             statusBadge = '<span class="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded font-bold">Assessment Ready</span>';
-            actionArea = `<div class="bg-blue-50 p-4 rounded-xl mt-4 border border-blue-100"><p class="font-bold text-blue-900 mb-1">🎉 Great News!</p><p class="text-sm text-blue-700 mb-3">Recommended: <strong>${child.recommended_batch || 'N/A'}</strong></p><button class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition">Proceed to Registration</button></div>`;
+            actionArea = `
+                <div class="bg-blue-50 p-4 rounded-xl mt-4 border border-blue-100">
+                    <p class="font-bold text-blue-900 mb-1">🎉 Great News!</p>
+                    <p class="text-sm text-blue-700 mb-3">Recommended: <strong>${child.recommended_batch || 'N/A'}</strong></p>
+                    <button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-blue-600 text-white font-bold py-2 rounded-lg shadow hover:bg-blue-700 transition">Proceed to Registration</button>
+                </div>`;
+        } else if (child.status === 'Registration Requested') {
+            statusBadge = '<span class="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded font-bold">Verifying Payment</span>';
+            actionArea = `<p class="text-xs text-purple-600 mt-2 font-bold text-center"><i class="fas fa-clock mr-1"></i> Admin is verifying your payment.</p>`;
         } else if (child.status === 'Enrolled') {
             statusBadge = '<span class="bg-green-100 text-green-800 text-xs px-2 py-1 rounded font-bold">Active Student</span>';
-            actionArea = '';
+            actionArea = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="w-full mt-3 border border-green-600 text-green-700 font-bold py-2 rounded-lg hover:bg-green-50 transition">Renew / Pay Fees</button>`;
         }
 
-        html += `<div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-4"><div class="flex justify-between items-start mb-2"><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3>${statusBadge}</div><p class="text-sm text-slate-500 mb-2"><strong>Program:</strong> ${child.intent}</p>${actionArea}</div>`;
+        html += `
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100 mb-4 transform hover:scale-[1.02] transition duration-300">
+                <div class="flex justify-between items-start mb-2">
+                    <h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3>
+                    ${statusBadge}
+                </div>
+                <p class="text-sm text-slate-500 mb-2"><strong>Program:</strong> ${child.intent}</p>
+                ${actionArea}
+            </div>
+        `;
     });
+
     container.innerHTML = html;
 }
 
-// --- 5. SHARED HELPERS ---
+// --- 5. REGISTRATION & PAYMENT LOGIC (NEW) ---
+
+window.openRegistrationModal = (leadString, isRenewal) => {
+    const child = JSON.parse(decodeURIComponent(leadString));
+    currentRegistrationId = child.id;
+
+    // Populate Modal
+    document.getElementById('reg-child-name').innerText = child.child_name;
+    document.getElementById('is-renewal').value = isRenewal;
+    document.getElementById('edit-name').value = child.child_name;
+    document.getElementById('edit-phone').value = child.phone;
+    document.getElementById('edit-email').value = child.email;
+
+    // Fee Logic
+    const feeRow = document.getElementById('reg-fee-row');
+    if (isRenewal) {
+        feeRow.classList.add('hidden');
+        document.getElementById('reg-fee-display').innerText = "0";
+    } else {
+        feeRow.classList.remove('hidden');
+        document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE;
+    }
+
+    // Slots Logic (Based on Age)
+    const dob = new Date(child.dob);
+    const age = new Date().getFullYear() - dob.getFullYear();
+    let slots = "Weekdays 4-5 PM"; // Default
+    
+    if (age <= 5) slots = "Weekdays 4-5 PM | Weekends 11 AM";
+    else if (age <= 8) slots = "Weekdays 5-6 PM | Sat 3 PM, Sun 10 AM";
+    else slots = "Weekdays 6-7 PM | Sat 4 PM, Sun 12 PM";
+    
+    document.getElementById('reg-slots-info').innerHTML = `<strong>Available Slots (${age} Yrs):</strong><br>${slots}`;
+
+    // Reset Form
+    document.getElementById('reg-package').value = "";
+    document.getElementById('total-price').innerText = "0";
+    document.getElementById('payment-proof').value = "";
+    document.getElementById('reg-modal').classList.remove('hidden');
+};
+
+window.handlePackageChange = () => {
+    const pkg = document.getElementById('reg-package').value;
+    const levelGroup = document.getElementById('training-level-group');
+    
+    if (pkg === 'Special') {
+        levelGroup.classList.remove('hidden');
+    } else {
+        levelGroup.classList.add('hidden');
+    }
+    window.calculateTotal();
+};
+
+window.calculateTotal = () => {
+    const pkgVal = document.getElementById('reg-package').value;
+    const isRenewal = document.getElementById('is-renewal').value === 'true';
+    let base = 0;
+
+    if (pkgVal === 'Special') {
+        const level = document.getElementById('reg-level').value;
+        base = SPECIAL_RATES[level] || 0;
+    } else if (pkgVal) {
+        // pkgVal format: "Name|Price" e.g., "2 Days|3500"
+        base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
+    }
+    
+    let total = base;
+    // Add Registration Fee only if NOT renewal and base price > 0
+    if (!isRenewal && base > 0) {
+        total += REGISTRATION_FEE;
+    }
+    
+    document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
+};
+
+window.toggleReview = () => {
+    document.getElementById('review-body').classList.toggle('open');
+};
+
+window.submitRegistration = async () => {
+    const pkgVal = document.getElementById('reg-package').value;
+    const total = document.getElementById('total-price').innerText;
+    const fileInput = document.getElementById('payment-proof');
+    const startDate = document.getElementById('reg-date').value;
+
+    if (!pkgVal || total === "0") return alert("Please select a package.");
+    if (!startDate) return alert("Please select a start date.");
+    if (fileInput.files.length === 0) return alert("Please upload the payment screenshot.");
+
+    const btn = document.getElementById('btn-submit-reg');
+    const originalText = btn.innerText;
+    btn.innerText = "Uploading..."; 
+    btn.disabled = true;
+
+    try {
+        // 1. Upload File
+        const file = fileInput.files[0];
+        const fileExt = file.name.split('.').pop();
+        const fileName = `${currentRegistrationId}_${Date.now()}.${fileExt}`;
+        
+        const { error: uploadError } = await supabaseClient.storage
+            .from('payment-proofs')
+            .upload(fileName, file);
+
+        if (uploadError) throw uploadError;
+        
+        // 2. Get Public URL
+        const { data: { publicUrl } } = supabaseClient.storage
+            .from('payment-proofs')
+            .getPublicUrl(fileName);
+
+        // 3. Prepare Data
+        let pkgName = "";
+        if (pkgVal === 'Special') {
+            pkgName = `Special - ${document.getElementById('reg-level').value}`;
+        } else {
+            pkgName = pkgVal.split('|')[0];
+        }
+
+        // 4. Update Database
+        const { error: dbError } = await supabaseClient
+            .from('leads')
+            .update({
+                status: 'Registration Requested',
+                selected_package: pkgName,
+                package_price: total,
+                payment_proof_url: publicUrl,
+                start_date: startDate,
+                payment_status: 'Verification Pending'
+            })
+            .eq('id', currentRegistrationId);
+
+        if (dbError) throw dbError;
+
+        // 5. Success
+        document.getElementById('reg-modal').classList.add('hidden');
+        showSuccessModal("Registration Submitted!", "We have received your payment proof. Your admission will be confirmed shortly.");
+        
+        // Reload Parent Dashboard
+        loadParentDashboard(currentUser.email);
+
+    } catch (err) {
+        console.error("Reg Error:", err);
+        alert("Error submitting registration: " + err.message);
+    } finally {
+        btn.innerText = originalText;
+        btn.disabled = false;
+    }
+};
+
+// --- 6. SHARED HELPERS ---
 function showSuccessModal(title, message) {
     const modal = document.getElementById('success-modal');
     if(!modal) return alert(title + "\n" + message); 
@@ -124,7 +298,7 @@ function showSuccessModal(title, message) {
     modal.classList.remove('hidden');
 }
 
-// --- 6. TRAINER FUNCTIONS ---
+// --- 7. TRAINER FUNCTIONS ---
 async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
@@ -185,7 +359,7 @@ async function fetchInbox() {
     } catch (e) { console.warn("Inbox Error:", e); }
 }
 
-// --- 7. WINDOW ACTIONS ---
+// --- 8. WINDOW ACTIONS ---
 window.switchTab = (tab) => {
     document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
     document.getElementById(`view-${tab}`).classList.remove('hidden');
@@ -237,7 +411,7 @@ async function markAsRead(id) {
     document.getElementById('inbox-badge')?.classList.add('hidden');
 }
 
-// --- ASSESSMENT (UPDATED WITH DB SAVE) ---
+// --- ASSESSMENT LOGIC ---
 let currentAssessmentLead = null;
 window.openAssessment = (str) => {
     const l = JSON.parse(decodeURIComponent(str)); currentAssessmentLead = l;
@@ -246,7 +420,7 @@ window.openAssessment = (str) => {
     document.getElementById('assess-feedback').value = '';
     ['listen', 'flex', 'strength', 'balance'].forEach(k => { document.getElementById(`skill-${k}`).checked = false; });
     document.getElementById('assess-pt').checked = false; 
-    document.getElementById('assess-special').checked = false; // Reset Special Needs
+    document.getElementById('assess-special').checked = false; 
 
     const age = new Date().getFullYear() - new Date(l.dob).getFullYear();
     let batch = "Toddler (3-5 Yrs)";
@@ -260,7 +434,7 @@ window.submitAssessment = async () => {
     const fb = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
     const pt = document.getElementById('assess-pt').checked;
-    const special = document.getElementById('assess-special').checked; // Capture Special Needs
+    const special = document.getElementById('assess-special').checked; 
 
     const skills = { listening: document.getElementById('skill-listen').checked, flexibility: document.getElementById('skill-flex').checked, strength: document.getElementById('skill-strength').checked, balance: document.getElementById('skill-balance').checked, personal_training: pt, special_needs: special };
 
@@ -268,15 +442,7 @@ window.submitAssessment = async () => {
     btn.disabled = true; btn.innerText = "Saving...";
 
     try {
-        // UPDATE DB with special_needs column
-        const { error } = await supabaseClient.from('leads').update({ 
-            status: 'Trial Completed', 
-            feedback: fb, 
-            recommended_batch: batch, 
-            skills_rating: skills,
-            special_needs: special // SAVING TO DB COLUMN
-        }).eq('id', currentAssessmentLead.id);
-
+        const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback: fb, recommended_batch: batch, skills_rating: skills, special_needs: special }).eq('id', currentAssessmentLead.id);
         if(error) throw error;
         
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { 
