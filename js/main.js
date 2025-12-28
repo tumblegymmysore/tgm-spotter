@@ -1,4 +1,4 @@
-// js/main.js (v35 - Role & Name Lookup)
+// js/main.js (v37 - Special Needs Database Integration)
 
 // 1. CONFIGURATION
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
@@ -6,13 +6,13 @@ const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS
 
 if (typeof supabase === 'undefined') alert("System Error: Supabase not loaded.");
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
-console.log("System Loaded: Ready (v35 - Identity).");
+console.log("System Loaded: Ready (v37 - Special Needs DB).");
 
 // --- GLOBAL VARIABLES ---
 let currentUser = null; 
 let currentDisplayName = "User"; 
 
-// --- 2. INITIALIZATION & IDENTITY ---
+// --- 2. INITIALIZATION ---
 async function initSession() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
@@ -23,73 +23,47 @@ async function initSession() {
             let finalName = "";
             let finalRole = "";
 
-            // --- A. CHECK USER_ROLES (Priority for Trainers/Admins) ---
-            const { data: roleData } = await supabaseClient
-                .from('user_roles')
-                .select('role, full_name')
-                .eq('id', currentUser.id)
-                .maybeSingle();
-
+            // Check Role
+            const { data: roleData } = await supabaseClient.from('user_roles').select('role, full_name').eq('id', currentUser.id).maybeSingle();
             if (roleData) {
                 if (roleData.full_name) finalName = roleData.full_name;
                 if (roleData.role) finalRole = roleData.role;
             }
 
-            // --- B. CHECK LEADS (Priority for Parents) ---
-            // If we didn't find a name in user_roles, look in the leads table
+            // Check Leads (for Parents)
             if (!finalName) {
-                const { data: leadData } = await supabaseClient
-                    .from('leads')
-                    .select('parent_name')
-                    .eq('email', email)
-                    .limit(1)
-                    .maybeSingle();
-                
+                const { data: leadData } = await supabaseClient.from('leads').select('parent_name').eq('email', email).limit(1).maybeSingle();
                 if (leadData?.parent_name) finalName = leadData.parent_name;
             }
 
-            // --- C. FALLBACK (Formatting Email) ---
+            // Fallback
             if (!finalName) {
                 let temp = email.split('@')[0];
                 finalName = temp.charAt(0).toUpperCase() + temp.slice(1).replace(/[0-9]/g, '');
             }
 
-            // SET GLOBAL NAME
             currentDisplayName = finalName;
 
-            // --- UI UPDATE ---
+            // UI Switch
             document.getElementById('landing').classList.add('hidden');
             document.getElementById('nav-public').classList.add('hidden');
             document.getElementById('nav-private').classList.remove('hidden');
             document.getElementById('nav-private').classList.add('flex');
             
             const badge = document.getElementById('user-role-badge');
-            if(badge) badge.innerText = currentDisplayName; // Shows "Coach Pradeep" or Parent Name
+            if(badge) badge.innerText = currentDisplayName;
 
-            // --- ROUTING ---
-            // 1. If we found a specific role in DB, use it
-            if (finalRole === 'trainer' || finalRole === 'admin') {
+            // Routing
+            const trainerEmails = ['tumblegymmysore@gmail.com', 'trainer@tgm.com'];
+            if (finalRole === 'trainer' || finalRole === 'admin' || trainerEmails.includes(email) || email.includes('trainer')) {
                 loadTrainerDashboard(currentDisplayName);
-            } 
-            else if (finalRole === 'parent') {
+            } else {
                 loadParentDashboard(email);
-            } 
-            // 2. Fallback Routing (Legacy check by email text)
-            else {
-                const trainerEmails = ['tumblegymmysore@gmail.com', 'trainer@tgm.com'];
-                if (trainerEmails.includes(email) || email.includes('trainer')) {
-                    loadTrainerDashboard(currentDisplayName);
-                } else {
-                    loadParentDashboard(email);
-                }
             }
-
         } else {
             document.getElementById('landing').classList.remove('hidden');
         }
-    } catch (e) {
-        console.error("Session Error:", e);
-    }
+    } catch (e) { console.error("Session Error:", e); }
 }
 
 // --- 3. TRAINER DASHBOARD ---
@@ -97,7 +71,6 @@ async function loadTrainerDashboard(trainerName) {
     document.getElementById('trainer').classList.remove('hidden');
     document.getElementById('parent-portal').classList.add('hidden'); 
     
-    // Set Welcome Header
     const welcomeEl = document.getElementById('trainer-welcome');
     if (welcomeEl) welcomeEl.innerText = `Welcome back, ${trainerName}!`;
 
@@ -175,12 +148,13 @@ async function fetchTrials() {
 
 function createTrialCard(lead) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
-    return `<div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 ${lead.status === 'Pending Trial' ? 'border-yellow-400' : 'border-green-500 opacity-75'} hover:shadow-md transition mb-3">
+    const isPending = lead.status === 'Pending Trial';
+    return `<div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 border-l-4 ${isPending ? 'border-yellow-400' : 'border-green-500 opacity-75'} hover:shadow-md transition mb-3">
         <div class="flex justify-between items-start">
             <div><h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4><p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p><button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center"><i class="fas fa-comment-dots mr-2"></i> Message Parent</button></div>
             <div class="text-right"><span class="text-xs font-bold px-2 py-1 rounded bg-white border border-slate-200">${lead.status}</span></div>
         </div>
-        ${lead.status === 'Pending Trial' ? `<button onclick="window.openAssessment('${leadString}')" class="mt-3 w-full bg-slate-800 text-white text-xs font-bold py-2 rounded hover:bg-slate-900 transition shadow-lg">Start Assessment</button>` : `<div class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600"><strong>Result:</strong> ${lead.recommended_batch || 'N/A'}</div>`}
+        ${isPending ? `<button onclick="window.openAssessment('${leadString}')" class="mt-3 w-full bg-slate-800 text-white text-xs font-bold py-2 rounded hover:bg-slate-900 transition shadow-lg">Start Assessment</button>` : `<div class="mt-2 pt-2 border-t border-slate-200 text-xs text-slate-600"><strong>Result:</strong> ${lead.recommended_batch || 'N/A'}</div>`}
     </div>`;
 }
 
@@ -263,7 +237,7 @@ async function markAsRead(id) {
     document.getElementById('inbox-badge')?.classList.add('hidden');
 }
 
-// --- ASSESSMENT ---
+// --- ASSESSMENT (UPDATED WITH DB SAVE) ---
 let currentAssessmentLead = null;
 window.openAssessment = (str) => {
     const l = JSON.parse(decodeURIComponent(str)); currentAssessmentLead = l;
@@ -272,29 +246,61 @@ window.openAssessment = (str) => {
     document.getElementById('assess-feedback').value = '';
     ['listen', 'flex', 'strength', 'balance'].forEach(k => { document.getElementById(`skill-${k}`).checked = false; });
     document.getElementById('assess-pt').checked = false; 
+    document.getElementById('assess-special').checked = false; // Reset Special Needs
+
     const age = new Date().getFullYear() - new Date(l.dob).getFullYear();
     let batch = "Toddler (3-5 Yrs)";
     if(age >= 18) batch = "Adult Fitness"; else if(age >= 8) batch = "Intermediate (8+ Yrs)"; else if(age >= 5) batch = "Beginner (5-8 Yrs)";
     document.getElementById('assess-batch').value = batch;
     document.getElementById('assessment-modal').classList.remove('hidden');
 };
+
 window.submitAssessment = async () => {
     const btn = document.getElementById('btn-save-assess'); const orgTxt = btn.innerText;
-    const fb = document.getElementById('assess-feedback').value; const batch = document.getElementById('assess-batch').value; const pt = document.getElementById('assess-pt').checked;
-    const skills = { listening: document.getElementById('skill-listen').checked, flexibility: document.getElementById('skill-flex').checked, strength: document.getElementById('skill-strength').checked, balance: document.getElementById('skill-balance').checked, personal_training: pt };
+    const fb = document.getElementById('assess-feedback').value;
+    const batch = document.getElementById('assess-batch').value;
+    const pt = document.getElementById('assess-pt').checked;
+    const special = document.getElementById('assess-special').checked; // Capture Special Needs
+
+    const skills = { listening: document.getElementById('skill-listen').checked, flexibility: document.getElementById('skill-flex').checked, strength: document.getElementById('skill-strength').checked, balance: document.getElementById('skill-balance').checked, personal_training: pt, special_needs: special };
+
     if(!batch) return alert("Select Batch");
     btn.disabled = true; btn.innerText = "Saving...";
+
     try {
-        const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback: fb, recommended_batch: batch, skills_rating: skills }).eq('id', currentAssessmentLead.id);
+        // UPDATE DB with special_needs column
+        const { error } = await supabaseClient.from('leads').update({ 
+            status: 'Trial Completed', 
+            feedback: fb, 
+            recommended_batch: batch, 
+            skills_rating: skills,
+            special_needs: special // SAVING TO DB COLUMN
+        }).eq('id', currentAssessmentLead.id);
+
         if(error) throw error;
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` }, body: JSON.stringify({ record: { ...currentAssessmentLead, feedback: fb, recommended_batch: batch, skills_rating: skills, pt_recommended: pt, type: 'feedback_email' } }) });
+        
+        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { 
+            method: 'POST', 
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` }, 
+            body: JSON.stringify({ 
+                record: { 
+                    ...currentAssessmentLead, 
+                    feedback: fb, 
+                    recommended_batch: batch, 
+                    skills_rating: skills, 
+                    pt_recommended: pt, 
+                    special_needs: special, 
+                    type: 'feedback_email' 
+                } 
+            }) 
+        });
+        
         document.getElementById('assessment-modal').classList.add('hidden');
         showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
         fetchTrials(); 
     } catch(e) { console.error(e); alert("Error saving."); } finally { btn.disabled = false; btn.innerText = orgTxt; }
 };
 
-// --- PUBLIC FORM ---
 window.scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 window.checkOther = (el, id) => document.getElementById(id).classList.toggle('hidden', el.value !== 'Other');
 window.calculateAgeDisplay = () => {
@@ -307,8 +313,8 @@ window.handleIntakeSubmit = async (e) => {
     const phone = document.getElementById('phone').value.replace(/\D/g, '');
     if(phone.length !== 10) return alert("Invalid Mobile");
     const formData = {
-        child_name: document.getElementById('k_name').value, dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
-        parent_name: document.getElementById('p_name').value, phone: phone, email: document.getElementById('email').value,
+        child_name: document.getElementById('k_name').value.trim(), dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
+        parent_name: document.getElementById('p_name').value.trim(), phone: phone, email: document.getElementById('email').value.trim(),
         status: 'Pending Trial', submitted_at: new Date(), source: document.getElementById('source').value, intent: document.getElementById('intent').value
     };
     btn.innerText = "Saving..."; btn.disabled = true;
@@ -317,7 +323,7 @@ window.handleIntakeSubmit = async (e) => {
         if (error) { if(error.code==='23505') alert("Exists"); else alert(error.message); btn.disabled=false; btn.innerText=org; return; }
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseKey}`}, body: JSON.stringify({record: formData}) });
         showSuccessModal("Request Sent!", "Your trial request has been submitted successfully.");
-    } catch(e) { alert(e.message); btn.disabled = false; btn.innerText = org; }
+    } catch (err) { alert(err.message); btn.disabled = false; btn.innerText = org; }
 };
 
 // INIT
