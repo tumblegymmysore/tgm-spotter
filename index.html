@@ -105,9 +105,73 @@
         <div id="parent-content" class="space-y-6"></div>
     </div>
 
-    <div id="trainer" class="hide pt-24 px-4 fade-in max-w-lg mx-auto pb-20">
-        <div class="flex justify-between items-center mb-6"><h1 class="text-2xl font-bold text-slate-800">Trial Manager</h1></div>
-        <div class="space-y-3" id="trial-list"></div>
+<div id="trainer" class="hidden pt-20 px-4 max-w-6xl mx-auto pb-20 min-h-screen">
+        
+        <div class="flex justify-between items-center mb-8">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Trainer Dashboard</h1>
+                <p class="text-slate-500 text-sm">Welcome back, Coach!</p>
+            </div>
+            <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm">
+                <i class="fas fa-calendar-day mr-2"></i> <span id="current-date">Today</span>
+            </div>
+        </div>
+
+        <div class="flex space-x-2 mb-8 border-b border-slate-200 overflow-x-auto">
+            <button onclick="window.switchTab('trials')" id="tab-btn-trials" class="tab-btn active-tab px-6 py-3 font-bold text-blue-600 border-b-2 border-blue-600">
+                <i class="fas fa-clipboard-list mr-2"></i>Trial Requests
+            </button>
+            <button onclick="window.switchTab('batches')" id="tab-btn-batches" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600">
+                <i class="fas fa-users mr-2"></i>My Batches
+            </button>
+            <button onclick="window.switchTab('attendance')" id="tab-btn-attendance" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600">
+                <i class="fas fa-check-circle mr-2"></i>Attendance
+            </button>
+        </div>
+
+        <div id="view-trials" class="tab-content">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-lg mb-4 text-blue-900 flex items-center">
+                        <i class="fas fa-star text-yellow-400 mr-2"></i> New Requests
+                    </h3>
+                    <div id="list-new-trials" class="space-y-3">
+                        <p class="text-sm text-slate-400 italic">Loading...</p>
+                    </div>
+                </div>
+
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-lg mb-4 text-green-700 flex items-center">
+                        <i class="fas fa-check-double mr-2"></i> Completed (Recent)
+                    </h3>
+                    <div id="list-completed-trials" class="space-y-3">
+                        </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-batches" class="tab-content hidden">
+            <div class="bg-white p-8 rounded-2xl shadow text-center">
+                <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-layer-group text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">Batch Management</h3>
+                <p class="text-slate-500 mb-6">View student lists and batch timings.</p>
+                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
+            </div>
+        </div>
+
+        <div id="view-attendance" class="tab-content hidden">
+            <div class="bg-white p-8 rounded-2xl shadow text-center">
+                <div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i class="fas fa-user-check text-2xl"></i>
+                </div>
+                <h3 class="text-xl font-bold text-slate-800">Daily Attendance</h3>
+                <p class="text-slate-500 mb-6">Mark presence for active students.</p>
+                <button class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
+            </div>
+        </div>
+
     </div>
 
     <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
