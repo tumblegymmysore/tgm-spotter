@@ -89,6 +89,11 @@ export const generateWelcomeEmail = (data: any) => {
 
 // 2. TRIAL FEEDBACK EMAIL (For Post-Assessment)
 export const generateFeedbackEmail = (data: any) => {
+  // Logic to show PT badge
+  const ptSection = data.pt_recommended 
+    ? `<div style="background-color:#fefce8; border:1px solid #fde047; padding:10px; margin-top:10px; border-radius:6px; color:#854d0e; font-size:13px; font-weight:bold;">✨ Personal Training Recommended</div>` 
+    : ``;
+
   return `
     <!DOCTYPE html>
     <html>
@@ -116,6 +121,7 @@ export const generateFeedbackEmail = (data: any) => {
               <p><em>"${data.feedback}"</em></p>
               <hr style="border:0; border-top:1px solid #bbf7d0; margin:15px 0;">
               <p><strong>Recommended Batch:</strong> ${data.recommended_batch}</p>
+              ${ptSection}
             </div>
             <p>We would love to see ${data.child_name} continue their gymnastics journey with us!</p>
             <a href="https://tumblegymmysore.github.io/login" class="btn">Proceed to Registration</a>
