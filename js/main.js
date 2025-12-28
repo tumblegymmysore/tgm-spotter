@@ -7,10 +7,10 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v19 - Auto Batch + PT).");
+console.log("System Loaded: Ready (v21 - Master File).");
 
 // --------------------------------------------------------------------------
-// 2. SESSION & LOGIN MANAGER (PRESERVED)
+// 2. SESSION & LOGIN MANAGER (Preserved)
 // --------------------------------------------------------------------------
 let currentUser = null; 
 
@@ -22,6 +22,7 @@ let currentUser = null;
         const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
         const formattedName = name.charAt(0).toUpperCase() + name.slice(1);
         
+        // Hide Public, Show Private
         document.getElementById('landing').classList.add('hidden');
         document.getElementById('nav-public').classList.add('hidden');
         document.getElementById('nav-private').classList.remove('hidden');
@@ -55,7 +56,7 @@ window.handleLogout = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 3. TRAINER DASHBOARD LOGIC
+// 3. TRAINER DASHBOARD LOGIC (Preserved)
 // --------------------------------------------------------------------------
 async function loadTrainerDashboard(trainerName) {
     const trainerSection = document.getElementById('trainer');
@@ -142,7 +143,7 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. ASSESSMENT LOGIC (UPDATED WITH AUTO-BATCH & PT)
+// 4. ASSESSMENT LOGIC (UPDATED: Auto-Batch & PT Checkbox)
 // --------------------------------------------------------------------------
 let currentAssessmentLead = null;
 
@@ -159,28 +160,36 @@ window.openAssessment = (leadString) => {
         const el = document.getElementById(`skill-${k}`);
         if(el) el.checked = false;
     });
-    document.getElementById('assess-pt').checked = false; // Reset PT
+    document.getElementById('assess-pt').checked = false; 
 
     // --- AUTO-BATCH LOGIC ---
-    // Calculate Age
+    // 1. Calculate precise age
     const dob = new Date(lead.dob);
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
     if (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate())) age--;
 
-    // Determine Batch based on Age
+    console.log(`Auto-detecting batch for age: ${age}`);
+
+    // 2. Select Batch String (Exact Matches to HTML)
     let recommendedBatch = "";
+
     if (age >= 18) {
         recommendedBatch = "Adult Fitness";
-    } else if (age >= 5 && age < 8) {
+    } 
+    else if (age >= 8) {
+        recommendedBatch = "Intermediate (8+ Yrs)";
+    } 
+    else if (age >= 5) {
         recommendedBatch = "Beginner (5-8 Yrs)";
-    } else if (age >= 3 && age < 5) {
+    } 
+    else if (age >= 3) {
         recommendedBatch = "Toddler (3-5 Yrs)";
     }
-    // Note: Ages 8-17 or ambiguous dates are left blank for manual selection
     
+    // Set the dropdown
     document.getElementById('assess-batch').value = recommendedBatch;
-    // ------------------------
+    // ----------------------------------
 
     document.getElementById('assessment-modal').classList.remove('hidden');
 };
@@ -191,14 +200,14 @@ window.submitAssessment = async () => {
     
     const feedback = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
-    const ptRecommended = document.getElementById('assess-pt').checked; // Capture PT Status
+    const ptRecommended = document.getElementById('assess-pt').checked; // Checkbox Value
     
     const skills = {
         listening: document.getElementById('skill-listen')?.checked || false,
         flexibility: document.getElementById('skill-flex')?.checked || false,
         strength: document.getElementById('skill-strength')?.checked || false,
         balance: document.getElementById('skill-balance')?.checked || false,
-        personal_training: ptRecommended // Save to DB JSON
+        personal_training: ptRecommended 
     };
 
     if (!batch) return alert("Please select a Recommended Batch.");
@@ -207,7 +216,6 @@ window.submitAssessment = async () => {
     btn.innerText = "Saving & Emailing...";
 
     try {
-        // Update DB
         const { error } = await supabaseClient
             .from('leads')
             .update({
@@ -220,13 +228,13 @@ window.submitAssessment = async () => {
 
         if (error) throw error;
 
-        // Trigger Feedback Email
+        // Trigger Email
         const emailPayload = {
             record: {
                 ...currentAssessmentLead, 
                 feedback, 
                 recommended_batch: batch,
-                pt_recommended: ptRecommended, // Send to Email Template
+                pt_recommended: ptRecommended, 
                 type: 'feedback_email' 
             }
         };
@@ -237,7 +245,7 @@ window.submitAssessment = async () => {
             body: JSON.stringify(emailPayload) 
         });
 
-        // --- NEW ENHANCED SUCCESS MESSAGE ---
+        // New Success Message
         alert(`Great job! 🌟\n\nThe assessment for ${currentAssessmentLead.child_name} has been saved and the parent has been notified.\n\nYou're all set!`);
         
         document.getElementById('assessment-modal').classList.add('hidden');
@@ -253,7 +261,7 @@ window.submitAssessment = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 5. PUBLIC FORM HELPERS (PRESERVED)
+// 5. PUBLIC FORM HELPERS (Preserved)
 // --------------------------------------------------------------------------
 window.scrollToSection = (id) => {
     const element = document.getElementById(id);
@@ -305,7 +313,7 @@ function showError(title, message) {
 }
 
 // --------------------------------------------------------------------------
-// 6. MAIN FORM SUBMISSION (PRESERVED)
+// 6. MAIN FORM SUBMISSION (Preserved)
 // --------------------------------------------------------------------------
 window.handleIntakeSubmit = async (e) => {
     e.preventDefault(); 
