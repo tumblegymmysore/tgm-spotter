@@ -1,35 +1,49 @@
-import { db } from './config.js';
-import { showPage } from './utils.js';
-// We import these dynamically in main to avoid circular dependencies usually, but here simple imports work if main handles binding
-// For this structure, we'll keep auth logic pure.
+// js/auth.js
+import { supabaseClient } from './config.js';
 
-export let currentUser = null;
-export let currentUserName = "Staff";
-
-export async function checkSession(callback) {
-    const { data: { session } } = await db.auth.getSession();
-    if(session) callback(session.user);
-}
-
-export async function handleLogin(callback) {
+// 1. Handle Login (Email & Password)
+export async function handleLogin() {
     const email = document.getElementById('login-email').value;
-    const pass = document.getElementById('login-password').value;
-    if(!email || !pass) { alert("Please enter credentials."); return; }
-    
-    const { data, error } = await db.auth.signInWithPassword({ email: email, password: pass });
-    if(error) alert("Login Failed: " + error.message); 
-    else { document.getElementById('login-modal').classList.add('hidden'); callback(data.user); }
+    const password = document.getElementById('login-password').value;
+
+    if (!email || !password) {
+        alert("Please enter both email and password.");
+        return;
+    }
+
+    const { data, error } = await supabaseClient.auth.signInWithPassword({
+        email: email,
+        password: password
+    });
+
+    if (error) {
+        alert("Login Failed: " + error.message);
+    } else {
+        // Hide modal and reload to let main.js handle routing
+        document.getElementById('login-modal').classList.add('hidden');
+        window.location.reload(); 
+    }
 }
 
+// 2. Handle Magic Link (Passwordless)
 export async function handleMagicLink() {
     const email = document.getElementById('login-email').value;
-    if(!email) { alert("Enter email first"); return; }
-    const { error } = await db.auth.signInWithOtp({ email: email });
-    if (error) alert("Error: " + error.message);
-    else alert("✅ Link Sent! Check your email.");
+    if (!email) {
+        alert("Please enter your email address first.");
+        return;
+    }
+
+    const { error } = await supabaseClient.auth.signInWithOtp({ email: email });
+
+    if (error) {
+        alert("Error sending link: " + error.message);
+    } else {
+        alert("✅ Magic Link Sent! Please check your email inbox.");
+    }
 }
 
+// 3. Handle Logout
 export async function handleLogout() {
-    await db.auth.signOut();
-    window.location.reload();
+    await supabaseClient.auth.signOut();
+    window.location.reload(); // Reloads to show Landing Page
 }
