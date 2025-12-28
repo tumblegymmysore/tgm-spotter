@@ -1,12 +1,11 @@
 // supabase/functions/notify/templates.ts
 
-// 1. WELCOME EMAIL (For New Registrations)
+// 1. WELCOME EMAIL (Preserved)
 export const generateWelcomeEmail = (data: any) => {
   const dobDate = new Date(data.dob);
   const formattedDOB = dobDate.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
   const ageDiffMs = Date.now() - dobDate.getTime();
   const age = Math.abs(new Date(ageDiffMs).getUTCFullYear() - 1970);
-
   const consentBadge = data.marketing_consent 
     ? `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">YES</span>` 
     : `<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">NO</span>`;
@@ -87,12 +86,42 @@ export const generateWelcomeEmail = (data: any) => {
   `;
 };
 
-// 2. TRIAL FEEDBACK EMAIL (For Post-Assessment)
+// 2. TRIAL FEEDBACK EMAIL (Enhanced Logic)
 export const generateFeedbackEmail = (data: any) => {
-  // Logic to show PT badge
+  
+  // A. Handle PT Badge
   const ptSection = data.pt_recommended 
     ? `<div style="background-color:#fefce8; border:1px solid #fde047; padding:10px; margin-top:10px; border-radius:6px; color:#854d0e; font-size:13px; font-weight:bold;">✨ Personal Training Recommended</div>` 
     : ``;
+
+  // B. Handle Empty Feedback Text
+  const feedbackText = data.feedback && data.feedback.trim() !== "" 
+    ? `<p><em>"${data.feedback}"</em></p>`
+    : `<p style="color:#64748b; font-style:italic; font-size:13px;">(Assessment completed by trainer)</p>`;
+
+  // C. Handle Skills Badges
+  const skills = data.skills_rating || {};
+  let skillsHtml = "";
+  const activeSkills = [];
+  
+  // We use lowercase keys here to match the JS object
+  if (skills.listening) activeSkills.push("Listening");
+  if (skills.flexibility) activeSkills.push("Flexibility");
+  if (skills.strength) activeSkills.push("Strength");
+  if (skills.balance) activeSkills.push("Balance");
+
+  if (activeSkills.length > 0) {
+     const tags = activeSkills.map(s => 
+       `<span style="display:inline-block; background:white; border:1px solid #16a34a; color:#16a34a; padding:2px 8px; border-radius:12px; font-size:11px; margin-right:4px; margin-bottom:4px; font-weight:600;">${s}</span>`
+     ).join("");
+     
+     skillsHtml = `
+       <div style="margin-top:15px; padding-top:15px; border-top:1px dashed #bbf7d0;">
+         <strong style="color:#15803d; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Strengths Observed:</strong>
+         ${tags}
+       </div>
+     `;
+  }
 
   return `
     <!DOCTYPE html>
@@ -104,7 +133,8 @@ export const generateFeedbackEmail = (data: any) => {
           .header { background-color: #16a34a; padding: 30px; text-align: center; color: white; }
           .content { padding: 30px; }
           .score-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0; }
-          .btn { display: block; width: 100%; text-align: center; background: #16a34a; color: white; padding: 15px; border-radius: 6px; text-decoration: none; font-weight: bold; margin-top: 20px; }
+          .btn-container { text-align: center; margin-top: 30px; }
+          .btn { display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; }
         </style>
       </head>
       <body>
@@ -116,15 +146,29 @@ export const generateFeedbackEmail = (data: any) => {
           <div class="content">
             <p><strong>Dear ${data.parent_name},</strong></p>
             <p>It was wonderful having ${data.child_name} at The Tumble Gym today! Our trainers have completed their assessment.</p>
+            
             <div class="score-card">
-              <h3 style="margin-top:0; color:#15803d;">Trainer Feedback</h3>
-              <p><em>"${data.feedback}"</em></p>
+              <h3 style="margin-top:0; color:#15803d; margin-bottom:10px;">Assessment Results</h3>
+              
+              ${feedbackText}
+              
+              ${skillsHtml}
+
               <hr style="border:0; border-top:1px solid #bbf7d0; margin:15px 0;">
-              <p><strong>Recommended Batch:</strong> ${data.recommended_batch}</p>
+              
+              <div style="font-size:14px;">
+                <strong>Recommended Batch:</strong><br>
+                <span style="font-size:16px; color:#166534;">${data.recommended_batch}</span>
+              </div>
+              
               ${ptSection}
             </div>
+
             <p>We would love to see ${data.child_name} continue their gymnastics journey with us!</p>
-            <a href="https://tumblegymmysore.github.io/login" class="btn">Proceed to Registration</a>
+            
+            <div class="btn-container">
+                <a href="https://tumblegymmysore.github.io/tgm-spotter/" class="btn">Proceed to Registration</a>
+            </div>
           </div>
         </div>
       </body>
