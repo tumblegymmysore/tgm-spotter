@@ -1,8 +1,9 @@
-// js/auth.js
+// js/auth.js (v47 - Debug Enabled)
 import { supabaseClient } from './config.js';
 
-// 1. Handle Login (Email & Password)
 export async function handleLogin() {
+    console.log("Login Button Clicked"); // DEBUG
+
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
 
@@ -11,39 +12,35 @@ export async function handleLogin() {
         return;
     }
 
+    console.log("Sending request to Supabase...");
     const { data, error } = await supabaseClient.auth.signInWithPassword({
         email: email,
         password: password
     });
 
     if (error) {
+        console.error("Login Error:", error);
         alert("Login Failed: " + error.message);
     } else {
-        // Hide modal and reload to let main.js handle routing
+        console.log("Login Success:", data);
         document.getElementById('login-modal').classList.add('hidden');
         window.location.reload(); 
     }
 }
 
-// 2. Handle Magic Link (Passwordless)
+export async function handleLogout() {
+    console.log("Logging Out...");
+    await supabaseClient.auth.signOut();
+    window.location.reload();
+}
+
 export async function handleMagicLink() {
     const email = document.getElementById('login-email').value;
     if (!email) {
         alert("Please enter your email address first.");
         return;
     }
-
     const { error } = await supabaseClient.auth.signInWithOtp({ email: email });
-
-    if (error) {
-        alert("Error sending link: " + error.message);
-    } else {
-        alert("✅ Magic Link Sent! Please check your email inbox.");
-    }
-}
-
-// 3. Handle Logout
-export async function handleLogout() {
-    await supabaseClient.auth.signOut();
-    window.location.reload(); // Reloads to show Landing Page
+    if (error) alert("Error: " + error.message);
+    else alert("✅ Magic Link Sent! Check your email.");
 }
