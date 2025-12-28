@@ -7,13 +7,13 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v25 - Private Chat).");
+console.log("System Loaded: Ready (v26 - Trainer Inbox).");
 
 // --------------------------------------------------------------------------
-// 2. SESSION & LOGIN MANAGER (Preserved)
+// 2. SESSION & LOGIN MANAGER
 // --------------------------------------------------------------------------
 let currentUser = null; 
-let currentTrainerName = "Trainer"; // Default
+let currentTrainerName = "Trainer"; 
 
 (async function initSession() {
     const { data: { session } } = await supabaseClient.auth.getSession();
@@ -57,7 +57,7 @@ window.handleLogout = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 3. TRAINER DASHBOARD LOGIC (Updated Card)
+// 3. TRAINER DASHBOARD LOGIC (Updated Tabs)
 // --------------------------------------------------------------------------
 async function loadTrainerDashboard(trainerName) {
     const trainerSection = document.getElementById('trainer');
@@ -72,6 +72,7 @@ async function loadTrainerDashboard(trainerName) {
     document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', dateOptions);
 
     fetchTrials();
+    fetchInbox(); // Load inbox data in background
 }
 
 window.switchTab = (tabName) => {
@@ -80,16 +81,23 @@ window.switchTab = (tabName) => {
         btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
         btn.classList.add('text-slate-500');
     });
+    
     document.getElementById(`view-${tabName}`).classList.remove('hidden');
+    
     const activeBtn = document.getElementById(`tab-btn-${tabName}`);
-    activeBtn.classList.remove('text-slate-500');
-    activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    if (activeBtn) {
+        activeBtn.classList.remove('text-slate-500');
+        activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
+    }
+
+    if (tabName === 'inbox') fetchInbox(); // Refresh when clicked
 };
 
 async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
-    
+    if (!listNew) return;
+
     const { data, error } = await supabaseClient
         .from('leads')
         .select('*')
@@ -117,14 +125,12 @@ function createTrialCard(lead) {
     const isPending = lead.status === 'Pending Trial';
     const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
 
-    // PRIVACY UPDATE: Phone number removed. Chat button added.
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 ${colorClass} hover:shadow-md transition mb-3">
         <div class="flex justify-between items-start">
             <div>
                 <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                
                 <button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center">
                     <i class="fas fa-comment-dots mr-2"></i> Message Parent
                 </button>
@@ -147,23 +153,107 @@ function createTrialCard(lead) {
 }
 
 // --------------------------------------------------------------------------
-// 4. CHAT LOGIC (NEW)
+// 4. INBOX & CHAT LOGIC (NEW)
 // --------------------------------------------------------------------------
+
+// A. Fetch & Group Messages for Inbox Tab
+window.fetchInbox = async () => {
+    const container = document.getElementById('list-inbox');
+    if (!container) return;
+
+    // Fetch messages joined with lead details
+    const { data: messages, error } = await supabaseClient
+        .from('messages')
+        .select(`
+            *,
+            leads (id, child_name, parent_name)
+        `)
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        console.error("Inbox Error:", error);
+        container.innerHTML = '<div class="p-8 text-center text-red-400">Error loading inbox.</div>';
+        return;
+    }
+
+    if (!messages || messages.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400">No conversations yet.</div>';
+        return;
+    }
+
+    // Group by Lead ID
+    const conversations = {};
+    let globalUnreadCount = 0;
+
+    messages.forEach(msg => {
+        if (!msg.leads) return; // Skip if lead deleted
+        const leadId = msg.leads.id;
+        
+        if (!conversations[leadId]) {
+            conversations[leadId] = {
+                details: msg.leads,
+                lastMessage: msg,
+                unread: 0
+            };
+        }
+        // Count unread (If sender is NOT trainer and NOT read)
+        if (msg.sender_role !== 'trainer' && !msg.is_read) {
+            conversations[leadId].unread++;
+            globalUnreadCount++;
+        }
+    });
+
+    // Update Tab Badge
+    const badge = document.getElementById('inbox-badge');
+    if (globalUnreadCount > 0) {
+        badge.classList.remove('hidden');
+    } else {
+        badge.classList.add('hidden');
+    }
+
+    // Render List
+    container.innerHTML = '';
+    Object.values(conversations).forEach(conv => {
+        const leadString = encodeURIComponent(JSON.stringify(conv.details)); // Use details for openChat
+        const time = new Date(conv.lastMessage.created_at).toLocaleDateString();
+        const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
+        
+        container.innerHTML += `
+            <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3">
+                        ${conv.details.child_name.charAt(0)}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-slate-800 text-sm">${conv.details.parent_name} <span class="text-slate-400 font-normal">(Child: ${conv.details.child_name})</span></h4>
+                        <p class="text-xs text-slate-500 truncate w-64">${conv.lastMessage.sender_role === 'trainer' ? 'You: ' : ''}${conv.lastMessage.message_text}</p>
+                    </div>
+                </div>
+                <div class="text-right">
+                    <p class="text-[10px] text-slate-400 mb-1">${time}</p>
+                    ${conv.unread > 0 ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${conv.unread} new</span>` : ''}
+                </div>
+            </div>
+        `;
+    });
+};
+
+// B. Open Chat Modal & Mark Read
 window.openChat = async (leadString) => {
     const lead = JSON.parse(decodeURIComponent(leadString));
     
-    // Setup Header
     document.getElementById('chat-header-name').innerText = lead.parent_name;
     document.getElementById('chat-student-name').innerText = lead.child_name;
     document.getElementById('chat-lead-id').value = lead.id;
     
-    // Clear & Open
     document.getElementById('chat-history').innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Loading messages...</p>';
     document.getElementById('chat-modal').classList.remove('hidden');
     
     await loadMessages(lead.id);
+    await markAsRead(lead.id); // <--- Mark as read when opened
 };
 
+// C. Load Messages
 window.loadMessages = async (leadId) => {
     const container = document.getElementById('chat-history');
     
@@ -173,21 +263,15 @@ window.loadMessages = async (leadId) => {
         .eq('lead_id', leadId)
         .order('created_at', { ascending: true });
         
-    if (error || !data) {
+    if (error || !data || data.length === 0) {
         container.innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Start of conversation</p>';
         return;
     }
 
-    if (data.length === 0) {
-        container.innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">No messages yet. Say hello!</p>';
-        return;
-    }
-
-    container.innerHTML = ''; // Clear loading
+    container.innerHTML = ''; 
 
     data.forEach(msg => {
-        const isMe = msg.sender_role === 'trainer'; // Assuming current view is trainer
-        
+        const isMe = msg.sender_role === 'trainer'; 
         const bubble = `
             <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                 <div class="${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm">
@@ -201,10 +285,10 @@ window.loadMessages = async (leadId) => {
         container.innerHTML += bubble;
     });
 
-    // Scroll to bottom
     container.scrollTop = container.scrollHeight;
 };
 
+// D. Send Message
 window.sendChatMessage = async () => {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
@@ -212,7 +296,7 @@ window.sendChatMessage = async () => {
 
     if (!text) return;
 
-    // UI Optimistic Update (Show bubble immediately)
+    // Optimistic Update
     const container = document.getElementById('chat-history');
     container.innerHTML += `
         <div class="flex flex-col items-end">
@@ -224,24 +308,31 @@ window.sendChatMessage = async () => {
     container.scrollTop = container.scrollHeight;
     input.value = '';
 
-    // Save to DB
-    const { error } = await supabaseClient
-        .from('messages')
-        .insert([{
-            lead_id: leadId,
-            sender_role: 'trainer',
-            sender_name: currentTrainerName,
-            message_text: text
-        }]);
+    // Save
+    await supabaseClient.from('messages').insert([{
+        lead_id: leadId,
+        sender_role: 'trainer',
+        sender_name: currentTrainerName,
+        message_text: text
+    }]);
 
-    if (error) {
-        alert("Failed to send message.");
-        console.error(error);
-    } else {
-        // Reload to get timestamp and confirm
-        await loadMessages(leadId); 
-    }
+    await loadMessages(leadId); 
+    fetchInbox(); // Refresh inbox list in background
 };
+
+// E. Mark Messages as Read
+async function markAsRead(leadId) {
+    // Only mark messages NOT sent by trainer as read
+    await supabaseClient
+        .from('messages')
+        .update({ is_read: true })
+        .eq('lead_id', leadId)
+        .neq('sender_role', 'trainer');
+        
+    // Update Badge UI immediately
+    const badge = document.getElementById('inbox-badge');
+    badge.classList.add('hidden'); 
+}
 
 // --------------------------------------------------------------------------
 // 5. ASSESSMENT LOGIC (Preserved)
@@ -329,7 +420,6 @@ window.submitAssessment = async () => {
         });
 
         alert(`Great job! 🌟\n\nThe assessment for ${currentAssessmentLead.child_name} has been saved.\nParent Notified!`);
-        
         document.getElementById('assessment-modal').classList.add('hidden');
         fetchTrials(); 
 
@@ -343,7 +433,7 @@ window.submitAssessment = async () => {
 };
 
 // --------------------------------------------------------------------------
-// 6. PUBLIC FORM HELPERS & SUBMISSION (Preserved)
+// 6. PUBLIC FORM HELPERS (Preserved)
 // --------------------------------------------------------------------------
 window.scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
 
