@@ -1,5 +1,4 @@
-// js/roles/parent.js
-// Note: Imports go UP one level (../) to find config and utils
+// js/roles/parent.js (v51 - Feedback & Reg Fix)
 import { supabaseClient, REGISTRATION_FEE, SPECIAL_RATES } from '../config.js';
 import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
@@ -14,10 +13,8 @@ export async function handleIntakeSubmit(e) {
 
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim().replace(/\D/g, '');
-    let intentVal = document.getElementById('intent').value;
-    if(intentVal.includes('Other')) intentVal = document.getElementById('intent_other').value;
-    let sourceVal = document.getElementById('source').value;
-    if(sourceVal.includes('Other')) sourceVal = document.getElementById('source_other').value;
+    let intentVal = document.getElementById('intent').value.includes('Other') ? document.getElementById('intent_other').value : document.getElementById('intent').value;
+    let sourceVal = document.getElementById('source').value.includes('Other') ? document.getElementById('source_other').value : document.getElementById('source').value;
 
     const formData = {
         parent_name: document.getElementById('p_name').value.trim(), 
@@ -53,7 +50,8 @@ export async function loadParentDashboard(email) {
 
     const { data, error } = await supabaseClient.from('leads').select('*').eq('email', email).order('created_at', { ascending: false });
 
-    if (error || !data || data.length === 0) { 
+    if (error) { container.innerHTML = `<p class="text-red-500 text-center">Error: ${error.message}</p>`; return; }
+    if (!data || data.length === 0) { 
         container.innerHTML = `<div class="text-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-sm mx-auto mt-10"><h3 class="text-lg font-bold text-slate-800">No Students Yet</h3><button onclick="window.location.reload()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg mt-4">Register Now</button></div>`; 
         return; 
     }
@@ -71,13 +69,22 @@ export async function loadParentDashboard(email) {
         let statusMessage = `<div class="p-3 bg-slate-50 rounded-lg border border-slate-100 text-center text-xs text-slate-500">We will contact you shortly to schedule the trial.</div>`;
         let primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
 
-        if (child.status === 'Trial Completed') {
+        // NEW: Follow Up Status
+        if (child.status === 'Follow Up') {
+            cardBg = 'bg-orange-50 border-orange-200';
+            statusIcon = '<div class="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-pause"></i></div>';
+            statusBadge = 'On Hold';
+            const fDate = child.follow_up_date ? new Date(child.follow_up_date).toLocaleDateString() : 'Future';
+            statusMessage = `<div class="p-3 bg-white/50 rounded-lg border border-orange-100 text-center text-xs text-orange-800">Follow-up set for: <strong>${fDate}</strong></div>`;
+            primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600 transition">Resume Registration</button>`;
+        }
+        else if (child.status === 'Trial Completed') {
             cardBg = 'bg-gradient-to-br from-blue-50 to-white border-blue-200';
             statusIcon = '<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><i class="fas fa-star"></i></div>';
             statusBadge = 'Ready to Register';
             
             const isSpecial = child.special_needs;
-            const isPT = child.skills_rating?.personal_training; 
+            const isPT = child.skills_rating?.personal_training;
             const batch = child.recommended_batch || 'Standard Batch';
             let displayRec = "";
 
@@ -108,8 +115,8 @@ export async function loadParentDashboard(email) {
         }
 
         const { count } = await supabaseClient.from('messages').select('*', { count: 'exact', head: true }).eq('lead_id', child.id).eq('sender_role', 'trainer').eq('is_read', false);
-        const badgeClass = count > 0 ? '' : 'hidden';
-        const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeClass} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
+        const badgeHidden = count > 0 ? '' : 'hidden';
+        const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeHidden} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
         const colors = ['bg-rose-100 text-rose-600', 'bg-blue-100 text-blue-600', 'bg-emerald-100 text-emerald-600', 'bg-purple-100 text-purple-600'];
         const avatarColor = colors[child.child_name.length % colors.length];
 
@@ -153,7 +160,7 @@ export function openParentChat(leadString) {
     window.openChat(encodeURIComponent(JSON.stringify(lead)));
 }
 
-// --- 4. REGISTRATION LOGIC (New Detailed Form) ---
+// --- 4. REGISTRATION LOGIC ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
@@ -163,7 +170,7 @@ export function openRegistrationModal(leadString, isRenewal) {
     // Fee Logic
     const feeDisplay = document.getElementById('reg-fee-display');
     if (isRenewal) { 
-        feeDisplay.parentElement.parentElement.classList.add('hidden'); // Hide Reg Fee row
+        feeDisplay.parentElement.parentElement.classList.add('hidden'); 
         feeDisplay.innerText = "0"; 
     } else { 
         feeDisplay.parentElement.parentElement.classList.remove('hidden'); 
@@ -176,8 +183,6 @@ export function openRegistrationModal(leadString, isRenewal) {
     document.getElementById('reg-date').value = "";
     document.getElementById('payment-proof').value = "";
     document.getElementById('reg-consent').checked = false;
-    
-    // Uncheck all days
     document.querySelectorAll('input[name="session_days"]').forEach(cb => cb.checked = false);
 
     document.getElementById('reg-modal').classList.remove('hidden');
@@ -193,13 +198,8 @@ export function calculateTotal() {
     const pkgVal = document.getElementById('reg-package').value;
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     let base = 0;
-    
-    if (pkgVal === 'Special') {
-        base = SPECIAL_RATES[document.getElementById('reg-level').value] || 0;
-    } else if (pkgVal) {
-        base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
-    }
-    
+    if (pkgVal === 'Special') base = SPECIAL_RATES[document.getElementById('reg-level').value] || 0;
+    else if (pkgVal) base = parseInt(pkgVal.split('|')[1].replace(/,/g, ''));
     let total = base;
     if (!isRenewal && base > 0) total += REGISTRATION_FEE;
     document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
@@ -211,8 +211,6 @@ export async function submitRegistration() {
     const fileInput = document.getElementById('payment-proof');
     const startDate = document.getElementById('reg-date').value;
     const consent = document.getElementById('reg-consent').checked;
-
-    // Collect Days
     const days = Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value);
 
     // Validation
@@ -228,42 +226,20 @@ export async function submitRegistration() {
     try {
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
-        
         const { error: uploadError } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
         if(uploadError) throw uploadError;
-        
         const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
         let pkgName = pkgVal === 'Special' ? `Special - ${document.getElementById('reg-level').value}` : pkgVal.split('|')[0];
 
-        // Ensure DB has 'session_days' column (if not, you might need to add it via SQL, or store in metadata)
-        // Assuming we store it in a new column or existing JSONB field if schema allows.
-        // For now, we will update standard fields.
-        
         const { error } = await supabaseClient.from('leads').update({
-            status: 'Registration Requested', 
-            selected_package: pkgName, 
-            package_price: total,
-            payment_proof_url: publicUrl, 
-            start_date: startDate, 
-            payment_status: 'Verification Pending',
-            session_days: days // IMPORTANT: Ensure your DB has this column (text array or jsonb)
+            status: 'Registration Requested', selected_package: pkgName, package_price: total,
+            payment_proof_url: publicUrl, start_date: startDate, payment_status: 'Verification Pending', session_days: days
         }).eq('id', currentRegistrationId);
 
         if(error) throw error;
-
         document.getElementById('reg-modal').classList.add('hidden');
-        showSuccessModal(
-            "Registration Submitted!", 
-            "We have received your details and payment. Admin will verify shortly.",
-            () => window.location.reload()
-        );
-
-    } catch (err) { 
-        console.error(err); 
-        alert("Error submitting: " + err.message); 
-    } finally { 
-        btn.innerText = "Submit Registration"; btn.disabled = false; 
-    }
+        showSuccessModal("Registration Submitted!", "We have received your details. Admin will verify shortly.", () => window.location.reload());
+    } catch (err) { console.error(err); alert("Error submitting: " + err.message); } finally { btn.innerText = "Submit Registration"; btn.disabled = false; }
 }
 
 // --- 5. EDIT & FEEDBACK ---
@@ -300,15 +276,25 @@ export function openFeedbackModal(id) {
 export async function submitParentFeedback() {
     const id = document.getElementById('feedback-lead-id').value;
     const reason = document.getElementById('feedback-reason').value;
+    const dateStr = document.getElementById('feedback-date').value;
+    const note = document.getElementById('feedback-note').value;
+
     if (!reason) return alert("Please select a reason.");
+
+    // Date Validation
+    if (dateStr) {
+        const selectedDate = new Date(dateStr);
+        const today = new Date();
+        today.setHours(0,0,0,0);
+        if (selectedDate < today) return alert("Follow-up date must be in the future.");
+    }
+
     try {
         await supabaseClient.from('leads').update({
             status: 'Follow Up', feedback_reason: reason, 
-            follow_up_date: document.getElementById('feedback-date').value || null, 
-            parent_note: document.getElementById('feedback-note').value
+            follow_up_date: dateStr || null, parent_note: note
         }).eq('id', id);
-        showSuccessModal("Feedback Saved", "Thank you!");
+        showSuccessModal("Feedback Saved", "Thank you! We have updated your status.", () => window.location.reload());
         document.getElementById('feedback-modal').classList.add('hidden');
-        window.location.reload();
-    } catch (err) { alert("Error saving."); }
+    } catch (err) { alert("Error saving: " + err.message); }
 }
