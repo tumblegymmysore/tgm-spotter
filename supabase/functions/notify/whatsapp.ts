@@ -29,7 +29,7 @@ export const sendWhatsAppTrial = async (record: any, phoneId: string, token: str
     },
     body: JSON.stringify({
       messaging_product: 'whatsapp',
-      to: '918618684685', // <--- HARDCODED TO YOUR NUMBER FOR TESTING (Must include country code, no +)
+      to: '919444897281', '919886925225', // <--- HARDCODED TO YOUR NUMBER FOR TESTING (Must include country code, no +)
       type: 'text',
       text: { body: message },
     }),
