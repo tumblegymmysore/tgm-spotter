@@ -1,30 +1,35 @@
-// js/main.js (v30 - Guaranteed Execution)
+// js/main.js (v31 - Final Robust Fix)
 
 // 1. CONFIGURATION
 const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
-const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-// --- SAFETY CHECK: Verify code is new ---
-// If you don't see this alert, your browser is caching old files!
-console.log("System Loaded: Ready (v30).");
-// alert("System Check: v30 Loaded! If you see this, the code updated."); 
+// Safety Check: Ensure Supabase Library is loaded
+if (typeof supabase === 'undefined') {
+    alert("CRITICAL ERROR: Supabase library not loaded. Check your internet connection.");
+    throw new Error("Supabase missing");
+}
+
+const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
+console.log("System Loaded: Ready (v31).");
 
 // --- GLOBAL VARIABLES ---
 let currentUser = null; 
 let currentTrainerName = "Trainer"; 
 
-// --- 2. CORE FUNCTIONS (Hoisted) ---
-
+// --- 2. INITIALIZATION ---
 async function initSession() {
     try {
         const { data: { session } } = await supabaseClient.auth.getSession();
+        
         if (session) {
             currentUser = session.user;
-            const name = currentUser.user_metadata?.full_name || currentUser.email.split('@')[0];
-            currentTrainerName = name.charAt(0).toUpperCase() + name.slice(1);
+            // Extract Name
+            const metaName = currentUser.user_metadata?.full_name;
+            const emailName = currentUser.email ? currentUser.email.split('@')[0] : "Trainer";
+            currentTrainerName = metaName || emailName.charAt(0).toUpperCase() + emailName.slice(1);
             
-            // UI Updates
+            // Switch UI
             document.getElementById('landing').classList.add('hidden');
             document.getElementById('nav-public').classList.add('hidden');
             document.getElementById('nav-private').classList.remove('hidden');
@@ -33,10 +38,8 @@ async function initSession() {
             const badge = document.getElementById('user-role-badge');
             if(badge) badge.innerText = currentTrainerName;
 
-            console.log("Session Valid. Loading Dashboard...");
             loadTrainerDashboard(currentTrainerName);
         } else {
-            console.log("No Session. Showing Landing.");
             document.getElementById('landing').classList.remove('hidden');
         }
     } catch (e) {
@@ -44,24 +47,35 @@ async function initSession() {
     }
 }
 
+// --- 3. DASHBOARD LOGIC ---
 async function loadTrainerDashboard(trainerName) {
     document.getElementById('trainer').classList.remove('hidden');
+    
     const welcomeHeader = document.querySelector('#trainer h1 + p');
-    if (welcomeHeader) welcomeHeader.innerText = `Welcome back, ${trainerName}!`;
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    // Safety check if header exists in HTML
+    if (welcomeHeader) {
+        welcomeHeader.innerText = `Welcome back, ${trainerName}!`;
+    }
 
-    // Explicitly call fetch functions
-    await fetchTrials(); 
+    // Set Date
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) {
+        dateEl.innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    }
+
+    // LOAD DATA (Independent Calls so one doesn't block the other)
+    fetchTrials(); 
     fetchInbox(); 
 }
 
+// --- A. FETCH TRIALS (The List) ---
 async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
     
     if (!listNew) return;
 
-    // VISUAL CONFIRMATION (Blue Text)
+    // Visual Feedback
     listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Syncing data...</p>';
 
     try {
@@ -72,7 +86,7 @@ async function fetchTrials() {
 
         if (error) {
             console.error("DB Error:", error);
-            listNew.innerHTML = `<p class="text-red-500 text-sm">Error: ${error.message}</p>`;
+            listNew.innerHTML = `<p class="text-red-500 text-sm">Error loading data. (${error.message})</p>`;
             return;
         }
 
@@ -96,22 +110,26 @@ async function fetchTrials() {
         if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending requests.</p>';
 
     } catch (err) {
-        listNew.innerHTML = `<p class="text-red-500 text-sm">Crash: ${err.message}</p>`;
+        console.error("Crash:", err);
+        listNew.innerHTML = `<p class="text-red-500 text-sm">System Crash: ${err.message}</p>`;
     }
 }
 
+// --- B. FETCH INBOX (The Messages) ---
 async function fetchInbox() {
     const container = document.getElementById('list-inbox');
     if (!container) return;
 
     try {
+        // Safe Join Query
         const { data: messages, error } = await supabaseClient
             .from('messages')
             .select(`*, leads (id, child_name, parent_name)`)
             .order('created_at', { ascending: false });
 
         if (error) {
-            container.innerHTML = '<div class="p-8 text-center text-red-400">Inbox Error</div>';
+            console.warn("Inbox DB Error:", error);
+            container.innerHTML = '<div class="p-8 text-center text-slate-400 text-sm">Inbox currently unavailable.</div>';
             return;
         }
 
@@ -124,50 +142,65 @@ async function fetchInbox() {
         let globalUnreadCount = 0;
 
         messages.forEach(msg => {
-            if (!msg.leads) return; 
+            if (!msg.leads) return; // Skip orphaned messages
             const leadId = msg.leads.id;
+            
             if (!conversations[leadId]) {
                 conversations[leadId] = { details: msg.leads, lastMessage: msg, unread: 0 };
             }
+            // Logic: If I am Trainer, and Sender is NOT Trainer, and NOT Read -> Unread
             if (msg.sender_role !== 'trainer' && !msg.is_read) {
                 conversations[leadId].unread++;
                 globalUnreadCount++;
             }
         });
 
+        // Update Badge
         const badge = document.getElementById('inbox-badge');
-        if (badge) globalUnreadCount > 0 ? badge.classList.remove('hidden') : badge.classList.add('hidden');
+        if (badge) {
+            if(globalUnreadCount > 0) {
+                badge.classList.remove('hidden');
+            } else {
+                badge.classList.add('hidden');
+            }
+        }
 
+        // Render List
         container.innerHTML = '';
         Object.values(conversations).forEach(conv => {
             const leadString = encodeURIComponent(JSON.stringify(conv.details));
-            const time = new Date(conv.lastMessage.created_at).toLocaleDateString();
+            const dateObj = new Date(conv.lastMessage.created_at);
+            const timeStr = dateObj.toLocaleDateString() + ' ' + dateObj.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            
             const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
+            const senderPrefix = conv.lastMessage.sender_role === 'trainer' ? 'You: ' : '';
             
             container.innerHTML += `
                 <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
                     <div class="flex items-center">
-                        <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3">
+                        <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">
                             ${conv.details.child_name.charAt(0)}
                         </div>
-                        <div>
-                            <h4 class="font-bold text-slate-800 text-sm">${conv.details.parent_name}</h4>
-                            <p class="text-xs text-slate-500 truncate w-64">${conv.lastMessage.sender_role === 'trainer' ? 'You: ' : ''}${conv.lastMessage.message_text}</p>
+                        <div class="overflow-hidden">
+                            <h4 class="font-bold text-slate-800 text-sm truncate">${conv.details.parent_name}</h4>
+                            <p class="text-xs text-slate-500 truncate w-48">${senderPrefix}${conv.lastMessage.message_text}</p>
                         </div>
                     </div>
-                    <div class="text-right">
-                        <p class="text-[10px] text-slate-400 mb-1">${time}</p>
+                    <div class="text-right shrink-0 ml-2">
+                        <p class="text-[10px] text-slate-400 mb-1">${timeStr}</p>
                         ${conv.unread > 0 ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${conv.unread} new</span>` : ''}
                     </div>
                 </div>
             `;
         });
+
     } catch (e) {
-        console.warn("Inbox Error:", e);
+        console.warn("Inbox JS Error:", e);
+        container.innerHTML = '<div class="p-8 text-center text-slate-400">Inbox Error</div>';
     }
 }
 
-// --- 3. HELPER FUNCTIONS ---
+// --- 4. HELPERS & UI COMPONENTS ---
 
 function createTrialCard(lead) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
@@ -201,7 +234,7 @@ function createTrialCard(lead) {
     `;
 }
 
-// --- 4. EXPORTED WINDOW FUNCTIONS (For HTML OnClick) ---
+// --- 5. EXPORTED FUNCTIONS (Attached to Window) ---
 
 window.switchTab = (tabName) => {
     document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
@@ -209,12 +242,16 @@ window.switchTab = (tabName) => {
         btn.classList.remove('text-blue-600', 'border-b-2', 'border-blue-600');
         btn.classList.add('text-slate-500');
     });
-    document.getElementById(`view-${tabName}`).classList.remove('hidden');
+    
+    const targetDiv = document.getElementById(`view-${tabName}`);
+    if (targetDiv) targetDiv.classList.remove('hidden');
+    
     const activeBtn = document.getElementById(`tab-btn-${tabName}`);
     if (activeBtn) {
         activeBtn.classList.remove('text-slate-500');
         activeBtn.classList.add('text-blue-600', 'border-b-2', 'border-blue-600');
     }
+
     if (tabName === 'inbox') fetchInbox();
 };
 
@@ -222,6 +259,7 @@ window.handleLogin = async () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
     if (!email || !password) return alert("Please enter email and password");
+
     const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
     if (error) alert("Login Failed: " + error.message);
     else {
@@ -235,33 +273,52 @@ window.handleLogout = async () => {
     window.location.reload();
 };
 
+// --- Chat Window Logic ---
 window.openChat = async (leadString) => {
     const lead = JSON.parse(decodeURIComponent(leadString));
+    
     document.getElementById('chat-header-name').innerText = lead.parent_name;
     document.getElementById('chat-student-name').innerText = lead.child_name;
     document.getElementById('chat-lead-id').value = lead.id;
-    document.getElementById('chat-history').innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Loading...</p>';
+    
+    document.getElementById('chat-history').innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Loading messages...</p>';
     document.getElementById('chat-modal').classList.remove('hidden');
+    
     await loadMessages(lead.id);
     await markAsRead(lead.id);
 };
 
 window.loadMessages = async (leadId) => {
     const container = document.getElementById('chat-history');
-    const { data, error } = await supabaseClient.from('messages').select('*').eq('lead_id', leadId).order('created_at', { ascending: true });
-    if (error || !data) return;
+    
+    const { data, error } = await supabaseClient
+        .from('messages')
+        .select('*')
+        .eq('lead_id', leadId)
+        .order('created_at', { ascending: true });
+        
+    if (error || !data || data.length === 0) {
+        container.innerHTML = '<p class="text-center text-xs text-slate-400 mt-4">Start of conversation</p>';
+        return;
+    }
+
     container.innerHTML = ''; 
+
     data.forEach(msg => {
         const isMe = msg.sender_role === 'trainer'; 
+        
         container.innerHTML += `
             <div class="flex flex-col ${isMe ? 'items-end' : 'items-start'}">
                 <div class="${isMe ? 'bg-blue-600 text-white rounded-br-none' : 'bg-white border border-slate-200 text-slate-700 rounded-bl-none'} px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm">
                     ${msg.message_text}
                 </div>
-                <span class="text-[10px] text-slate-400 mt-1 px-1">${isMe ? 'You' : msg.sender_name}</span>
+                <span class="text-[10px] text-slate-400 mt-1 px-1">
+                    ${isMe ? 'You' : msg.sender_name} • ${new Date(msg.created_at).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}
+                </span>
             </div>
         `;
     });
+
     container.scrollTop = container.scrollHeight;
 };
 
@@ -269,32 +326,63 @@ window.sendChatMessage = async () => {
     const input = document.getElementById('chat-input');
     const text = input.value.trim();
     const leadId = document.getElementById('chat-lead-id').value;
+
     if (!text) return;
+
+    // Optimistic UI Update
     const container = document.getElementById('chat-history');
-    container.innerHTML += `<div class="flex flex-col items-end"><div class="bg-blue-600 text-white rounded-br-none px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm opacity-50">${text}</div></div>`;
+    container.innerHTML += `
+        <div class="flex flex-col items-end">
+            <div class="bg-blue-600 text-white rounded-br-none px-4 py-2 rounded-2xl max-w-[80%] shadow-sm text-sm opacity-50">
+                ${text}
+            </div>
+        </div>
+    `;
     container.scrollTop = container.scrollHeight;
     input.value = '';
-    await supabaseClient.from('messages').insert([{ lead_id: leadId, sender_role: 'trainer', sender_name: currentTrainerName, message_text: text }]);
+
+    // Save to DB
+    const { error } = await supabaseClient.from('messages').insert([{
+        lead_id: leadId,
+        sender_role: 'trainer',
+        sender_name: currentTrainerName,
+        message_text: text
+    }]);
+
+    if(error) console.error("Send failed:", error);
+
     await loadMessages(leadId); 
-    fetchInbox(); 
+    fetchInbox(); // Refresh sidebar in background
 };
 
 async function markAsRead(leadId) {
-    await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', leadId).neq('sender_role', 'trainer');
+    await supabaseClient
+        .from('messages')
+        .update({ is_read: true })
+        .eq('lead_id', leadId)
+        .neq('sender_role', 'trainer');
+        
     document.getElementById('inbox-badge')?.classList.add('hidden'); 
 }
 
-// --- ASSESSMENT UI & SUBMISSION ---
+// --- Assessment & Intake Logic (Preserved) ---
 let currentAssessmentLead = null;
+
 window.openAssessment = (leadString) => {
     const lead = JSON.parse(decodeURIComponent(leadString));
     currentAssessmentLead = lead; 
+    
     document.getElementById('assess-lead-id').value = lead.id;
     document.getElementById('assess-child-name').innerText = lead.child_name;
     document.getElementById('assess-feedback').value = '';
-    ['listen', 'flex', 'strength', 'balance'].forEach(k => { const el = document.getElementById(`skill-${k}`); if(el) el.checked = false; });
+    
+    ['listen', 'flex', 'strength', 'balance'].forEach(k => {
+        const el = document.getElementById(`skill-${k}`);
+        if(el) el.checked = false;
+    });
     document.getElementById('assess-pt').checked = false; 
 
+    // Auto Batch
     const dob = new Date(lead.dob);
     const today = new Date();
     let age = today.getFullYear() - dob.getFullYear();
@@ -312,9 +400,11 @@ window.openAssessment = (leadString) => {
 window.submitAssessment = async () => {
     const btn = document.getElementById('btn-save-assess');
     const originalText = btn.innerText;
+    
     const feedback = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
     const ptRecommended = document.getElementById('assess-pt').checked;
+    
     const skills = {
         listening: document.getElementById('skill-listen')?.checked || false,
         flexibility: document.getElementById('skill-flex')?.checked || false,
@@ -324,53 +414,132 @@ window.submitAssessment = async () => {
     };
 
     if (!batch) return alert("Please select a Recommended Batch.");
-    btn.disabled = true; btn.innerText = "Saving...";
+
+    btn.disabled = true;
+    btn.innerText = "Saving & Emailing...";
 
     try {
-        const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback, recommended_batch: batch, skills_rating: skills }).eq('id', currentAssessmentLead.id);
+        const { error } = await supabaseClient
+            .from('leads')
+            .update({
+                status: 'Trial Completed',
+                feedback: feedback,
+                recommended_batch: batch,
+                skills_rating: skills
+            })
+            .eq('id', currentAssessmentLead.id);
+
         if (error) throw error;
+
+        const emailPayload = {
+            record: {
+                ...currentAssessmentLead, 
+                feedback: feedback, 
+                recommended_batch: batch,
+                skills_rating: skills, 
+                pt_recommended: ptRecommended, 
+                type: 'feedback_email' 
+            }
+        };
+
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
-            method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-            body: JSON.stringify({ record: { ...currentAssessmentLead, feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: ptRecommended, type: 'feedback_email' } }) 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify(emailPayload) 
         });
-        alert("Assessment Saved! Parent Notified.");
+
+        alert(`Assessment Saved! Parent Notified.`);
         document.getElementById('assessment-modal').classList.add('hidden');
         fetchTrials(); 
-    } catch (err) { console.error(err); alert("Error saving."); } 
-    finally { btn.disabled = false; btn.innerText = originalText; }
+
+    } catch (err) {
+        console.error(err);
+        alert("Error saving assessment.");
+    } finally {
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
 };
 
-// --- PUBLIC FORM UI & SUBMISSION ---
-window.scrollToSection = (id) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' });
-window.checkOther = (selectEl, id) => document.getElementById(id).classList.toggle('hidden', selectEl.value !== 'Other');
-window.calculateAgeDisplay = () => {
-    const dob = document.getElementById('dob').value;
-    if(!dob) return;
-    const d = new Date(dob), t = new Date(), age = t.getFullYear() - d.getFullYear() - (t < new Date(t.getFullYear(), d.getMonth(), d.getDate()) ? 1 : 0);
-    document.getElementById('age-value').innerText = age; document.getElementById('age-display').classList.remove('hidden');
+window.scrollToSection = (id) => {
+    const element = document.getElementById(id);
+    if (element) element.scrollIntoView({ behavior: 'smooth' });
 };
+
+window.checkOther = (selectEl, inputId) => {
+    const inputEl = document.getElementById(inputId);
+    inputEl.classList.toggle('hidden', selectEl.value !== 'Other');
+};
+
+window.calculateAgeDisplay = () => {
+    const dobInput = document.getElementById('dob').value;
+    if (!dobInput) return;
+    const dob = new Date(dobInput);
+    const today = new Date();
+    let age = today.getFullYear() - dob.getFullYear();
+    if (today < new Date(today.getFullYear(), dob.getMonth(), dob.getDate())) age--;
+    const valueEl = document.getElementById('age-value');
+    if (valueEl) {
+        valueEl.innerText = age;
+        document.getElementById('age-display').classList.remove('hidden');
+    }
+};
+
 window.handleIntakeSubmit = async (e) => {
-    e.preventDefault(); const btn = document.getElementById('btn-submit'); const originalText = btn.innerText;
+    e.preventDefault(); 
+    const btn = document.getElementById('btn-submit');
+    const originalText = btn.innerText;
+
     const rawPhone = document.getElementById('phone').value.trim().replace(/\D/g, '');
     const rawAlt = document.getElementById('alt_phone').value.trim().replace(/\D/g, '');
-    
-    if (!/^[0-9]{10}$/.test(rawPhone)) return alert("Invalid Mobile");
+
+    if (!/^[0-9]{10}$/.test(rawPhone)) return alert("Invalid Mobile Number");
     
     const formData = {
-        child_name: document.getElementById('k_name').value.trim(), dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
-        parent_name: document.getElementById('p_name').value.trim(), phone: rawPhone, email: document.getElementById('email').value.trim(),
-        alternate_phone: rawAlt, address: document.getElementById('address').value.trim(), medical_info: document.getElementById('medical').value.trim(),
-        source: document.getElementById('source').value, intent: document.getElementById('intent').value,
-        marketing_consent: document.getElementById('marketing_check').checked, status: 'Pending Trial', submitted_at: new Date()
+        child_name: document.getElementById('k_name').value.trim(),
+        dob: document.getElementById('dob').value,
+        gender: document.getElementById('gender').value,
+        parent_name: document.getElementById('p_name').value.trim(),
+        phone: rawPhone,      
+        email: document.getElementById('email').value.trim(),
+        alternate_phone: rawAlt, 
+        address: document.getElementById('address').value.trim(),
+        medical_info: document.getElementById('medical').value.trim(),
+        source: document.getElementById('source').value, 
+        intent: document.getElementById('intent').value,
+        marketing_consent: document.getElementById('marketing_check').checked,
+        status: 'Pending Trial',
+        submitted_at: new Date()
     };
-    btn.disabled = true; btn.innerText = "Saving...";
+
+    btn.disabled = true;
+    btn.innerText = "Saving...";
+
     try {
         const { error } = await supabaseClient.from('leads').insert([formData]);
-        if (error) throw error;
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseKey}`}, body: JSON.stringify({record: formData}) });
-        document.getElementById('success-modal').classList.remove('hidden'); btn.innerText = "Sent!";
-    } catch (err) { alert(err.message); btn.disabled = false; btn.innerText = originalText; }
+        if (error) {
+            if(error.code === '23505') alert("Registration Exists!");
+            else alert("Error: " + error.message);
+            btn.disabled = false; btn.innerText = originalText;
+            return;
+        }
+
+        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
+            body: JSON.stringify({ record: formData }) 
+        });
+
+        document.getElementById('success-modal').classList.remove('hidden');
+        btn.innerText = "Sent!";
+
+    } catch (err) {
+        console.error(err);
+        alert("Unexpected Error");
+        btn.disabled = false;
+        btn.innerText = originalText;
+    }
 };
 
-// --- INITIALIZE ---
+// --- INITIALIZE SYSTEM ---
 initSession();
