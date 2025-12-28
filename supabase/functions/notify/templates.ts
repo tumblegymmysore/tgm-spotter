@@ -86,25 +86,56 @@ export const generateWelcomeEmail = (data: any) => {
   `;
 };
 
-// 2. TRIAL FEEDBACK EMAIL (Enhanced Logic)
+// 2. TRIAL FEEDBACK EMAIL (Smart Logic Update)
 export const generateFeedbackEmail = (data: any) => {
   
-  // A. Handle PT Badge
-  const ptSection = data.pt_recommended 
-    ? `<div style="background-color:#fefce8; border:1px solid #fde047; padding:10px; margin-top:10px; border-radius:6px; color:#854d0e; font-size:13px; font-weight:bold;">✨ Personal Training Recommended</div>` 
-    : ``;
+  const isSpecial = data.special_needs;
+  const isPT = data.pt_recommended;
+  const feedback = data.feedback && data.feedback.trim() !== "" ? data.feedback : "";
 
-  // B. Handle Empty Feedback Text
-  const feedbackText = data.feedback && data.feedback.trim() !== "" 
-    ? `<p><em>"${data.feedback}"</em></p>`
-    : `<p style="color:#64748b; font-style:italic; font-size:13px;">(Assessment completed by trainer)</p>`;
+  // 1. Define Visual Blocks
+  const ptBlock = `<div style="background-color:#fefce8; border:1px solid #fde047; padding:12px; margin-top:10px; border-radius:6px; color:#854d0e; font-size:14px; font-weight:bold;">✨ Personal Training Recommended</div>`;
+  
+  const specialBlock = `<div style="background-color:#f3e8ff; border:1px solid #d8b4fe; padding:12px; margin-top:10px; border-radius:6px; color:#6b21a8; font-size:14px; font-weight:bold;">🌟 Special Needs / Adapted Program</div>`;
+  
+  const batchBlock = `
+    <hr style="border:0; border-top:1px solid #bbf7d0; margin:15px 0;">
+    <div style="font-size:14px;">
+      <strong>Recommended Batch:</strong><br>
+      <span style="font-size:16px; color:#166534;">${data.recommended_batch}</span>
+    </div>`;
 
-  // C. Handle Skills Badges
+  // 2. Logic Engine
+  let recommendationHTML = "";
+
+  if (isSpecial) {
+      if (isPT) {
+          // Case: Special Needs + PT -> Show Both (Usually implies customized attention)
+          recommendationHTML = specialBlock + ptBlock;
+      } else {
+          // Case: Special Needs + Batch -> Show Both
+          recommendationHTML = specialBlock + batchBlock;
+      }
+  } else {
+      // Case: Regular Kid
+      if (isPT) {
+          // Case: PT Only (Hide Batch per instruction)
+          recommendationHTML = ptBlock;
+      } else {
+          // Case: Regular Batch
+          recommendationHTML = batchBlock;
+      }
+  }
+
+  // 3. Feedback Text
+  const feedbackHTML = feedback 
+    ? `<p><em>"${feedback}"</em></p>`
+    : `<p style="color:#64748b; font-style:italic; font-size:13px;">(Assessment completed)</p>`;
+
+  // 4. Skills Badges
   const skills = data.skills_rating || {};
   let skillsHtml = "";
   const activeSkills = [];
-  
-  // We use lowercase keys here to match the JS object
   if (skills.listening) activeSkills.push("Listening");
   if (skills.flexibility) activeSkills.push("Flexibility");
   if (skills.strength) activeSkills.push("Strength");
@@ -114,13 +145,7 @@ export const generateFeedbackEmail = (data: any) => {
      const tags = activeSkills.map(s => 
        `<span style="display:inline-block; background:white; border:1px solid #16a34a; color:#16a34a; padding:2px 8px; border-radius:12px; font-size:11px; margin-right:4px; margin-bottom:4px; font-weight:600;">${s}</span>`
      ).join("");
-     
-     skillsHtml = `
-       <div style="margin-top:15px; padding-top:15px; border-top:1px dashed #bbf7d0;">
-         <strong style="color:#15803d; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Strengths Observed:</strong>
-         ${tags}
-       </div>
-     `;
+     skillsHtml = `<div style="margin-top:15px; padding-top:15px; border-top:1px dashed #bbf7d0;"><strong style="color:#15803d; font-size:11px; text-transform:uppercase; letter-spacing:0.5px; display:block; margin-bottom:5px;">Strengths Observed:</strong>${tags}</div>`;
   }
 
   return `
@@ -149,19 +174,9 @@ export const generateFeedbackEmail = (data: any) => {
             
             <div class="score-card">
               <h3 style="margin-top:0; color:#15803d; margin-bottom:10px;">Assessment Results</h3>
-              
-              ${feedbackText}
-              
+              ${feedbackHTML}
               ${skillsHtml}
-
-              <hr style="border:0; border-top:1px solid #bbf7d0; margin:15px 0;">
-              
-              <div style="font-size:14px;">
-                <strong>Recommended Batch:</strong><br>
-                <span style="font-size:16px; color:#166534;">${data.recommended_batch}</span>
-              </div>
-              
-              ${ptSection}
+              ${recommendationHTML}
             </div>
 
             <p>We would love to see ${data.child_name} continue their gymnastics journey with us!</p>
