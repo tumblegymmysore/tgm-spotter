@@ -31,26 +31,28 @@ export const generateWelcomeEmail = (data: any) => {
 
           /* Content Body */
           .body-content { padding: 30px; line-height: 1.6; color: #374151; }
-          .welcome-text { margin-bottom: 20px; font-size: 15px; }
-
-          /* NEXT STEPS BOX (High Priority) */
-          .next-steps { background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin-bottom: 30px; border-radius: 4px; }
+          
+          /* NEXT STEPS BOX */
+          .next-steps { background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin: 20px 0; border-radius: 4px; }
           .next-steps h3 { margin-top: 0; color: #1e3a8a; font-size: 16px; margin-bottom: 10px; }
           .next-steps ul { margin-bottom: 0; padding-left: 20px; margin-top: 0; }
           .next-steps li { margin-bottom: 8px; font-size: 14px; color: #1e40af; }
 
+          /* Closing Text */
+          .closing-text { margin: 20px 0 30px 0; font-size: 14px; color: #4b5563; }
+          .closing-text a { color: #2563eb; text-decoration: none; font-weight: bold; }
+
+          /* DIVIDER for Reference Section */
+          .reference-header { background-color: #f1f5f9; padding: 10px 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748b; border-top: 2px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin-top: 10px; margin-bottom: 15px; }
+
           /* Data Tables */
-          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #f8fafc; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
-          .info-table th { text-align: left; padding: 12px 15px; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; background: #f1f5f9; width: 35%; }
-          .info-table td { padding: 12px 15px; font-size: 14px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; }
+          .info-table { width: 100%; border-collapse: collapse; margin-bottom: 20px; background-color: #ffffff; border-radius: 8px; border: 1px solid #e2e8f0; overflow: hidden; }
+          .info-table th { text-align: left; padding: 10px 15px; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; background: #f8fafc; width: 35%; }
+          .info-table td { padding: 10px 15px; font-size: 13px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; }
           .info-table tr:last-child td { border-bottom: none; }
 
-          /* Section Headers */
-          .section-label { font-size: 12px; font-weight: bold; color: #94a3b8; text-transform: uppercase; margin: 25px 0 8px 0; letter-spacing: 0.5px; border-top: 1px solid #e2e8f0; padding-top: 15px; }
-          .section-label:first-of-type { border-top: none; padding-top: 0; }
-
           /* Footer */
-          .declaration { margin-top: 30px; font-size: 11px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          .declaration { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
         </style>
       </head>
       <body>
@@ -61,9 +63,9 @@ export const generateWelcomeEmail = (data: any) => {
           </div>
 
           <div class="body-content">
-            <div class="welcome-text">
+            <div>
               <strong>Dear ${data.parent_name},</strong><br><br>
-              Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore! We are excited to welcome your child.
+              Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore! We are excited to welcome your child and introduce them to the wonderful world of gymnastics.
             </div>
 
             <div class="next-steps">
@@ -72,13 +74,20 @@ export const generateWelcomeEmail = (data: any) => {
                 <li><strong>Preparation:</strong> Please ensure your child wears comfortable clothing suitable for physical activity (e.g., shorts/leggings and a t-shirt).</li>
                 <li><strong>Arrival:</strong> Plan to arrive 10 minutes early to settle in.</li>
               </ul>
-              <p style="font-size: 13px; margin: 15px 0 0 0; color: #1e3a8a;">
-                Questions? Call/WhatsApp: <strong>+91 8618684685</strong>
-              </p>
             </div>
 
-            <div class="section-label">Submission Receipt / Reference Details</div>
-            
+            <div class="closing-text">
+              If you have any questions or need to reschedule, please do not hesitate to contact us at 
+              <a href="mailto:tumblegymmysore@gmail.com">tumblegymmysore@gmail.com</a> or 
+              <a href="tel:+918618684685">+91 8618684685</a>.
+              <br><br>
+              We look forward to seeing you and your child soon!
+              <br><br>
+              <strong>Warm regards,<br>The Tumble Gym Team</strong>
+            </div>
+
+            <div class="reference-header">Submission Reference Details</div>
+
             <table class="info-table">
               <tr>
                 <th>Child Name</th>
@@ -105,7 +114,7 @@ export const generateWelcomeEmail = (data: any) => {
               </tr>
               <tr>
                 <th>Mobile</th>
-                <td><a href="tel:+91${data.phone}" style="text-decoration:none; color:#2563eb;">+91 ${data.phone}</a></td>
+                <td>+91 ${data.phone}</td>
               </tr>
               <tr>
                 <th>Email</th>
@@ -138,7 +147,7 @@ export const generateWelcomeEmail = (data: any) => {
 
             <div class="declaration">
               <p><strong>Declaration & Waiver:</strong> By submitting this request, you have acknowledged the inherent risks of physical activity and released The Tumble Gym from liability as per the terms agreed upon during registration.</p>
-              <p>We look forward to seeing you soon!<br>The Tumble Gym Team</p>
+              <p>This is an automated message. Please do not reply to this email.</p>
             </div>
 
           </div>
