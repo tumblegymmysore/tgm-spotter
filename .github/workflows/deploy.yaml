@@ -24,6 +24,9 @@ jobs:
         run: |
           supabase functions deploy notify --project-ref $PROJECT_ID --no-verify-jwt
           
-      - name: Set Secrets
+     - name: Set Secrets
         run: |
-          supabase secrets set --project-ref $PROJECT_ID RESEND_API_KEY=${{ secrets.RESEND_API_KEY }}
+          supabase secrets set --project-ref $PROJECT_ID \
+            RESEND_API_KEY=${{ secrets.RESEND_API_KEY }} \
+            META_PHONE_ID=${{ secrets.META_PHONE_ID }} \
+            META_ACCESS_TOKEN=${{ secrets.META_ACCESS_TOKEN }}
