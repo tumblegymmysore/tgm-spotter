@@ -2,14 +2,13 @@
 
 export const sendWhatsAppTrial = async (record: any, phoneId: string, token: string) => {
   
-  // 1. Format the Message
-  // Note: For the "Test" environment, Meta creates a generic template.
-  // We will use the "hello_world" template for the very first test to ensure connection works.
-  // Once verified, we can send custom text.
-  
-  // Custom Text Payload (Works only if you opt-in for "Free Tier Utility" or use a template)
-  // For now, let's try sending a direct text message which usually works for Test Numbers.
-  
+  // 1. Define your Admin Numbers here (Must be verified in Dashboard)
+  // Format: Country code + Number (No + or spaces)
+  const adminNumbers = [
+      '919444897281', // Number 1 (Yours)
+      '919886925225'  // Number 2 (Add the second verified number here)
+  ];
+
   const message = `🤸 *New Trial Request!*
   
   *Child:* ${record.child_name}
@@ -20,28 +19,33 @@ export const sendWhatsAppTrial = async (record: any, phoneId: string, token: str
   
   _Check Supabase for full details._`;
 
-  // 2. Send to Meta API
-  const res = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      messaging_product: 'whatsapp',
-      to: '919444897281',  // <--- HARDCODED TO YOUR NUMBER FOR TESTING (Must include country code, no +)
-      type: 'text',
-      text: { body: message },
-    }),
+  // 2. Create a "Send" promise for EACH number
+  const sendPromises = adminNumbers.map(async (number) => {
+      const res = await fetch(`https://graph.facebook.com/v17.0/${phoneId}/messages`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          messaging_product: 'whatsapp',
+          to: number, 
+          type: 'text',
+          text: { body: message },
+        }),
+      });
+      return res.json();
   });
 
-  const data = await res.json();
-  
-  if (!res.ok) {
-    console.error("WhatsApp Error:", JSON.stringify(data));
-    // Don't throw error here, so email can still succeed if WhatsApp fails
-    return { success: false, error: data };
+  // 3. Wait for ALL messages to be sent
+  const results = await Promise.all(sendPromises);
+
+  // Check if any failed
+  const errors = results.filter((r: any) => r.error);
+  if (errors.length > 0) {
+    console.error("Some WhatsApp messages failed:", JSON.stringify(errors));
+    return { success: false, errors };
   }
 
-  return { success: true, data };
+  return { success: true, results };
 };
