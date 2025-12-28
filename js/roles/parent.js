@@ -114,34 +114,56 @@ export async function loadParentDashboard(email) {
         let cardBg = 'bg-white border-slate-100';
         let statusIcon = '<div class="bg-yellow-100 text-yellow-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-clock"></i></div>';
         let statusBadge = 'Trial Pending';
+        let statusMessage = `<div class="p-3 bg-slate-50 rounded-lg border border-slate-100 text-center text-xs text-slate-500">We will contact you shortly to schedule the trial.</div>`;
         let primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
 
         if (child.status === 'Trial Completed') {
             cardBg = 'bg-gradient-to-br from-blue-50 to-white border-blue-200';
             statusIcon = '<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><i class="fas fa-star"></i></div>';
             statusBadge = 'Ready to Register';
+            
+            // --- SMART RECOMMENDATION LOGIC (MATCHING EMAIL) ---
+            const isSpecial = child.special_needs;
+            const isPT = child.skills_rating?.personal_training;
+            const batch = child.recommended_batch || 'Standard Batch';
+            let displayRec = "";
+
+            if (isSpecial) {
+                if (isPT) displayRec = "Special Needs + Personal Training";
+                else displayRec = `Special Needs + ${batch}`;
+            } else {
+                if (isPT) displayRec = "Personal Training Recommended";
+                else displayRec = `Recommended: ${batch}`;
+            }
+
+            statusMessage = `<div class="mb-4"><p class="text-blue-900 font-bold">Assessment Complete</p><p class="text-xs text-blue-600 font-semibold">${displayRec}</p></div>`;
             primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 transition">Complete Registration</button>`;
         } 
         else if (child.status === 'Registration Requested') {
             cardBg = 'bg-white border-purple-200';
             statusIcon = '<div class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>';
             statusBadge = 'Payment Verification';
+            statusMessage = `<div class="p-3 bg-purple-50 rounded-lg border border-purple-100 text-center"><p class="text-xs font-bold text-purple-700">Payment Verification Pending</p></div>`;
             primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Processing Payment...</button>`;
         }
         else if (child.status === 'Enrolled') {
             cardBg = 'bg-gradient-to-br from-green-50 to-white border-green-200';
             statusIcon = '<div class="bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-check"></i></div>';
             statusBadge = 'Active Student';
+            statusMessage = `<div class="flex items-center gap-2 mb-4 text-green-700 text-xs font-bold bg-green-100 px-3 py-1 rounded-full w-fit"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Active Student</div>`;
             primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="w-full border-2 border-green-600 text-green-700 font-bold py-3 rounded-xl hover:bg-green-50">Renew Membership</button>`;
         }
 
-        // Unread Messages
+        // Unread Messages Badge (With ID for targeting)
         const { count } = await supabaseClient.from('messages')
             .select('*', { count: 'exact', head: true })
             .eq('lead_id', child.id)
             .eq('sender_role', 'trainer')
             .eq('is_read', false);
-        const msgBadge = count > 0 ? `<span class="absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>` : '';
+        
+        const badgeHidden = count > 0 ? '' : 'hidden';
+        // Unique ID: msg-badge-{id}
+        const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeHidden} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
 
         // Avatar Color
         const colors = ['bg-rose-100 text-rose-600', 'bg-blue-100 text-blue-600', 'bg-emerald-100 text-emerald-600', 'bg-purple-100 text-purple-600'];
@@ -161,6 +183,7 @@ export async function loadParentDashboard(email) {
                 </div>
                 
                 <div class="mb-4 text-xs text-slate-500 font-bold uppercase tracking-wide bg-white/60 p-2 rounded-lg inline-block border border-slate-100">${statusBadge}</div>
+                <div class="mb-2">${statusMessage}</div>
                 
                 <div>${primaryAction}</div>
                 
@@ -188,7 +211,6 @@ export function openRegistrationModal(leadString, isRenewal) {
     document.getElementById('reg-child-name').innerText = child.child_name;
     document.getElementById('is-renewal').value = isRenewal;
     
-    // Autofill
     document.getElementById('edit-name').value = child.child_name;
     document.getElementById('edit-phone').value = child.phone;
     document.getElementById('edit-email').value = child.email;
@@ -202,7 +224,6 @@ export function openRegistrationModal(leadString, isRenewal) {
         document.getElementById('reg-fee-display').innerText = REGISTRATION_FEE; 
     }
 
-    // Smart Slots
     const age = calculateAge(child.dob);
     let slots = age <= 5 ? "Weekdays 4-5 PM" : (age <= 8 ? "Weekdays 5-6 PM" : "Weekdays 6-7 PM");
     document.getElementById('reg-slots-info').innerHTML = `<strong>Available Slots (${age} Yrs):</strong><br>${slots}`;
@@ -249,14 +270,12 @@ export async function submitRegistration() {
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
         
-        // Upload
         const { error: uploadError } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
         if(uploadError) throw uploadError;
         
         const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
         let pkgName = pkgVal === 'Special' ? `Special - ${document.getElementById('reg-level').value}` : pkgVal.split('|')[0];
 
-        // Update DB
         const { error } = await supabaseClient.from('leads').update({
             status: 'Registration Requested', 
             selected_package: pkgName, 
@@ -270,8 +289,6 @@ export async function submitRegistration() {
 
         document.getElementById('reg-modal').classList.add('hidden');
         showSuccessModal("Submitted!", "Payment proof received. Verification pending.");
-        
-        // Refresh Dashboard (Must use window.currentUserEmail if not passed directly)
         window.location.reload(); 
 
     } catch (err) { 
@@ -313,7 +330,12 @@ export async function saveChildInfo() {
 
 export function openParentChat(leadString) {
     const lead = JSON.parse(decodeURIComponent(leadString));
-    // Re-uses the global chat logic in main.js
+    
+    // 1. Hide Badge Immediately
+    const badge = document.getElementById(`msg-badge-${lead.id}`);
+    if(badge) badge.classList.add('hidden');
+
+    // 2. Open Chat
     window.openChat(encodeURIComponent(JSON.stringify(lead)));
 }
 
