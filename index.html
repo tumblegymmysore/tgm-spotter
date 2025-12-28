@@ -107,19 +107,13 @@
 
 <div id="trainer" class="hidden pt-20 px-4 max-w-6xl mx-auto pb-20 min-h-screen">
         
-        <div class="flex justify-between items-center mb-8">
-            <div>
-                <h1 class="text-3xl font-bold text-slate-800">Trainer Dashboard</h1>
-                <p class="text-slate-500 text-sm">Welcome back, Coach!</p>
-            </div>
-            <div class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg font-bold text-sm">
-                <i class="fas fa-calendar-day mr-2"></i> <span id="current-date">Today</span>
-            </div>
-        </div>
-
         <div class="flex space-x-2 mb-8 border-b border-slate-200 overflow-x-auto">
             <button onclick="window.switchTab('trials')" id="tab-btn-trials" class="tab-btn active-tab px-6 py-3 font-bold text-blue-600 border-b-2 border-blue-600">
                 <i class="fas fa-clipboard-list mr-2"></i>Trial Requests
+            </button>
+            <button onclick="window.switchTab('inbox')" id="tab-btn-inbox" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600 relative">
+                <i class="fas fa-inbox mr-2"></i>Inbox
+                <span id="inbox-badge" class="hidden absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
             </button>
             <button onclick="window.switchTab('batches')" id="tab-btn-batches" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600">
                 <i class="fas fa-users mr-2"></i>My Batches
@@ -139,22 +133,30 @@
                         <p class="text-sm text-slate-400 italic">Loading...</p>
                     </div>
                 </div>
-
                 <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
                     <h3 class="font-bold text-lg mb-4 text-green-700 flex items-center">
                         <i class="fas fa-check-double mr-2"></i> Completed (Recent)
                     </h3>
-                    <div id="list-completed-trials" class="space-y-3">
-                        </div>
+                    <div id="list-completed-trials" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-inbox" class="tab-content hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700">Recent Conversations</h3>
+                    <button onclick="fetchInbox()" class="text-xs text-blue-600 hover:underline"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="list-inbox" class="divide-y divide-slate-100">
+                    <div class="p-8 text-center text-slate-400">Loading messages...</div>
                 </div>
             </div>
         </div>
 
         <div id="view-batches" class="tab-content hidden">
             <div class="bg-white p-8 rounded-2xl shadow text-center">
-                <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-layer-group text-2xl"></i>
-                </div>
+                <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-layer-group text-2xl"></i></div>
                 <h3 class="text-xl font-bold text-slate-800">Batch Management</h3>
                 <p class="text-slate-500 mb-6">View student lists and batch timings.</p>
                 <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
@@ -163,9 +165,7 @@
 
         <div id="view-attendance" class="tab-content hidden">
             <div class="bg-white p-8 rounded-2xl shadow text-center">
-                <div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i class="fas fa-user-check text-2xl"></i>
-                </div>
+                <div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-user-check text-2xl"></i></div>
                 <h3 class="text-xl font-bold text-slate-800">Daily Attendance</h3>
                 <p class="text-slate-500 mb-6">Mark presence for active students.</p>
                 <button class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
