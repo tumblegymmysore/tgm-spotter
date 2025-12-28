@@ -23,12 +23,28 @@ serve(async (req) => {
   try {
     const { record } = await req.json()
     
+// Import the new functions
+import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts" 
+
+// ... inside serve(async (req) => { ...
+
     // ---------------------------------------------------------
-    // 1. VALIDATION: Phone Number
+    // 1. VALIDATION: Phone Numbers
     // ---------------------------------------------------------
-    if (!validatePhone(record.phone)) {
-      console.error(`Invalid Phone: ${record.phone}`);
-      return new Response(JSON.stringify({ error: MESSAGES.PHONE_ERROR }), {
+    
+    // A. Primary Mobile (Strict)
+    if (!validateMobile(record.phone)) {
+      console.error(`Invalid Mobile: ${record.phone}`);
+      return new Response(JSON.stringify({ error: MESSAGES.MOBILE_ERROR }), {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 400,
+      });
+    }
+
+    // B. Alternate Phone (Flexible) - Only check if it exists
+    if (record.alternate_phone && !validateAnyPhone(record.alternate_phone)) {
+      console.error(`Invalid Alternate Phone: ${record.alternate_phone}`);
+      return new Response(JSON.stringify({ error: MESSAGES.ALTERNATE_ERROR }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         status: 400,
       });
