@@ -7,7 +7,7 @@ const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co';
 const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpuZnNidWNvbm9lemJqcWtzeG51Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY4MDc1MjMsImV4cCI6MjA4MjM4MzUyM30.yAEuur8T0XUeVy_qa3bu3E90q5ovyKOMZfL9ofy23Uc';
 const supabaseClient = supabase.createClient(supabaseUrl, supabaseKey);
 
-console.log("System Loaded: Ready (v12).");
+console.log("System Loaded: Ready (v13 - Direct Payload).");
 
 // --------------------------------------------------------------------------
 // 2. AGE CALCULATOR
@@ -22,12 +22,10 @@ window.calculateAgeDisplay = () => {
     let age = today.getFullYear() - dob.getFullYear();
     const monthDiff = today.getMonth() - dob.getMonth();
     
-    // Adjust if birthday hasn't happened yet this year
     if (monthDiff < 0 || (monthDiff === 0 && today.getDate() < dob.getDate())) {
         age--;
     }
 
-    // Show result
     const displayEl = document.getElementById('age-display');
     const valueEl = document.getElementById('age-value');
     
@@ -38,7 +36,7 @@ window.calculateAgeDisplay = () => {
 };
 
 // --------------------------------------------------------------------------
-// 3. HELPER: Show Custom Error Modal
+// 3. ERROR HELPER
 // --------------------------------------------------------------------------
 function showError(title, message) {
     const titleEl = document.getElementById('error-title');
@@ -63,17 +61,14 @@ window.handleIntakeSubmit = async (e) => {
     const btn = document.getElementById('btn-submit');
     const originalText = btn.innerText;
 
-    // --- GET DATA ---
+    // --- GET & CLEAN DATA ---
     const rawPhone = document.getElementById('phone').value.trim();
     const rawAltPhone = document.getElementById('alt_phone').value.trim();
-    
-    // --- FRONTEND VALIDATION ---
-
-    // 1. Clean the numbers (remove spaces, dashes)
     const cleanPhone = rawPhone.replace(/\D/g, ''); 
     const cleanAltPhone = rawAltPhone.replace(/\D/g, '');
 
-    // 2. Validate MAIN MOBILE (Strict 10 Digits)
+    // --- VALIDATION 1: MOBILE ---
+    // Preserved your detailed message
     if (!/^[0-9]{10}$/.test(cleanPhone)) {
         showError(
             "Invalid Mobile Number", 
@@ -82,19 +77,15 @@ window.handleIntakeSubmit = async (e) => {
         return; 
     }
 
-    // 3. Validate ALTERNATE PHONE (Flexible Landline Logic)
+    // --- VALIDATION 2: ALTERNATE PHONE ---
+    // Preserved your Landline logic
     if (rawAltPhone.length > 0) {
         let isValid = false;
-        
-        // Case A: Starts with 0 (Landline) -> Allow 10 to 12 digits
         if (cleanAltPhone.startsWith('0')) {
              if (cleanAltPhone.length >= 10 && cleanAltPhone.length <= 12) isValid = true;
-        } 
-        // Case B: Mobile -> Must be 10 digits
-        else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
+        } else if (/^[0-9]{10}$/.test(cleanAltPhone)) {
              isValid = true;
         }
-
         if (!isValid) {
              showError(
                  "Invalid Emergency Contact", 
@@ -104,22 +95,13 @@ window.handleIntakeSubmit = async (e) => {
         }
     }
 
-    // --- CAPTURE "OTHER" FIELDS ---
+    // --- PREPARE DATA ---
     const sourceSelect = document.getElementById('source').value;
-    const finalSource = sourceSelect === 'Other' 
-        ? document.getElementById('source_other').value 
-        : sourceSelect;
+    const finalSource = sourceSelect === 'Other' ? document.getElementById('source_other').value : sourceSelect;
 
     const intentSelect = document.getElementById('intent').value;
-    const finalIntent = intentSelect === 'Other' 
-        ? document.getElementById('intent_other').value 
-        : intentSelect;
+    const finalIntent = intentSelect === 'Other' ? document.getElementById('intent_other').value : intentSelect;
 
-    // --- LOCK BUTTON ---
-    btn.disabled = true;
-    btn.innerText = "Saving...";
-
-    // --- PREPARE DATA ---
     const formData = {
         child_name: document.getElementById('k_name').value.trim(),
         dob: document.getElementById('dob').value,
@@ -137,64 +119,34 @@ window.handleIntakeSubmit = async (e) => {
         submitted_at: new Date()
     };
 
+    btn.disabled = true;
+    btn.innerText = "Saving...";
+
     try {
-        // --- SAVE TO DB ---
-        const { data, error } = await supabaseClient
+        // --- STEP A: SAVE TO DB ---
+        // Note: We do NOT rely on the returned data here anymore.
+        const { error } = await supabaseClient
             .from('leads')
-            .insert([formData])
-            .select();
+            .insert([formData]);
 
         if (error) {
-            console.error("Supabase Error:", error);
-
+            console.error("DB Error:", error);
             if (error.code === '23505' || error.message.includes('unique constraint')) {
+                // Preserved your specific duplicate message
                 showError(
                     "Registration Exists!", 
                     "This student is already registered with us. You cannot take an additional trial session.\n\nPlease check with Admin, or Login/Register if you have already completed the trial."
                 );
-            } 
-            else if (error.code === '23514' || error.message.includes('check_phone_format')) {
-                showError(
-                    "System Rejected Phone", 
-                    "The phone number format was rejected by the system. Please ensure it is strictly 10 digits."
-                );
-            }
-            else {
+            } else if (error.code === '23514') {
+                showError("System Rejected Phone", "Phone must be 10 digits.");
+            } else {
                 showError("System Error", error.message);
             }
-
             btn.disabled = false;
             btn.innerText = originalText;
             return;
         }
 
-        // --- TRIGGER NOTIFICATION (Robust Version) ---
-        btn.innerText = "Notifying...";
-        console.log("Triggering email for:", data[0].child_name);
-
-        const notifyResponse = await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
-            method: 'POST',
-            headers: { 
-                'Content-Type': 'application/json', 
-                'Authorization': `Bearer ${supabaseKey}` 
-            },
-            body: JSON.stringify({ record: data[0] }) 
-        });
-
-        if (notifyResponse.ok) {
-            console.log("Notification Request Sent.");
-        } else {
-            console.warn("Notification Request Failed (Data still saved):", await notifyResponse.text());
-        }
-
-        // --- SUCCESS UI ---
-        document.getElementById('success-modal').classList.remove('hidden');
-        btn.innerText = "Sent!";
-
-    } catch (err) {
-        console.error("Unexpected Error:", err);
-        showError("Unexpected Error", "Something went wrong. Please check your internet connection.");
-        btn.disabled = false;
-        btn.innerText = originalText;
-    }
-};
+        // --- STEP B: TRIGGER NOTIFICATION (Direct Mode) ---
+        // This fixes the "No Email" issue
+        btn.innerText =
