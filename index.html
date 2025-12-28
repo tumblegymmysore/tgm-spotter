@@ -384,5 +384,40 @@
             </div>
         </div>
     </div>
+
+    <div id="feedback-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-comment-alt text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Help Us Improve</h3>
+                <p class="text-xs text-slate-500">We noticed you haven't registered yet. Is there a specific reason?</p>
+            </div>
+
+            <input type="hidden" id="feedback-lead-id">
+            
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Reason</label>
+            <select id="feedback-reason" class="input-field mb-4 text-sm">
+                <option value="" disabled selected>Select a reason...</option>
+                <option value="Schedule Conflict">Schedule Conflict</option>
+                <option value="Fees / Pricing">Fees / Pricing</option>
+                <option value="Distance / Location">Distance / Location</option>
+                <option value="Health Issues">Health Issues</option>
+                <option value="Traveling / Out of Station">Traveling / Out of Station</option>
+                <option value="Will Join Later">Will Join Later</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Follow-up Date (Optional)</label>
+            <input type="date" id="feedback-date" class="input-field mb-4 text-sm">
+
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Comments</label>
+            <textarea id="feedback-note" rows="2" class="input-field mb-6 text-sm" placeholder="Any additional details..."></textarea>
+
+            <button onclick="window.submitParentFeedback()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg text-sm">Submit Feedback</button>
+            <button onclick="document.getElementById('feedback-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs hover:text-slate-600">Cancel</button>
+        </div>
+    </div>
     
     <script type="module" src="js/main.js?v=31"></script>
