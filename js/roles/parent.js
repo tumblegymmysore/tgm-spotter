@@ -1,4 +1,4 @@
-// js/roles/parent.js (v63 - Fixed Validation UI)
+// js/roles/parent.js (v64 - Friendly Validations & Adult Flow)
 import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
 
@@ -53,7 +53,13 @@ window.generateTrialSlots = () => {
     if (age >= ADULT_AGE_THRESHOLD && pref === 'Evening') {
         container.classList.add('hidden');
         adultMsg.classList.remove('hidden');
-        hiddenInput.value = 'Adult Appointment Needed'; // Marker
+        // KEY CHANGE: Set a valid value so they can submit!
+        hiddenInput.value = 'Adult_Request'; 
+        // Update the visible message text
+        adultMsg.innerHTML = `
+            <p class="text-sm font-bold text-indigo-900 mb-1">Adult Personal Training</p>
+            <p class="text-xs text-slate-600">Please submit this form to register. We will schedule your slot via WhatsApp.</p>
+        `;
         return;
     }
 
@@ -130,7 +136,7 @@ window.generateTrialSlots = () => {
     });
 };
 
-// --- 1. INTAKE FORM (Updated) ---
+// --- 1. INTAKE FORM (Updated Messages) ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
@@ -142,18 +148,18 @@ export async function handleIntakeSubmit(e) {
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 
     const trialSlot = document.getElementById('selected-trial-slot').value;
 
-    // 2. Strict Validation (Using Beautiful Modals)
+    // 2. Friendly & Specific Validation
     if (phone.length !== 10) { 
-        showErrorModal("Validation Error", "Primary Mobile Number must be exactly 10 digits."); 
+        showErrorModal("Check Mobile Number", "Primary WhatsApp/Mobile number must be exactly 10 digits."); 
         return; 
     }
     if (altPhone.length !== 10) { 
-        showErrorModal("Validation Error", "Emergency Contact Number must be exactly 10 digits."); 
+        showErrorModal("Check Emergency Contact", "Emergency contact (Landline or Mobile) must be exactly 10 digits."); 
         return; 
     }
     if (!trialSlot) { 
         document.getElementById('slot-error').classList.remove('hidden'); 
-        showErrorModal("Trial Slot Required", "Please select a trial slot from the available options."); 
+        showErrorModal("Trial Slot Required", "Please select a preferred date/time for the trial class."); 
         return; 
     }
 
@@ -188,9 +194,9 @@ export async function handleIntakeSubmit(e) {
         
         const { error } = await supabaseClient.from('leads').insert([formData]);
         
-        // Handle Duplicate or DB Errors elegantly
+        // Handle Duplicate Errors elegantly
         if (error) {
-            if (error.code === '23505') throw new Error("This email or phone number is already registered.");
+            if (error.code === '23505') throw new Error("Welcome Back! It looks like you are already registered with us. Please check your email or contact support.");
             throw error;
         }
         
@@ -198,10 +204,26 @@ export async function handleIntakeSubmit(e) {
             method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: formData}) 
         });
 
-        showSuccessModal("Account Created!", "Your trial slot is confirmed. Check email for details.");
+        // 3. Success Logic (ADULT vs CHILD)
+        if (trialSlot === 'Adult_Request') {
+            // CUSTOM ADULT SUCCESS
+            const modal = document.getElementById('success-modal');
+            modal.querySelector('#success-title').innerText = "Request Received!";
+            modal.querySelector('#success-msg').innerHTML = `
+                Thanks for registering! For Adult Fitness, we need to schedule a quick consultation.<br><br>
+                <a href="https://wa.me/918618684685?text=Hi,%20I%20just%20registered%20for%20Adult%20Fitness%20and%20would%20like%20to%20book%20an%20appointment." target="_blank" class="block w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition mb-2">
+                    <i class="fab fa-whatsapp mr-2"></i> Book via WhatsApp
+                </a>
+            `;
+            // Hide the default "Awesome" button for this specific case to avoid confusion, or keep it as "Close"
+            modal.classList.remove('hidden');
+        } else {
+            // STANDARD CHILD SUCCESS
+            showSuccessModal("Account Created!", "Your trial slot is confirmed. We have sent the details to your email.");
+        }
         
         e.target.reset(); document.getElementById('age-display').classList.add('hidden');
-        document.getElementById('slots-container').innerHTML = ''; // Clear slots
+        document.getElementById('slots-container').innerHTML = ''; 
     } catch (err) { 
         showErrorModal("Submission Failed", err.message); 
     } finally { 
@@ -233,11 +255,18 @@ export async function loadParentDashboard(email) {
         // Show scheduled slot if pending
         if (child.status === 'Pending Trial' && child.trial_scheduled_slot) {
              const [dateStr, timeStr] = child.trial_scheduled_slot.split('|');
-             const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
              
-             if (child.trial_scheduled_slot.includes('Adult')) {
-                actionArea = `<div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 text-center"><p class="text-xs font-bold text-indigo-900">Adult Appointment</p><p class="text-[10px] text-indigo-700">Please contact us to schedule.</p></div>`;
+             // ADULT DISPLAY IN DASHBOARD
+             if (child.trial_scheduled_slot === 'Adult_Request' || child.trial_scheduled_slot.includes('Adult')) {
+                actionArea = `
+                <div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 text-center">
+                    <p class="text-xs font-bold text-indigo-900 mb-2">Appointment Needed</p>
+                    <a href="https://wa.me/918618684685?text=Hi,%20I%20need%20to%20schedule%20my%20Adult%20Fitness%20appointment" target="_blank" class="inline-block bg-green-500 text-white text-xs font-bold px-4 py-2 rounded-lg hover:bg-green-600">
+                        <i class="fab fa-whatsapp mr-1"></i> Contact Trainer
+                    </a>
+                </div>`;
              } else {
+                const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
                 actionArea = `
                 <div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 flex items-start gap-3">
                     <div class="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-sm font-bold text-xs">
