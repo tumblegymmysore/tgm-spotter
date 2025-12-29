@@ -55,7 +55,6 @@
              <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
                 <div class="text-center mb-10"><h2 class="text-3xl font-bold text-slate-800">Student Application</h2></div>
                 <form onsubmit="window.handleIntakeSubmit(event)" class="space-y-8">
-                    
                     <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
                         <h3 class="text-blue-900 font-bold mb-4 flex items-center text-lg"><i class="fas fa-child mr-2"></i> Child's Details</h3>
                         <div class="grid md:grid-cols-2 gap-6">
@@ -110,20 +109,18 @@
                             <div class="md:col-span-2"><label>Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
-
                     <div class="grid md:grid-cols-2 gap-6">
                         <div class="md:col-span-2"><label>Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List any medical conditions, injuries, allergies or 'None'" required></textarea></div>
                         <div class="md:col-span-2"><label>How did you hear about us? *</label><select id="source" class="input-field" onchange="window.checkOther(this, 'source_other')" required><option value="">Select</option><option>Google Search / Maps</option><option>Instagram / Facebook</option><option>Friend / Referral</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                     </div>
-                    
                     <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
                         <h3 class="text-yellow-800 font-bold mb-2 text-lg"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
                         <div class="terms-box">
-                             <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program.</p>
-                             <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation.</p>
-                             <p><strong>3. Liability Waiver:</strong> I hereby release and hold harmless The Tumble Gym Mysore, its owners, staff, and instructors from any liability for any injury or accident that may occur during participation.</p>
-                             <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed during classes and events for promotional purposes.</p>
-                             <p><strong>5. Policy Agreement:</strong> I acknowledge that membership fees are non-transferable and non-refundable. I agree to abide by the terms and conditions outlined by The Tumble Gym.</p>
+                            <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program.</p>
+                            <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation.</p>
+                            <p><strong>3. Liability Waiver:</strong> I hereby release and hold harmless The Tumble Gym Mysore, its owners, staff, and instructors from any liability for any injury or accident that may occur during participation.</p>
+                            <p><strong>4. Media Consent:</strong> I understand and agree that my child may be photographed and/or videographed during classes and events for promotional purposes.</p>
+                            <p><strong>5. Policy Agreement:</strong> I acknowledge that membership fees are non-transferable and non-refundable. I agree to abide by the terms and conditions outlined by The Tumble Gym.</p>
                         </div>
                         <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required><label>I Agree to Terms *</label></div>
                         <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required><label>Allow Communication *</label></div>
@@ -139,19 +136,23 @@
         <div id="parent-content" class="space-y-6"></div>
     </div>
 
-    <div id="trainer" class="hidden pt-20 px-4 max-w-6xl mx-auto pb-20 min-h-screen"> </div>
-    <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20"> </div>
-    <div id="login-modal" class="modal-overlay hidden"> </div>
-    <div id="success-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4"> </div>
-    <div id="error-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm"> </div>
-    <div id="trial-modal" class="modal-overlay hidden"> </div>
-    <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto"> </div>
-    <div id="admin-modal" class="modal-overlay hidden"> </div>
-    <div id="assessment-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4"> </div>
-    <div id="chat-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4"> </div>
-    <div id="feedback-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4"> </div>
-    <div id="edit-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4"> </div>
+<div id="trainer" class="hidden pt-20 px-4 max-w-6xl mx-auto pb-20 min-h-screen">
+        
+        <header class="mb-8 flex justify-between items-end">
+            <div>
+                <h1 class="text-3xl font-bold text-slate-800">Trainer Dashboard</h1>
+                <p id="trainer-welcome" class="text-slate-500">Welcome back!</p>
+            </div>
+            <div class="text-right">
+                <p id="current-date" class="font-bold text-blue-900"></p>
+                <p class="text-xs text-slate-400 uppercase tracking-wide">Today</p>
+            </div>
+        </header>   
     
-    <script type="module" src="js/main.js?v=48"></script>
-</body>
-</html>
+        <div class="flex space-x-2 mb-8 border-b border-slate-200 overflow-x-auto">
+            <button onclick="window.switchTab('trials')" id="tab-btn-trials" class="tab-btn active-tab px-6 py-3 font-bold text-blue-600 border-b-2 border-blue-600">
+                <i class="fas fa-clipboard-list mr-2"></i>Trial Requests
+            </button>
+            <button onclick="window.switchTab('inbox')" id="tab-btn-inbox" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600 relative">
+                <i class="fas fa-inbox mr-2"></i>Inbox
+                <span id="inbox-badge" class="hidden absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2
