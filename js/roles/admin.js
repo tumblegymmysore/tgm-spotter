@@ -8,10 +8,22 @@ import { calculateAge } from '../utils.js';
 export async function loadAdminDashboard(adminName) {
     showView('trainer'); // Re-using the Trainer layout structure
     
-    // Update Header
+    // Update Header - Change title to Admin Dashboard
+    const titleEl = document.querySelector('#trainer h1');
+    if (titleEl) titleEl.innerText = 'Admin Dashboard';
+    
     const welcomeEl = document.getElementById('trainer-welcome');
     if (welcomeEl) welcomeEl.innerText = `Admin Panel: ${adminName}`;
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' });
+    
+    const dateEl = document.getElementById('current-date');
+    if (dateEl) dateEl.innerText = new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' });
+
+    // Update tab labels for admin context
+    const trialsTab = document.getElementById('tab-btn-trials');
+    if (trialsTab) {
+        trialsTab.innerHTML = '<i class="fas fa-clipboard-list mr-2"></i>Pending Registrations';
+        trialsTab.onclick = () => window.switchTab('trials');
+    }
 
     // Load Data
     await fetchPendingRegistrations();
@@ -25,21 +37,41 @@ export async function fetchPendingRegistrations() {
     if (!listNew) return;
 
     // Update Titles for Admin Context
-    document.querySelector('#view-dashboard h3').innerText = "Payment Verifications";
-    listNew.previousElementSibling.innerText = "Pending Verification";
-    listDone.previousElementSibling.innerText = "Recently Enrolled";
+    const newRequestsTitle = listNew.previousElementSibling;
+    if (newRequestsTitle) newRequestsTitle.innerHTML = '<i class="fas fa-star text-yellow-400 mr-2"></i> Pending Registrations';
+    
+    const completedTitle = listDone.previousElementSibling;
+    if (completedTitle) completedTitle.innerHTML = '<i class="fas fa-check-double mr-2"></i> Recently Enrolled';
 
-    listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Syncing payments...</p>';
+    listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading registrations...</p>';
 
     try {
-        // Fetch "Registration Requested", "Enrollment Requested", "Ready to Pay" (Needs Approval) AND "Enrolled" (History)
+        // First, let's get ALL leads to see what statuses exist (for debugging)
+        const { data: allData, error: allError } = await supabaseClient
+            .from('leads')
+            .select('id, child_name, status')
+            .order('created_at', { ascending: false })
+            .limit(100);
+        
+        console.log('All leads statuses:', allData?.map(l => ({ name: l.child_name, status: l.status })));
+        
+        // Fetch all leads that need admin attention or are enrolled
+        // Include: Registration Requested, Enrollment Requested, Ready to Pay, and Enrolled
         const { data, error } = await supabaseClient
             .from('leads')
             .select('*')
-            .or('status.eq.Registration Requested,status.eq.Enrollment Requested,status.eq.Ready to Pay,status.eq.Enrolled')
-            .order('updated_at', { ascending: false });
+            .in('status', ['Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Enrolled', 'Trial Completed'])
+            .order('updated_at', { ascending: false })
+            .limit(50);
+        
+        console.log('Filtered leads:', data?.length, 'Statuses found:', [...new Set(data?.map(l => l.status))]);
 
-        if (error) throw error;
+        if (error) {
+            console.error('Database error:', error);
+            throw error;
+        }
+        
+        console.log('Fetched leads:', data?.length || 0);
 
         listNew.innerHTML = ''; 
         listDone.innerHTML = '';
@@ -49,15 +81,26 @@ export async function fetchPendingRegistrations() {
             return; 
         }
 
+        let pendingCount = 0;
+        let enrolledCount = 0;
+        
         data.forEach(lead => {
-            if (lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Ready to Pay') {
+            if (lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Ready to Pay' || lead.status === 'Trial Completed') {
                 listNew.innerHTML += createVerificationCard(lead);
+                pendingCount++;
             } else if (lead.status === 'Enrolled') {
                 listDone.innerHTML += createEnrolledCard(lead);
+                enrolledCount++;
             }
         });
         
-        if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">All payments verified.</p>';
+        if (pendingCount === 0) {
+            listNew.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No pending registrations. All clear! 🎉</p>';
+        }
+        
+        if (enrolledCount === 0) {
+            listDone.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No enrolled students yet.</p>';
+        }
 
     } catch (err) {
         console.error("Admin Fetch Error:", err);
@@ -68,41 +111,62 @@ export async function fetchPendingRegistrations() {
 // --- 3. CARDS ---
 
 function createVerificationCard(lead) {
+    const statusColors = {
+        'Trial Completed': 'bg-blue-100 text-blue-700',
+        'Enrollment Requested': 'bg-orange-100 text-orange-700',
+        'Registration Requested': 'bg-purple-100 text-purple-700',
+        'Ready to Pay': 'bg-green-100 text-green-700'
+    };
+    const statusColor = statusColors[lead.status] || 'bg-purple-100 text-purple-700';
+    
+    const hasPackage = lead.selected_package || lead.final_price;
+    const showPaymentActions = lead.status === 'Registration Requested' && lead.payment_proof_url;
+    
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
             <div>
                 <h4 class="font-bold text-slate-800">${lead.child_name}</h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone}</p>
+                <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
             </div>
-            <span class="bg-purple-100 text-purple-700 text-[10px] font-bold px-2 py-1 rounded">Action Required</span>
+            <span class="${statusColor} text-[10px] font-bold px-2 py-1 rounded">${lead.status || 'Pending'}</span>
         </div>
         
         <div class="bg-slate-50 p-3 rounded border border-slate-100 text-xs mb-3">
-            <p><strong>Package:</strong> ${lead.selected_package}</p>
-            <p><strong>Amount:</strong> ₹${lead.package_price}</p>
-            <p><strong>Start Date:</strong> ${lead.start_date || 'N/A'}</p>
-            <div class="mt-2">
-                <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
-                    <i class="fas fa-paperclip mr-1"></i> View Payment Screenshot
-                </a>
-            </div>
+            <p><strong>Status:</strong> ${lead.status || 'N/A'}</p>
+            ${hasPackage ? `
+                <p><strong>Package:</strong> ${lead.selected_package || lead.recommended_batch || 'Not Set'}</p>
+                <p><strong>Amount:</strong> ₹${lead.final_price || lead.package_price || '0'}</p>
+            ` : `
+                <p><strong>Recommended Batch:</strong> ${lead.recommended_batch || 'Not Set'}</p>
+                <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
+            `}
+            ${lead.start_date ? `<p><strong>Start Date:</strong> ${lead.start_date}</p>` : ''}
+            ${lead.payment_proof_url ? `
+                <div class="mt-2">
+                    <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
+                        <i class="fas fa-paperclip mr-1"></i> View Payment Screenshot
+                    </a>
+                </div>
+            ` : ''}
         </div>
 
         <div class="flex gap-2 mb-2">
             <button onclick="window.modifyAdminPackage('${lead.id}')" class="flex-1 bg-purple-600 text-white text-xs font-bold py-2 rounded hover:bg-purple-700 transition">
-                <i class="fas fa-cog mr-1"></i> Modify Package
+                <i class="fas fa-cog mr-1"></i> ${hasPackage ? 'Modify Package' : 'Set Package'}
             </button>
         </div>
+        ${showPaymentActions ? `
         <div class="flex gap-2">
             <button onclick="window.approvePayment('${lead.id}')" class="flex-1 bg-green-600 text-white text-xs font-bold py-2 rounded hover:bg-green-700 transition">
-                <i class="fas fa-check mr-1"></i> Approve
+                <i class="fas fa-check mr-1"></i> Approve Payment
             </button>
             <button onclick="window.rejectPayment('${lead.id}')" class="flex-1 bg-red-50 text-red-600 border border-red-200 text-xs font-bold py-2 rounded hover:bg-red-100 transition">
                 Reject
             </button>
         </div>
+        ` : ''}
     </div>`;
 }
 
