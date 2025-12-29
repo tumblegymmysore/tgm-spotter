@@ -1,4 +1,4 @@
-// js/config.js (v62 - Full Schedule Master)
+// js/config.js (v63 - 2026 Holiday Master)
 
 // 1. Credentials
 export const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
@@ -11,26 +11,28 @@ export const WHATSAPP_LINK = "https://wa.me/918618684685";
 
 // 3. Trial Rules
 export const TRIAL_EXCLUDED_DAYS = [1, 2]; // 1=Monday (Closed), 2=Tuesday (Busy) - No Trials
+
+// 4. Holiday Master 2026 (Karnataka / Mysore)
 // Format: YYYY-MM-DD
 export const HOLIDAYS_MYSORE = [
-    "2025-01-14", // Makara Sankranti
-    "2025-01-26", // Republic Day
-    "2025-02-26", // Maha Shivaratri
-    "2025-03-31", // Ugadi
-    "2025-04-14", // Ambedkar Jayanti
-    "2025-05-01", // Labour Day
-    "2025-08-15", // Independence Day
-    "2025-08-27", // Gowri Habba
-    "2025-08-28", // Ganesha Chaturthi
-    "2025-10-02", // Gandhi Jayanti
-    "2025-10-23", // Ayudha Puja
-    "2025-10-24", // Vijayadashami
-    "2025-11-01", // Kannada Rajyotsava
-    "2025-11-05", // Deepavali
-    "2025-12-25"  // Christmas
+    "2026-01-15", // Makara Sankranti (Thursday)
+    "2026-01-26", // Republic Day (Monday)
+    "2026-02-15", // Maha Shivaratri (Sunday)
+    "2026-03-19", // Ugadi (Thursday)
+    "2026-04-03", // Good Friday (Friday)
+    "2026-04-14", // Ambedkar Jayanti (Tuesday)
+    "2026-05-01", // Labour Day (Friday)
+    "2026-08-15", // Independence Day (Saturday)
+    "2026-09-14", // Ganesha Chaturthi (Monday)
+    "2026-10-02", // Gandhi Jayanti (Friday)
+    "2026-10-20", // Ayudha Puja (Tuesday)
+    "2026-10-21", // Vijayadashami (Wednesday)
+    "2026-11-01", // Kannada Rajyotsava (Sunday)
+    "2026-11-10", // Deepavali / Balipadyami (Tuesday)
+    "2026-12-25"  // Christmas (Friday)
 ];
 
-// 4. Batch Definitions & Schedule
+// 5. Batch Definitions & Schedule
 export const CLASS_SCHEDULE = {
     MORNING: {
         // Tue-Fri (But Trials only Wed-Fri due to exclusion)
@@ -71,7 +73,7 @@ export const BATCH_TYPES = {
     EVENING: "Evening / Weekend"
 };
 
-// 5. Standard Packages (Evening/Weekend)
+// 6. Standard Packages (Evening/Weekend)
 export const STANDARD_PACKAGES = [
     { id: "1m_8c", label: "1 Month - 8 Classes", price: 3500, classes: 8, months: 1 },
     { id: "1m_unl", label: "1 Month - Unlimited", price: 5500, classes: 999, months: 1 },
@@ -86,20 +88,20 @@ export const STANDARD_PACKAGES = [
     { id: "12m_unl", label: "12 Months - Unlimited", price: 35000, classes: 999, months: 12 },
 ];
 
-// 6. Morning Packages
+// 7. Morning Packages
 export const MORNING_PACKAGES = {
     CHILD: { id: "morn_child", label: "Morning Unlimited (Child)", price: 5500, classes: 999, months: 1 },
     ADULT: { id: "morn_adult", label: "Morning Unlimited (Adult)", price: 6000, classes: 999, months: 1 }
 };
 
-// 7. PT Rates
+// 8. PT Rates
 export const PT_RATES = { 
     "Beginner": 700, 
     "Intermediate": 850, 
     "Advanced": 1000 
 };
 
-// 8. Initialization
+// 9. Initialization
 if (typeof supabase === 'undefined') {
     console.error("Supabase Library Missing!");
     alert("CRITICAL ERROR: Supabase not loaded.");
