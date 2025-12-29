@@ -1,4 +1,4 @@
-// js/roles/parent.js (v66 - Fix: Separate DB Data vs Email Data)
+// js/roles/parent.js (v67 - Final Optimized & Fixed)
 import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
 
@@ -11,16 +11,17 @@ window.setTrialPreference = (pref) => {
     const btnEve = document.getElementById('btn-pref-evening');
     const btnMorn = document.getElementById('btn-pref-morning');
     
-    // Simple toggle logic
-    const active = ['bg-indigo-600', 'text-white', 'shadow-sm'];
-    const inactive = ['text-slate-500', 'hover:bg-indigo-50'];
-
+    // Toggle UI Styles
     if (pref === 'Evening') {
-        btnEve.classList.add(...active); btnEve.classList.remove(...inactive);
-        btnMorn.classList.remove(...active); btnMorn.classList.add(...inactive);
+        btnEve.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnEve.classList.remove('text-slate-500', 'hover:bg-indigo-50');
+        btnMorn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnMorn.classList.add('text-slate-500', 'hover:bg-indigo-50');
     } else {
-        btnMorn.classList.add(...active); btnMorn.classList.remove(...inactive);
-        btnEve.classList.remove(...active); btnEve.classList.add(...inactive);
+        btnMorn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnMorn.classList.remove('text-slate-500', 'hover:bg-indigo-50');
+        btnEve.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnEve.classList.add('text-slate-500', 'hover:bg-indigo-50');
     }
     window.generateTrialSlots();
 };
@@ -41,18 +42,17 @@ window.generateTrialSlots = () => {
 
     const age = calculateAge(dob);
 
-    // ADULT LOGIC
+    // ADULT LOGIC (15+)
     if (age >= ADULT_AGE_THRESHOLD && pref === 'Evening') {
         container.classList.add('hidden');
         adultMsg.classList.remove('hidden');
         hiddenInput.value = 'Adult_Request'; 
-        adultMsg.innerHTML = `<p class="text-sm font-bold text-indigo-900 mb-1">Adult Personal Training</p><p class="text-xs text-slate-600">Please submit this form. We will schedule your slot via WhatsApp.</p>`;
         return;
     }
 
     const slots = [];
     let datePointer = new Date();
-    datePointer.setDate(datePointer.getDate() + 1); 
+    datePointer.setDate(datePointer.getDate() + 1); // Start Tomorrow
 
     let iterations = 0;
     while (slots.length < 5 && iterations < 30) {
@@ -97,13 +97,13 @@ window.generateTrialSlots = () => {
     });
 };
 
-// --- 2. INTAKE FORM (Fix: Split DB vs Email Data) ---
+// --- 2. INTAKE FORM ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
     const originalText = btn.innerText;
     
-    // A. Capture
+    // A. Capture Data
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim().replace(/\D/g, ''); 
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 
@@ -112,35 +112,39 @@ export async function handleIntakeSubmit(e) {
     let sourceVal = document.getElementById('source').value;
     if(sourceVal.includes('Other')) sourceVal = document.getElementById('source_other').value;
 
-    // B. Validation
-    if (phone.length !== 10) return showErrorModal("Invalid Mobile Number", "Primary number should be a valid 10-digit mobile number for WhatsApp communication.");
+    // B. Validation (Using Beautiful Modals)
+    if (phone.length !== 10) return showErrorModal("Check Mobile Number", "Primary Mobile Number must be exactly 10 digits.");
     
+    // Flexible Landline Logic
     const isLandline = altPhone.startsWith('0');
     if (isLandline) {
-        if (altPhone.length < 10 || altPhone.length > 12) return showErrorModal("Invalid Landline Number", "Landline numbers must include the STD code (starting with 0) and be 10-12 digits long.");
+        if (altPhone.length < 10 || altPhone.length > 12) return showErrorModal("Check Alternate Number", "Landline numbers must include STD code (starting with 0) and be 10-12 digits.");
     } else {
-        if (altPhone.length !== 10) return showErrorModal("Invalid Emergency Contact", "Please enter a valid 10-digit mobile number or a landline with STD code.");
+        if (altPhone.length !== 10) return showErrorModal("Check Alternate Number", "Emergency Contact Number must be exactly 10 digits.");
     }
 
     if (!trialSlot) { 
         document.getElementById('slot-error').classList.remove('hidden'); 
-        return showErrorModal("Select a Trial Slot", "Please choose a preferred date and time for the trial class."); 
+        return showErrorModal("Trial Slot Required", "Please select a preferred date and time for the trial class."); 
     }
     if (!sourceVal) return showErrorModal("Source Required", "Please let us know how you heard about us.");
 
     btn.innerText = "Processing..."; btn.disabled = true;
 
+    // C. Construct Data Payloads
     let intentVal = document.getElementById('intent').value;
     if(intentVal.includes('Other')) intentVal = document.getElementById('intent_other').value;
 
-    // 1. DATA FOR DATABASE (Strict Schema Compliance)
+    // 1. DB Data (Strict Schema)
     const dbData = {
         parent_name: document.getElementById('p_name').value.trim(), 
         child_name: document.getElementById('k_name').value.trim(),
         phone: phone, email: email, 
         address: document.getElementById('address').value.trim(),
-        dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
-        intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
+        dob: document.getElementById('dob').value, 
+        gender: document.getElementById('gender').value,
+        intent: intentVal, 
+        medical_info: document.getElementById('medical').value.trim(), 
         how_heard: sourceVal, 
         alternate_phone: altPhone,
         marketing_consent: document.getElementById('marketing_check').checked,
@@ -149,40 +153,43 @@ export async function handleIntakeSubmit(e) {
     };
 
     try {
-        // Auth
+        // Auth Sign Up
         const { data: authData } = await supabaseClient.auth.signUp({ email: email, password: phone });
         if(authData.user) {
             const { data: roleData } = await supabaseClient.from('user_roles').select('*').eq('id', authData.user.id);
             if(!roleData || roleData.length === 0) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
         }
         
-        // DB Insert (Using strict dbData)
+        // DB Insert
         const { error } = await supabaseClient.from('leads').insert([dbData]);
         if (error) {
             if (error.code === '23505') throw new Error("Welcome Back! It looks like you are already registered. Please check your email or contact support.");
             throw error;
         }
         
-        // 2. DATA FOR EMAIL (Enriched with Alias & Declarations)
+        // 2. Email Data (Enriched for Template)
+        const declarationsBlock = `Declarations Accepted:\n1. Parent/Guardian Confirmation\n2. Risk Acknowledgement & Liability Waiver\n3. Medical Fitness Declaration\n4. Media Consent Agreement\n5. Policy & Non-Refundable Fee Agreement\n\nAccepted on: ${new Date().toLocaleDateString('en-IN')}`;
+
         const emailData = {
             ...dbData,
-            source: sourceVal, // Fix: Alias 'how_heard' to 'source' for email template
-            terms_accepted: true, // Fix: Explicit flag
-            legal_declarations: "Risk Acknowledgement, Liability Waiver, Medical Fitness, Media Consent, Policy & Non-Refundable Fee Agreement" // Fix: Full text for email
+            source: sourceVal, 
+            terms_accepted: true,
+            legal_declarations: declarationsBlock,
+            instructions: "Please arrive on time. Wear comfortable dress (e.g., shorts/leggings and a t-shirt)."
         };
 
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { 
             method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: emailData}) 
         });
 
-        // Success Handling
+        // D. Success Message (Customized)
         if (trialSlot === 'Adult_Request') {
-            const modal = document.getElementById('success-modal');
-            modal.querySelector('#success-title').innerText = "Request Received";
-            modal.querySelector('#success-msg').innerHTML = `Please schedule your adult fitness consultation.<br><br><a href="https://wa.me/918618684685?text=Hi,%20I%20registered%20for%20Adult%20Fitness." target="_blank" class="block w-full bg-green-500 text-white font-bold py-3 rounded-lg hover:bg-green-600 transition mb-2"><i class="fab fa-whatsapp mr-2"></i> Book via WhatsApp</a>`;
-            modal.classList.remove('hidden');
+            showSuccessModal("Request Received", "For Adults, we schedule sessions by appointment.\nPlease contact us on WhatsApp to confirm.", () => { 
+                window.open("https://wa.me/918618684685", "_blank"); 
+                window.location.reload(); 
+            });
         } else {
-            showSuccessModal("Account Created!", "Your trial slot is confirmed. Check your email for details.");
+            showSuccessModal("Account Created!", "Your trial slot is confirmed.\nPlease wear comfortable clothes (shorts/t-shirt) and arrive on time.", () => window.location.reload());
         }
         
         e.target.reset(); document.getElementById('age-display').classList.add('hidden');
@@ -190,7 +197,7 @@ export async function handleIntakeSubmit(e) {
     } catch (err) { showErrorModal("Submission Failed", err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
 }
 
-// --- 3. PARENT DASHBOARD ---
+// --- 3. PARENT DASHBOARD (Optimized) ---
 export async function loadParentDashboard(email) {
     showView('parent-portal');
     const container = document.getElementById('parent-content');
@@ -220,7 +227,7 @@ const STATUS_STRATEGIES = {
             const [d, t] = child.trial_scheduled_slot.split('|');
             return {
                 badge: 'Trial Scheduled', color: 'bg-indigo-100 text-indigo-700',
-                action: `<div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 flex items-start gap-3"><div class="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-sm font-bold text-xs">${new Date(d).getDate()}</div><div><h4 class="font-bold text-indigo-900 text-sm">Scheduled Trial</h4><p class="text-xs text-indigo-700 mt-0.5">${new Date(d).toLocaleDateString('en-GB',{month:'short',day:'numeric'})} @ ${t}</p><p class="text-[10px] text-indigo-400 mt-1">Arrive 10 mins early.</p></div></div>`
+                action: `<div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 flex items-start gap-3"><div class="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-sm font-bold text-xs">${new Date(d).getDate()}</div><div><h4 class="font-bold text-indigo-900 text-sm">Scheduled Trial</h4><p class="text-xs text-indigo-700 mt-0.5">${new Date(d).toLocaleDateString('en-GB',{month:'short',day:'numeric'})} @ ${t}</p><p class="text-[10px] text-indigo-400 mt-1">Please arrive on time.</p></div></div>`
             };
         }
         return { badge: 'Trial Pending', color: 'bg-yellow-100 text-yellow-700', action: `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>` };
@@ -260,7 +267,7 @@ function generateStudentCard(child, count) {
     </div>`;
 }
 
-// --- 4. REGISTRATION & UTILS (Kept Minimal) ---
+// --- 4. REGISTRATION & UTILS (All Functionality Preserved) ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id; currentLeadData = child;
