@@ -18,10 +18,17 @@ window.calculateAgeDisplay = calculateAgeDisplay;
 window.checkOther = checkOther;
 window.scrollToSection = scrollToSection;
 
-// Auth
+// Auth - Ensure functions are available immediately
 window.handleLogin = Auth.handleLogin;
 window.handleLogout = Auth.handleLogout;
 window.handleMagicLink = Auth.handleMagicLink;
+
+// Debug: Verify functions are bound
+console.log("Auth functions bound:", {
+    handleLogin: typeof window.handleLogin,
+    handleLogout: typeof window.handleLogout,
+    handleMagicLink: typeof window.handleMagicLink
+});
 
 // Parent
 window.openRegistrationModal = Parent.openRegistrationModal;
@@ -139,6 +146,30 @@ window.sendChatMessage = async () => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden')); });
 document.getElementById('chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendChatMessage(); });
 
+// Ensure login functions are always available - add fallback after DOM loads
+setTimeout(() => {
+    // Replace onclick handlers with direct event listeners for better reliability
+    const loginBtn = document.querySelector('button[onclick*="handleLogin"]');
+    if (loginBtn && window.handleLogin) {
+        loginBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.handleLogin();
+            return false;
+        };
+    }
+    
+    const magicLinkBtn = document.querySelector('button[onclick*="handleMagicLink"]');
+    if (magicLinkBtn && window.handleMagicLink) {
+        magicLinkBtn.onclick = (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            window.handleMagicLink();
+            return false;
+        };
+    }
+}, 100);
+
 // --- INITIALIZATION ---
 async function initSession() {
     try {
@@ -148,48 +179,50 @@ async function initSession() {
             showView('landing');
             return;
         }
-    if (session) {
-        const user = session.user;
-        let finalName = user.email.split('@')[0];
-        let finalRole = "";
-
-        const { data: roleData } = await supabaseClient.from('user_roles').select('role, full_name').eq('id', user.id).maybeSingle();
-        if (roleData) { finalName = roleData.full_name || finalName; finalRole = roleData.role; }
-
-        if (!roleData) {
-            const { data: leadData } = await supabaseClient.from('leads').select('parent_name').eq('email', user.email).limit(1).maybeSingle();
-            if (leadData?.parent_name) finalName = leadData.parent_name;
-        }
-
-        finalName = finalName.charAt(0).toUpperCase() + finalName.slice(1);
-        document.getElementById('user-role-badge').innerText = finalName;
-        document.getElementById('landing').classList.add('hidden');
-        document.getElementById('nav-public').classList.add('hidden');
-        document.getElementById('nav-private').classList.remove('hidden');
-        document.getElementById('nav-private').classList.add('flex');
-
-        const trainerEmails = ['tumblegymmysore@gmail.com', 'trainer@tgm.com'];
         
-        // --- ROUTING LOGIC ---
-        if (finalRole === 'admin') {
-            // If admin.js has a load function, use it. Otherwise fallback to Trainer view.
-            if (Admin && Admin.loadAdminDashboard) {
-                Admin.loadAdminDashboard(finalName);
-            } else {
-                Trainer.loadTrainerDashboard(finalName); // Fallback
+        if (session) {
+            const user = session.user;
+            let finalName = user.email.split('@')[0];
+            let finalRole = "";
+
+            const { data: roleData } = await supabaseClient.from('user_roles').select('role, full_name').eq('id', user.id).maybeSingle();
+            if (roleData) { finalName = roleData.full_name || finalName; finalRole = roleData.role; }
+
+            if (!roleData) {
+                const { data: leadData } = await supabaseClient.from('leads').select('parent_name').eq('email', user.email).limit(1).maybeSingle();
+                if (leadData?.parent_name) finalName = leadData.parent_name;
             }
-        } else if (finalRole === 'trainer' || trainerEmails.includes(user.email) || user.email.includes('trainer')) {
-            Trainer.loadTrainerDashboard(finalName);
+
+            finalName = finalName.charAt(0).toUpperCase() + finalName.slice(1);
+            document.getElementById('user-role-badge').innerText = finalName;
+            document.getElementById('landing').classList.add('hidden');
+            document.getElementById('nav-public').classList.add('hidden');
+            document.getElementById('nav-private').classList.remove('hidden');
+            document.getElementById('nav-private').classList.add('flex');
+
+            const trainerEmails = ['tumblegymmysore@gmail.com', 'trainer@tgm.com'];
+            
+            // --- ROUTING LOGIC ---
+            if (finalRole === 'admin') {
+                // If admin.js has a load function, use it. Otherwise fallback to Trainer view.
+                if (Admin && Admin.loadAdminDashboard) {
+                    Admin.loadAdminDashboard(finalName);
+                } else {
+                    Trainer.loadTrainerDashboard(finalName); // Fallback
+                }
+            } else if (finalRole === 'trainer' || trainerEmails.includes(user.email) || user.email.includes('trainer')) {
+                Trainer.loadTrainerDashboard(finalName);
+            } else {
+                Parent.loadParentDashboard(user.email);
+            }
         } else {
-            Parent.loadParentDashboard(user.email);
+            showView('landing');
+            document.getElementById('nav-public').classList.remove('hidden');
         }
-    } else {
-        showView('landing');
-        document.getElementById('nav-public').classList.remove('hidden');
-    }
     } catch (err) {
         console.error("Initialization error:", err);
         showView('landing');
+        document.getElementById('nav-public').classList.remove('hidden');
     }
 }
 initSession();

@@ -109,5 +109,4 @@ if (typeof supabase === 'undefined') {
 const client = supabase.createClient(supabaseUrl, supabaseKey);
 export const supabaseClient = client;
 export const db = client;
-// Export key for edge function authentication (anon key is safe for frontend)
-export { supabaseKey };
+// Note: supabaseKey is already exported on line 5, no need to re-export

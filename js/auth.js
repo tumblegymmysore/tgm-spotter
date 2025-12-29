@@ -2,25 +2,43 @@ import { supabaseClient } from './config.js';
 import { showErrorModal, showSuccessModal } from './utils.js';
 
 export async function handleLogin() {
-    const email = document.getElementById('login-email').value;
-    const password = document.getElementById('login-password').value;
+    console.log("handleLogin called"); // Debug log
+    try {
+        const emailEl = document.getElementById('login-email');
+        const passwordEl = document.getElementById('login-password');
+        
+        if (!emailEl || !passwordEl) {
+            console.error("Login form elements not found");
+            alert("Login form not found. Please refresh the page.");
+            return;
+        }
+        
+        const email = emailEl.value.trim();
+        const password = passwordEl.value;
 
-    if (!email || !password) {
-        showErrorModal("Input Required", "Please enter both email and password.");
-        return;
-    }
+        if (!email || !password) {
+            showErrorModal("Input Required", "Please enter both email and password.");
+            return;
+        }
 
-    const { data, error } = await supabaseClient.auth.signInWithPassword({
-        email: email,
-        password: password
-    });
+        console.log("Attempting login for:", email);
+        const { data, error } = await supabaseClient.auth.signInWithPassword({
+            email: email,
+            password: password
+        });
 
-    if (error) {
-        console.error("Login Error:", error);
-        showErrorModal("Login Failed", "Invalid email or password.");
-    } else {
-        document.getElementById('login-modal').classList.add('hidden');
-        window.location.reload(); 
+        if (error) {
+            console.error("Login Error:", error);
+            showErrorModal("Login Failed", error.message || "Invalid email or password.");
+        } else {
+            console.log("Login successful");
+            const modal = document.getElementById('login-modal');
+            if (modal) modal.classList.add('hidden');
+            window.location.reload(); 
+        }
+    } catch (err) {
+        console.error("Login function error:", err);
+        showErrorModal("Login Error", "An unexpected error occurred. Please try again.");
     }
 }
 
