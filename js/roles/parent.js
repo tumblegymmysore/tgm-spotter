@@ -323,13 +323,47 @@ export function openRegistrationModal(leadString, isRenewal) {
     
     window.checkApprovalRequirement();
 
-    if (child.status === 'Ready to Pay') {
-        document.getElementById('reg-program-display').innerText = child.final_batch;
-        document.getElementById('total-price').innerText = child.final_price;
-        timeEl.disabled = true; batchEl.disabled = true;
-        document.getElementById('reg-package-select').disabled = true; document.getElementById('reg-pt-level').disabled = true;
-        document.getElementById('payment-section').classList.remove('hidden'); document.getElementById('btn-submit-pay').classList.remove('hidden');
-        document.getElementById('btn-submit-request').classList.add('hidden'); document.getElementById('approval-notice').classList.add('hidden');
+    // Check if package is admin-locked
+    const isPackageLocked = child.package_locked === true;
+    
+    if (child.status === 'Ready to Pay' || isPackageLocked) {
+        document.getElementById('reg-program-display').innerText = child.final_batch || child.recommended_batch || 'Standard Batch';
+        document.getElementById('total-price').innerText = child.final_price || child.package_price || 0;
+        
+        // Lock all fields if package is admin-locked
+        if (isPackageLocked) {
+            timeEl.disabled = true;
+            batchEl.disabled = true;
+            document.getElementById('reg-package-select').disabled = true;
+            document.getElementById('reg-pt-level').disabled = true;
+            document.getElementById('reg-pt-sessions').disabled = true;
+            
+            // Show admin lock notice
+            const approvalNotice = document.getElementById('approval-notice');
+            approvalNotice.innerHTML = `
+                <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
+                    <i class="fas fa-lock text-purple-600 mt-0.5"></i>
+                    <div class="text-xs text-purple-800 leading-relaxed">
+                        <strong>Admin-Locked Package:</strong> This package has been set by Admin and cannot be modified. 
+                        Please contact Admin if you need to make changes.
+                        <br><strong>Package:</strong> ${child.selected_package || 'Not Set'}
+                        <br><strong>Price:</strong> ₹${child.final_price || child.package_price || 0}
+                    </div>
+                </div>
+            `;
+            approvalNotice.classList.remove('hidden');
+            document.getElementById('btn-submit-request').classList.add('hidden');
+        }
+        
+        // If Ready to Pay (not just locked), show payment section
+        if (child.status === 'Ready to Pay') {
+            document.getElementById('payment-section').classList.remove('hidden');
+            document.getElementById('btn-submit-pay').classList.remove('hidden');
+            document.getElementById('btn-submit-request').classList.add('hidden');
+            if (!isPackageLocked) {
+                document.getElementById('approval-notice').classList.add('hidden');
+            }
+        }
     } else {
         document.getElementById('reg-program-display').innerText = child.recommended_batch || (child.special_needs ? "Special Needs" : "Standard Batch");
     }

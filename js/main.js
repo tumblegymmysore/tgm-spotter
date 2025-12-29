@@ -51,6 +51,10 @@ window.switchTab = Trainer.switchTab;
 window.approvePayment = Admin.approvePayment;
 window.rejectPayment = Admin.rejectPayment;
 window.fetchPendingRegistrations = Admin.fetchPendingRegistrations;
+window.modifyAdminPackage = Admin.modifyAdminPackage;
+window.updateAdminPackageOptions = Admin.updateAdminPackageOptions;
+window.calculateAdminPackageTotal = Admin.calculateAdminPackageTotal;
+window.saveAdminPackage = Admin.saveAdminPackage;
 
 // Add/Ensure these are in js/main.js
 window.updatePackageOptions = Parent.updatePackageOptions;

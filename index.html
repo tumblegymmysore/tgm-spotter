@@ -433,6 +433,137 @@
         <div class="modal-content"><div id="admin-modal-body"></div><button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button></div>
     </div>
 
+    <div id="admin-package-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-purple-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-cog mr-2"></i> Modify Package & Pricing</h3>
+                <button onclick="document.getElementById('admin-package-modal').classList.add('hidden')" class="text-purple-100 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto">
+                <input type="hidden" id="admin-pkg-lead-id">
+                
+                <div class="mb-6">
+                    <h4 id="admin-pkg-child-name" class="text-xl font-bold text-slate-800 mb-2">Child Name</h4>
+                    <p class="text-sm text-slate-500">Current Status: <span id="admin-pkg-status" class="font-bold"></span></p>
+                </div>
+
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 mb-6">
+                    <h5 class="font-bold text-blue-900 mb-3 text-sm uppercase">Current Package Details</h5>
+                    <div class="grid grid-cols-2 gap-3 text-sm">
+                        <div><span class="text-slate-600">Batch:</span> <span id="admin-pkg-current-batch" class="font-bold text-slate-800">-</span></div>
+                        <div><span class="text-slate-600">Package:</span> <span id="admin-pkg-current-package" class="font-bold text-slate-800">-</span></div>
+                        <div><span class="text-slate-600">Price:</span> <span id="admin-pkg-current-price" class="font-bold text-slate-800">-</span></div>
+                        <div><span class="text-slate-600">Locked:</span> <span id="admin-pkg-current-locked" class="font-bold text-slate-800">-</span></div>
+                    </div>
+                </div>
+
+                <div class="space-y-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Package Type</label>
+                        <select id="admin-pkg-type" onchange="window.updateAdminPackageOptions()" class="input-field w-full">
+                            <option value="">Select Package Type...</option>
+                            <option value="standard">Standard Package (Evening/Weekend)</option>
+                            <option value="morning">Morning Package (Unlimited)</option>
+                            <option value="pt">Personal Training</option>
+                            <option value="custom">Custom Package</option>
+                        </select>
+                    </div>
+
+                    <div id="admin-pkg-standard-options" class="hidden">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Standard Packages</label>
+                        <select id="admin-pkg-standard-select" class="input-field w-full">
+                            <option value="">Select Package...</option>
+                        </select>
+                    </div>
+
+                    <div id="admin-pkg-morning-options" class="hidden">
+                        <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Morning Package</label>
+                        <select id="admin-pkg-morning-select" class="input-field w-full">
+                            <option value="morn_child|5500|999|1">Morning Unlimited (Child 5-14) - ₹5500</option>
+                            <option value="morn_adult|6000|999|1">Morning Unlimited (Adult 15+) - ₹6000</option>
+                        </select>
+                    </div>
+
+                    <div id="admin-pkg-pt-options" class="hidden grid grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">PT Level</label>
+                            <select id="admin-pkg-pt-level" class="input-field w-full">
+                                <option value="Beginner">Beginner (₹700/class)</option>
+                                <option value="Intermediate">Intermediate (₹850/class)</option>
+                                <option value="Advanced">Advanced (₹1000/class)</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Number of Classes</label>
+                            <input type="number" id="admin-pkg-pt-sessions" value="10" min="1" class="input-field w-full">
+                        </div>
+                    </div>
+
+                    <div id="admin-pkg-custom-options" class="hidden space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Package Name</label>
+                                <input type="text" id="admin-pkg-custom-name" placeholder="e.g., Custom 3 Months" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Price (₹)</label>
+                                <input type="number" id="admin-pkg-custom-price" min="0" class="input-field w-full">
+                            </div>
+                        </div>
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Number of Classes</label>
+                                <input type="number" id="admin-pkg-custom-classes" min="1" value="999" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Duration (Months)</label>
+                                <input type="number" id="admin-pkg-custom-months" min="1" value="1" class="input-field w-full">
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="bg-yellow-50 p-4 rounded-xl border border-yellow-200">
+                        <div class="flex items-start gap-3">
+                            <input type="checkbox" id="admin-pkg-lock" class="mt-1 accent-yellow-600 w-5 h-5 rounded cursor-pointer">
+                            <div>
+                                <label for="admin-pkg-lock" class="text-sm font-bold text-yellow-900 cursor-pointer">Lock Package</label>
+                                <p class="text-xs text-yellow-700 mt-1">When locked, parent cannot modify this package. They must contact admin for changes.</p>
+                            </div>
+                        </div>
+                        <div class="mt-3">
+                            <label class="text-xs font-bold text-yellow-900">Lock Type:</label>
+                            <select id="admin-pkg-lock-type" class="input-field w-full mt-1 text-sm">
+                                <option value="one-time">One-Time (Until Changed Again)</option>
+                                <option value="always">Always Locked (Requires Admin to Unlock)</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                        <div class="flex justify-between items-center mb-2">
+                            <span class="text-sm font-bold text-slate-700">Registration Fee</span>
+                            <span class="text-sm font-bold text-slate-800">₹<span id="admin-pkg-reg-fee">2000</span></span>
+                        </div>
+                        <div class="flex justify-between items-center pt-3 border-t border-slate-300">
+                            <span class="text-lg font-bold text-slate-800">Total Price</span>
+                            <span class="text-2xl font-black text-purple-600">₹<span id="admin-pkg-total">0</span></span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-slate-50 flex gap-3 shrink-0">
+                <button onclick="document.getElementById('admin-package-modal').classList.add('hidden')" class="flex-1 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-100 transition">Cancel</button>
+                <button onclick="window.saveAdminPackage()" class="flex-1 bg-purple-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-purple-700 transition">
+                    <i class="fas fa-save mr-2"></i>Save Package
+                </button>
+            </div>
+        </div>
+    </div>
+
     <div id="assessment-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
         <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
             
