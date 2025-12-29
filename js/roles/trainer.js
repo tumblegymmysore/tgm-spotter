@@ -1,10 +1,10 @@
-// js/roles/trainer.js (v52 - Skeleton Loaders)
-import { supabaseClient } from '../config.js';
+// js/roles/trainer.js (v59 - Consistent Age Logic)
+import { supabaseClient, ADULT_AGE_THRESHOLD } from '../config.js'; // Imported Constant
 import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
 let currentAssessmentLead = null;
 
-// --- 1. SKELETON (NEW) ---
+// --- 1. SKELETON ---
 function getTrainerSkeleton() {
     return `
     <div class="bg-white p-4 rounded-lg border border-slate-100 animate-pulse mb-3">
@@ -19,7 +19,7 @@ function getTrainerSkeleton() {
     </div>`;
 }
 
-// --- 2. TRAINER DASHBOARD ---
+// --- 2. DASHBOARD ---
 export async function loadTrainerDashboard(trainerName) {
     showView('trainer');
     const welcomeEl = document.getElementById('trainer-welcome');
@@ -34,9 +34,7 @@ export async function fetchTrials() {
     const listDone = document.getElementById('list-completed-trials');
     if (!listNew) return;
 
-    // UX UPGRADE: Inject skeletons instantly
     listNew.innerHTML = getTrainerSkeleton() + getTrainerSkeleton();
-    // Keep completed list clean or maybe simple text, as urgency is on New Trials
     listDone.innerHTML = '<p class="text-xs text-slate-400">Loading history...</p>';
 
     try {
@@ -80,8 +78,59 @@ function createTrialCard(lead) {
     </div>`;
 }
 
-// ... (Keep existing fetchInbox, openAssessment, submitAssessment, switchTab exports same as before) ...
-export async function fetchInbox() { /* Same as before */ 
+// --- 3. ASSESSMENT (FIXED AGE LOGIC) ---
+export function openAssessment(leadString) {
+    const lead = JSON.parse(decodeURIComponent(leadString));
+    currentAssessmentLead = lead; 
+    document.getElementById('assess-lead-id').value = lead.id;
+    document.getElementById('assess-child-name').innerText = lead.child_name;
+    document.getElementById('assess-feedback').value = '';
+    ['listen', 'flex', 'strength', 'balance'].forEach(k => { document.getElementById(`skill-${k}`).checked = false; });
+    document.getElementById('assess-pt').checked = false; 
+    document.getElementById('assess-special').checked = false; 
+
+    const age = calculateAge(lead.dob);
+    let batch = "Toddler (3-5 Yrs)";
+    
+    // LOGIC UPDATE: Use Constant (15+)
+    if (age >= ADULT_AGE_THRESHOLD) batch = "Adult Fitness"; 
+    else if (age >= 8) batch = "Intermediate (8+ Yrs)"; 
+    else if (age >= 5) batch = "Beginner (5-8 Yrs)";
+    
+    document.getElementById('assess-batch').value = batch;
+    document.getElementById('assessment-modal').classList.remove('hidden');
+}
+
+// ... (Keep existing submitAssessment, fetchInbox, switchTab) ...
+export async function submitAssessment() { 
+    const btn = document.getElementById('btn-save-assess'); const orgTxt = btn.innerText;
+    const feedback = document.getElementById('assess-feedback').value;
+    const batch = document.getElementById('assess-batch').value;
+    const pt = document.getElementById('assess-pt').checked;
+    const special = document.getElementById('assess-special').checked; 
+    
+    if (!batch) return alert("Please select a Recommended Batch.");
+    btn.disabled = true; btn.innerText = "Saving...";
+
+    const skills = {
+        listening: document.getElementById('skill-listen').checked,
+        flexibility: document.getElementById('skill-flex').checked,
+        strength: document.getElementById('skill-strength').checked,
+        balance: document.getElementById('skill-balance').checked,
+        personal_training: pt, special_needs: special
+    };
+
+    try {
+        const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback: feedback, recommended_batch: batch, skills_rating: skills, special_needs: special }).eq('id', currentAssessmentLead.id);
+        if (error) throw error;
+        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseClient.supabaseKey}` }, body: JSON.stringify({ record: { ...currentAssessmentLead, feedback: feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: pt, special_needs: special, type: 'feedback_email' } }) });
+        document.getElementById('assessment-modal').classList.add('hidden');
+        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
+        fetchTrials(); 
+    } catch (e) { console.error(e); alert("Error saving assessment."); } finally { btn.disabled = false; btn.innerText = orgTxt; }
+}
+
+export async function fetchInbox() { /* Same as previous version */ 
     const container = document.getElementById('list-inbox');
     if (!container) return;
     try {
@@ -112,50 +161,6 @@ export async function fetchInbox() { /* Same as before */
                 </div>`;
         });
     } catch (e) { console.warn("Inbox Error:", e); }
-}
-
-export function openAssessment(leadString) { /* Same as before */
-    const lead = JSON.parse(decodeURIComponent(leadString));
-    currentAssessmentLead = lead; 
-    document.getElementById('assess-lead-id').value = lead.id;
-    document.getElementById('assess-child-name').innerText = lead.child_name;
-    document.getElementById('assess-feedback').value = '';
-    ['listen', 'flex', 'strength', 'balance'].forEach(k => { document.getElementById(`skill-${k}`).checked = false; });
-    document.getElementById('assess-pt').checked = false; document.getElementById('assess-special').checked = false; 
-
-    const age = calculateAge(lead.dob);
-    let batch = "Toddler (3-5 Yrs)";
-    if (age >= 18) batch = "Adult Fitness"; else if (age >= 8) batch = "Intermediate (8+ Yrs)"; else if (age >= 5) batch = "Beginner (5-8 Yrs)";
-    document.getElementById('assess-batch').value = batch;
-    document.getElementById('assessment-modal').classList.remove('hidden');
-}
-
-export async function submitAssessment() { /* Same as before */
-    const btn = document.getElementById('btn-save-assess'); const orgTxt = btn.innerText;
-    const feedback = document.getElementById('assess-feedback').value;
-    const batch = document.getElementById('assess-batch').value;
-    const pt = document.getElementById('assess-pt').checked;
-    const special = document.getElementById('assess-special').checked; 
-    
-    if (!batch) return alert("Please select a Recommended Batch.");
-    btn.disabled = true; btn.innerText = "Saving...";
-
-    const skills = {
-        listening: document.getElementById('skill-listen').checked,
-        flexibility: document.getElementById('skill-flex').checked,
-        strength: document.getElementById('skill-strength').checked,
-        balance: document.getElementById('skill-balance').checked,
-        personal_training: pt, special_needs: special
-    };
-
-    try {
-        const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback: feedback, recommended_batch: batch, skills_rating: skills, special_needs: special }).eq('id', currentAssessmentLead.id);
-        if (error) throw error;
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseClient.supabaseKey}` }, body: JSON.stringify({ record: { ...currentAssessmentLead, feedback: feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: pt, special_needs: special, type: 'feedback_email' } }) });
-        document.getElementById('assessment-modal').classList.add('hidden');
-        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
-        fetchTrials(); 
-    } catch (e) { console.error(e); alert("Error saving assessment."); } finally { btn.disabled = false; btn.innerText = orgTxt; }
 }
 
 export function switchTab(tab) {
