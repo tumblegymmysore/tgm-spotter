@@ -1,4 +1,4 @@
-// js/config.js (v61 - Added Schedule & Holiday Master)
+// js/config.js (v62 - Full Schedule Master)
 
 // 1. Credentials
 export const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
