@@ -45,6 +45,11 @@ window.approvePayment = Admin.approvePayment;
 window.rejectPayment = Admin.rejectPayment;
 window.fetchPendingRegistrations = Admin.fetchPendingRegistrations;
 
+// Add/Ensure these are in js/main.js
+window.updatePackageOptions = Parent.updatePackageOptions;
+window.checkApprovalRequirement = Parent.checkApprovalRequirement;
+window.calculateTotal = Parent.calculateTotal;
+
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {
     const l = JSON.parse(decodeURIComponent(str));
