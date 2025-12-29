@@ -55,6 +55,15 @@ window.modifyAdminPackage = Admin.modifyAdminPackage;
 window.updateAdminPackageOptions = Admin.updateAdminPackageOptions;
 window.calculateAdminPackageTotal = Admin.calculateAdminPackageTotal;
 window.saveAdminPackage = Admin.saveAdminPackage;
+window.fetchAdminTrials = Admin.fetchAdminTrials;
+window.openAdminAssessment = Admin.openAdminAssessment;
+window.editAdminAssessment = Admin.editAdminAssessment;
+window.saveAdminAssessment = Admin.saveAdminAssessment;
+window.saveAdminAssessmentEdit = Admin.saveAdminAssessmentEdit;
+window.fetchDeclinedRegistrations = Admin.fetchDeclinedRegistrations;
+window.fetchAllStudents = Admin.fetchAllStudents;
+window.editFollowUp = Admin.editFollowUp;
+window.saveFollowUp = Admin.saveFollowUp;
 
 // Add/Ensure these are in js/main.js
 window.updatePackageOptions = Parent.updatePackageOptions;
