@@ -148,7 +148,7 @@ export async function handleIntakeSubmit(e) {
         alternate_phone: altPhone,
         marketing_consent: document.getElementById('marketing_check').checked,
         terms_accepted: true, // Explicit flag for email
-        legal_declarations: "Risk Acknowledgement, Liability Waiver, Medical Fitness, Media Consent, Fee Policy", // Explicit text for email
+        legal_declarations: "Risk Acknowledgement, Liability Waiver, Medical Fitness, Media Consent, Policy Agreement", // Explicit text for email
         trial_scheduled_slot: trialSlot,
         is_trial: true, status: 'Pending Trial', submitted_at: new Date()
     };
@@ -157,12 +157,12 @@ export async function handleIntakeSubmit(e) {
         const { data: authData } = await supabaseClient.auth.signUp({ email: email, password: phone });
         if(authData.user) {
             const { data: roleData } = await supabaseClient.from('user_roles').select('*').eq('id', authData.user.id);
-            if(!roleData || roleData.length) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
+            if(!roleData || roleData.length === 0) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
         }
         
         const { error } = await supabaseClient.from('leads').insert([formData]);
         if (error) {
-            if (error.code === '23505') throw new Error("It looks like you are already registered! Please check your email or contact us on WhatsApp.");
+            if (error.code === '23505') throw new Error("Welcome Back! It looks like you are already registered. Please check your email or contact support.");
             throw error;
         }
         
