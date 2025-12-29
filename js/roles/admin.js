@@ -61,7 +61,7 @@ export async function fetchPendingRegistrations() {
             .from('leads')
             .select('*')
             .in('status', ['Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Enrolled', 'Trial Completed'])
-            .order('updated_at', { ascending: false })
+            .order('created_at', { ascending: false })
             .limit(50);
         
         console.log('Filtered leads:', data?.length, 'Statuses found:', [...new Set(data?.map(l => l.status))]);
