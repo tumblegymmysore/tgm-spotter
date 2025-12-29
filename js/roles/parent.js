@@ -1,11 +1,11 @@
-// js/roles/parent.js (v62 - Full Trial Logic + Reg Logic)
+// js/roles/parent.js (v63 - Fixed Validation UI)
 import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
-import { showView, showSuccessModal, calculateAge } from '../utils.js';
+import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
 
 let currentRegistrationId = null;
 let currentLeadData = null;
 
-// --- 0. TRIAL SLOT LOGIC (NEW) ---
+// --- 0. TRIAL SLOT LOGIC ---
 window.setTrialPreference = (pref) => {
     document.getElementById('trial-pref-val').value = pref;
     
@@ -142,10 +142,20 @@ export async function handleIntakeSubmit(e) {
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 
     const trialSlot = document.getElementById('selected-trial-slot').value;
 
-    // 2. Strict Validation
-    if (phone.length !== 10) { alert("Primary Mobile Number must be exactly 10 digits."); return; }
-    if (altPhone.length !== 10) { alert("Emergency Contact Number must be exactly 10 digits."); return; }
-    if (!trialSlot) { document.getElementById('slot-error').classList.remove('hidden'); alert("Please select a trial slot."); return; }
+    // 2. Strict Validation (Using Beautiful Modals)
+    if (phone.length !== 10) { 
+        showErrorModal("Validation Error", "Primary Mobile Number must be exactly 10 digits."); 
+        return; 
+    }
+    if (altPhone.length !== 10) { 
+        showErrorModal("Validation Error", "Emergency Contact Number must be exactly 10 digits."); 
+        return; 
+    }
+    if (!trialSlot) { 
+        document.getElementById('slot-error').classList.remove('hidden'); 
+        showErrorModal("Trial Slot Required", "Please select a trial slot from the available options."); 
+        return; 
+    }
 
     btn.innerText = "Processing..."; btn.disabled = true;
 
@@ -163,7 +173,7 @@ export async function handleIntakeSubmit(e) {
         intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
         how_heard: sourceVal, alternate_phone: altPhone,
         marketing_consent: document.getElementById('marketing_check').checked,
-        trial_scheduled_slot: trialSlot, // NEW FIELD
+        trial_scheduled_slot: trialSlot,
         is_trial: true, status: 'Pending Trial', submitted_at: new Date()
     };
 
@@ -175,20 +185,28 @@ export async function handleIntakeSubmit(e) {
                 await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
             }
         }
+        
         const { error } = await supabaseClient.from('leads').insert([formData]);
-        if (error) throw error;
+        
+        // Handle Duplicate or DB Errors elegantly
+        if (error) {
+            if (error.code === '23505') throw new Error("This email or phone number is already registered.");
+            throw error;
+        }
         
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { 
             method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: formData}) 
         });
 
-        document.getElementById('success-modal').classList.remove('hidden');
-        document.querySelector('#success-modal h3').innerText = "Account Created!";
-        document.querySelector('#success-modal p').innerText = "Your trial slot is confirmed. Check email for details.";
+        showSuccessModal("Account Created!", "Your trial slot is confirmed. Check email for details.");
         
         e.target.reset(); document.getElementById('age-display').classList.add('hidden');
         document.getElementById('slots-container').innerHTML = ''; // Clear slots
-    } catch (err) { alert("Error: " + err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
+    } catch (err) { 
+        showErrorModal("Submission Failed", err.message); 
+    } finally { 
+        btn.innerText = originalText; btn.disabled = false; 
+    }
 }
 
 // --- 2. PARENT DASHBOARD ---
@@ -458,7 +476,7 @@ export async function submitRegistration(actionType) {
         pkgLabel = `PT (${level}) - ${sessions} Classes`;
     } else {
         const pkgVal = document.getElementById('reg-package-select').value;
-        if (!pkgVal) return alert("Please select a package.");
+        if (!pkgVal) return showErrorModal("Selection Missing", "Please select a package.");
         pkgLabel = document.querySelector(`#reg-package-select option[value="${pkgVal}"]`).text;
     }
 
@@ -480,7 +498,7 @@ export async function submitRegistration(actionType) {
 
     // PAYMENT FLOW
     const fileInput = document.getElementById('payment-proof');
-    if (fileInput.files.length === 0) return alert("Upload Payment Proof.");
+    if (fileInput.files.length === 0) return showErrorModal("Proof Required", "Upload Payment Proof.");
     
     const btn = document.getElementById('btn-submit-pay');
     btn.innerText = "Uploading..."; btn.disabled = true;
@@ -504,7 +522,10 @@ export async function submitRegistration(actionType) {
 
         document.getElementById('reg-modal').classList.add('hidden');
         showSuccessModal("Submitted!", "Registration & Payment info sent to Admin.", () => window.location.reload());
-    } catch (e) { alert(e.message); btn.disabled = false; btn.innerText = "Pay & Enroll"; }
+    } catch (e) { 
+        showErrorModal("Upload Error", e.message); 
+        btn.disabled = false; btn.innerText = "Pay & Enroll"; 
+    }
 }
 
 // --- 5. HELPERS ---
@@ -525,7 +546,7 @@ export async function submitParentFeedback() {
     const reason = document.getElementById('feedback-reason').value;
     const dateStr = document.getElementById('feedback-date').value;
     const note = document.getElementById('feedback-note').value;
-    if (!reason) return alert("Please select a reason.");
+    if (!reason) return showErrorModal("Feedback Missing", "Please select a reason.");
     try {
         await supabaseClient.from('leads').update({
             status: 'Follow Up', feedback_reason: reason, 
@@ -533,6 +554,6 @@ export async function submitParentFeedback() {
         }).eq('id', id);
         showSuccessModal("Feedback Saved", "We will contact you later.", () => window.location.reload());
         document.getElementById('feedback-modal').classList.add('hidden');
-    } catch (e) { alert(e.message); }
+    } catch (e) { showErrorModal("Error", e.message); }
 }
 export function handlePackageChange() { window.calculateTotal(); }
