@@ -245,6 +245,8 @@
     </div>
 
     <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
+
+        <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
         <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
             
             <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
@@ -257,35 +259,45 @@
                 </button>
             </div>
     
-            <div class="p-6 overflow-y-auto space-y-8">
+            <div class="p-6 overflow-y-auto space-y-6">
                 <input type="hidden" id="is-renewal">
     
-                <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100">
-                    <h3 class="text-sm font-bold text-blue-900 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Preferences</h3>
-                    <p class="text-xs text-blue-700 mb-3">Please select the days that work best (Classes not available on Mondays).</p>
+                <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                    <div>
+                        <p class="text-xs text-blue-500 font-bold uppercase mb-1">Recommended Program</p>
+                        <h3 id="reg-program-display" class="text-lg font-bold text-blue-900">Loading...</h3>
+                    </div>
+                    <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
+                        <i class="fas fa-dumbbell"></i>
+                    </div>
+                </div>
+
+                <div>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Days</h3>
+                    <p class="text-xs text-slate-500 mb-3">Select preferred days (Classes not available Mondays).</p>
                     
                     <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Tuesday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Tuesday</span>
                         </label>
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Wednesday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Wednesday</span>
                         </label>
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Thursday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Thursday</span>
                         </label>
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Friday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Friday</span>
                         </label>
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Saturday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Saturday</span>
                         </label>
-                        <label class="flex items-center space-x-2 bg-white p-2 rounded-lg border border-blue-100 cursor-pointer hover:border-blue-300">
+                        <label class="flex items-center space-x-2 bg-slate-50 p-2 rounded-lg border border-slate-100 cursor-pointer hover:border-blue-300 transition">
                             <input type="checkbox" class="form-checkbox text-blue-600 rounded" value="Sunday" name="session_days">
                             <span class="text-sm text-slate-700 font-medium">Sunday</span>
                         </label>
@@ -293,22 +305,37 @@
                 </div>
     
                 <div>
-                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-cube mr-2"></i> Select Package</h3>
+                    <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-cube mr-2"></i> Configuration</h3>
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <select id="reg-package" onchange="window.handlePackageChange()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium">
-                            <option value="" disabled selected>Choose a Plan...</option>
-                            <option value="2 Days / Week|3500">2 Days / Week - ₹3,500</option>
-                            <option value="3 Days / Week|4500">3 Days / Week - ₹4,500</option>
-                            <option value="Weekend Batch|3000">Weekend Batch - ₹3,000</option>
-                            <option value="Special">Special / Personal Training</option>
-                        </select>
                         
-                        <div id="training-level-group" class="hidden">
-                            <select id="reg-level" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium">
-                                <option value="Beginner">Beginner Rate</option>
-                                <option value="Intermediate">Intermediate Rate</option>
-                                <option value="Advanced">Advanced Rate</option>
+                        <div id="group-batch">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Frequency</label>
+                            <select id="reg-batch-opt" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium w-full">
+                                <option value="" disabled selected>Select Frequency...</option>
+                                <option value="2 Days / Week">2 Days / Week (₹3,500/mo)</option>
+                                <option value="3 Days / Week">3 Days / Week (₹4,500/mo)</option>
+                                <option value="Weekend Batch">Weekend Batch (₹3,000/mo)</option>
                             </select>
+                        </div>
+
+                        <div id="group-pt-level" class="hidden">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">PT Level</label>
+                            <select id="reg-pt-level" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium w-full">
+                                <option value="" disabled selected>Select Level...</option>
+                                <option value="Beginner">Beginner (₹700/class)</option>
+                                <option value="Intermediate">Intermediate (₹850/class)</option>
+                                <option value="Advanced">Advanced (₹1,000/class)</option>
+                            </select>
+                        </div>
+
+                        <div id="group-duration">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Duration (Months)</label>
+                            <input type="number" id="reg-duration" value="1" min="1" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl w-full">
+                        </div>
+
+                        <div id="group-sessions" class="hidden">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">No. of Classes</label>
+                            <input type="number" id="reg-sessions" value="10" min="1" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl w-full">
                         </div>
                     </div>
                 </div>
@@ -325,7 +352,7 @@
     
                     <div class="space-y-3">
                         <label class="block text-xs font-bold text-slate-500 uppercase">Start Date</label>
-                        <input type="date" id="reg-date" class="input-field p-3 rounded-xl bg-white text-sm">
+                        <input type="date" id="reg-date" class="input-field p-3 rounded-xl bg-white text-sm w-full">
                         
                         <label class="block text-xs font-bold text-slate-500 uppercase mt-4">Upload Payment Screenshot</label>
                         <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
@@ -345,6 +372,8 @@
                 <button id="btn-submit-reg" onclick="window.submitRegistration()" class="flex-1 bg-slate-800 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-slate-900 transition">Submit Registration</button>
             </div>
         </div>
+    </div>
+        
     </div>
     
     <div id="admin-modal" class="modal-overlay hidden">
