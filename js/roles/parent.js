@@ -1,11 +1,11 @@
-// js/roles/parent.js (v53 - Smart Registration Logic)
-import { supabaseClient, REGISTRATION_FEE, PT_RATES, BATCH_RATES } from '../config.js';
-import { showView, showSuccessModal, calculateAge } from '../utils.js';
+// js/roles/parent.js (v56 - Advanced Pricing & Approval Logic)
+import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD } from '../config.js';
+import { showView, showSuccessModal, calculateAge, showToast } from '../utils.js';
 
 let currentRegistrationId = null;
-let currentLeadData = null; // Store for pricing logic
+let currentLeadData = null;
 
-// --- 1. INTAKE FORM (Preserved) ---
+// --- 1. INTAKE FORM (PRESERVED) ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
@@ -43,14 +43,13 @@ export async function handleIntakeSubmit(e) {
     } catch (err) { alert("Error: " + err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
 }
 
-// --- 2. PARENT DASHBOARD ---
+// --- 2. PARENT DASHBOARD (UPDATED FOR APPROVAL WORKFLOW) ---
 export async function loadParentDashboard(email) {
     showView('parent-portal');
     const container = document.getElementById('parent-content');
     
-    // Skeleton Loader
-    const skeleton = `<div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white animate-pulse"><div class="flex gap-4 mb-4"><div class="w-14 h-14 bg-slate-200 rounded-2xl"></div><div class="space-y-2"><div class="h-5 w-32 bg-slate-200 rounded"></div><div class="h-3 w-20 bg-slate-200 rounded"></div></div></div><div class="h-10 bg-slate-200 rounded-lg mb-4 w-2/3"></div><div class="h-12 bg-slate-200 rounded-xl"></div></div>`;
-    container.innerHTML = skeleton + skeleton;
+    // Skeleton Loader (Preserved)
+    container.innerHTML = `<div class="animate-pulse space-y-4"><div class="h-40 bg-slate-100 rounded-3xl"></div><div class="h-40 bg-slate-100 rounded-3xl"></div></div>`;
     container.className = "space-y-6 max-w-lg mx-auto";
 
     const { data, error } = await supabaseClient.from('leads').select('*').eq('email', email).order('created_at', { ascending: false });
@@ -66,290 +65,295 @@ export async function loadParentDashboard(email) {
         const leadString = encodeURIComponent(JSON.stringify(child));
         const age = calculateAge(child.dob);
         
-        // Status Logic
-        let cardBg = 'bg-white border-slate-100';
-        let statusIcon = '<div class="bg-yellow-100 text-yellow-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-clock"></i></div>';
         let statusBadge = 'Trial Pending';
-        let statusMessage = `<div class="p-3 bg-slate-50 rounded-lg border border-slate-100 text-center text-xs text-slate-500">We will contact you shortly to schedule the trial.</div>`;
-        let primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
+        let statusColor = 'bg-yellow-100 text-yellow-700';
+        let actionArea = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
 
-        if (child.status === 'Follow Up') {
-            cardBg = 'bg-orange-50 border-orange-200';
-            statusIcon = '<div class="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-pause"></i></div>';
-            statusBadge = 'On Hold';
-            const fDate = child.follow_up_date ? new Date(child.follow_up_date).toLocaleDateString() : 'Future';
-            statusMessage = `<div class="p-3 bg-white/50 rounded-lg border border-orange-100 text-center text-xs text-orange-800">Follow-up set for: <strong>${fDate}</strong></div>`;
-            primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600 transition">Resume Registration</button>`;
+        // A. Trial Done -> Proceed to Select Package
+        if (child.status === 'Trial Completed') {
+            statusBadge = 'Assessment Done';
+            statusColor = 'bg-blue-100 text-blue-700';
+            const rec = child.recommended_batch || 'Standard';
+            actionArea = `
+                <div class="bg-blue-50 p-3 rounded-lg mb-3 text-xs text-blue-800"><strong>Result:</strong> ${rec}</div>
+                <button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-blue-700">Proceed to Registration</button>`;
         }
-        else if (child.status === 'Trial Completed') {
-            cardBg = 'bg-gradient-to-br from-blue-50 to-white border-blue-200';
-            statusIcon = '<div class="bg-blue-600 text-white w-8 h-8 rounded-full flex items-center justify-center shadow-lg"><i class="fas fa-star"></i></div>';
-            statusBadge = 'Ready to Register';
-            
-            // --- LOGIC: Match Email Template & Modal Logic ---
-            const isSpecial = child.special_needs;
-            const isPT = child.skills_rating?.personal_training;
-            const batch = child.recommended_batch || 'Standard Batch';
-            let displayRec = "";
-
-            if (isSpecial) {
-                if (isPT) displayRec = "Special Needs + Personal Training";
-                else displayRec = `Special Needs + ${batch}`;
-            } else {
-                if (isPT) displayRec = "Personal Training Recommended";
-                else displayRec = `Recommended: ${batch}`;
-            }
-
-            statusMessage = `<div class="mb-4"><p class="text-blue-900 font-bold">Assessment Complete</p><p class="text-xs text-blue-600 font-semibold mt-1">${displayRec}</p></div>`;
-            primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-md hover:bg-blue-700 transition">Complete Registration</button>`;
-        } 
+        // B. Requested -> Waiting for Admin
+        else if (child.status === 'Enrollment Requested') {
+            statusBadge = 'Waiting Approval';
+            statusColor = 'bg-orange-100 text-orange-700';
+            actionArea = `<div class="p-3 bg-orange-50 border border-orange-100 rounded-lg text-center text-xs text-orange-800"><strong>Request Sent!</strong><br>Admin is checking availability for your selection.</div>`;
+        }
+        // C. Approved -> Pay Now
+        else if (child.status === 'Ready to Pay') {
+            statusBadge = 'Approved';
+            statusColor = 'bg-green-100 text-green-700';
+            actionArea = `
+                <div class="bg-green-50 p-3 rounded-lg mb-3 text-xs text-green-800 border border-green-100">
+                    <strong>Confirmed:</strong> ${child.final_batch || 'Batch'}<br><strong>Fee:</strong> ₹${child.final_price}
+                </div>
+                <button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 animate-pulse">Pay Now</button>`;
+        }
+        // D. Verification
         else if (child.status === 'Registration Requested') {
-            cardBg = 'bg-white border-purple-200';
-            statusIcon = '<div class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>';
-            statusBadge = 'Payment Verification';
-            statusMessage = `<div class="p-3 bg-purple-50 rounded-lg border border-purple-100 text-center"><p class="text-xs font-bold text-purple-700">Payment Verification Pending</p></div>`;
-            primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Processing...</button>`;
-        }
+             statusBadge = 'Verifying Payment'; statusColor = 'bg-purple-100 text-purple-700';
+             actionArea = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl">Payment Verification...</button>`;
+        } 
+        // E. Enrolled
         else if (child.status === 'Enrolled') {
-            cardBg = 'bg-gradient-to-br from-green-50 to-white border-green-200';
-            statusIcon = '<div class="bg-green-600 text-white w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-check"></i></div>';
-            statusBadge = 'Active Student';
-            statusMessage = `<div class="flex items-center gap-2 mb-4 text-green-700 text-xs font-bold bg-green-100 px-3 py-1 rounded-full w-fit"><span class="w-2 h-2 bg-green-500 rounded-full"></span> Active Student</div>`;
-            primaryAction = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="w-full border-2 border-green-600 text-green-700 font-bold py-3 rounded-xl hover:bg-green-50">Renew Membership</button>`;
+             statusBadge = 'Active'; statusColor = 'bg-emerald-100 text-emerald-700';
+             actionArea = `<button onclick="window.openRegistrationModal('${leadString}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50">Renew Membership</button>`;
+        }
+        // F. On Hold
+        else if (child.status === 'Follow Up') {
+            statusBadge = 'On Hold'; statusColor = 'bg-orange-100 text-orange-700';
+            actionArea = `<button onclick="window.openRegistrationModal('${leadString}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>`;
         }
 
+        // Chat Badge Logic
         const { count } = await supabaseClient.from('messages').select('*', { count: 'exact', head: true }).eq('lead_id', child.id).eq('sender_role', 'trainer').eq('is_read', false);
         const badgeHidden = count > 0 ? '' : 'hidden';
         const msgBadge = `<span id="msg-badge-${child.id}" class="${badgeHidden} absolute -top-1 -right-1 bg-red-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>`;
-        const colors = ['bg-rose-100 text-rose-600', 'bg-blue-100 text-blue-600', 'bg-emerald-100 text-emerald-600', 'bg-purple-100 text-purple-600'];
-        const avatarColor = colors[child.child_name.length % colors.length];
 
-        html += `
-            <div class="relative rounded-3xl p-6 shadow-sm border ${cardBg} transition-all hover:shadow-md">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="flex items-center gap-4">
-                        <div class="w-14 h-14 rounded-2xl ${avatarColor} flex items-center justify-center font-black text-xl shadow-inner">${child.child_name.charAt(0)}</div>
-                        <div><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3><p class="text-xs font-bold text-slate-400 uppercase mt-0.5">${age} Yrs • ${child.intent}</p></div>
-                    </div>
-                    ${statusIcon}
-                </div>
-                <div class="mb-4 text-xs text-slate-500 font-bold uppercase tracking-wide bg-white/60 p-2 rounded-lg inline-block border border-slate-100">${statusBadge}</div>
-                <div class="mb-2">${statusMessage}</div>
-                <div>${primaryAction}</div>
-                
-                <div class="flex gap-3 mt-3">
-                    <button onclick="window.openParentChat('${leadString}')" class="flex-1 py-3 rounded-xl bg-white border border-slate-200 text-slate-600 text-xs font-bold hover:bg-slate-50 transition relative">
-                        <i class="fas fa-comment-dots mr-2 text-slate-400"></i> Chat with Coach
-                        ${msgBadge}
-                    </button>
-                    <button onclick="window.openEditModal('${leadString}')" class="w-12 py-3 rounded-xl bg-white border border-slate-200 text-slate-400 hover:text-slate-700 transition"><i class="fas fa-pen"></i></button>
-                </div>
-                
-                ${child.status === 'Trial Completed' ? 
-                `<div class="mt-4 text-center">
-                    <button onclick="window.openFeedbackModal('${child.id}')" class="text-blue-500 text-xs font-bold hover:text-blue-700 underline transition">
-                        Not joining yet? Let us know
-                    </button>
-                </div>` : ''}
-            </div>`;
+        html += `<div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white mb-4">
+            <div class="flex justify-between items-start mb-4"><div><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3><p class="text-xs font-bold text-slate-400 uppercase mt-1">${age} Yrs • ${child.intent}</p></div><span class="${statusColor} text-[10px] font-bold px-2 py-1 rounded uppercase">${statusBadge}</span></div>
+            ${actionArea}
+            <div class="flex gap-3 mt-4 pt-4 border-t border-slate-50">
+                <button onclick="window.openParentChat('${leadString}')" class="flex-1 text-xs font-bold text-slate-500 hover:text-blue-600 relative"><i class="fas fa-comment-alt mr-2"></i>Chat ${msgBadge}</button>
+                <button onclick="window.openEditModal('${leadString}')" class="text-xs font-bold text-slate-500 hover:text-blue-600"><i class="fas fa-pen"></i></button>
+            </div>
+        </div>`;
     }
     container.innerHTML = html;
 }
 
-// --- 3. SMART REGISTRATION LOGIC ---
+// --- 3. SMART REGISTRATION LOGIC (NEW) ---
+
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
-    currentLeadData = child; // Save for logic usage
+    currentLeadData = child;
+    const age = calculateAge(child.dob);
 
     document.getElementById('reg-child-name').innerText = child.child_name;
+    document.getElementById('reg-child-age').innerText = age;
     document.getElementById('is-renewal').value = isRenewal;
-    
-    // Fee Display Logic
-    const feeDisplay = document.getElementById('reg-fee-display');
-    if (isRenewal) { 
-        feeDisplay.parentElement.parentElement.classList.add('hidden'); 
-        feeDisplay.innerText = "0"; 
-    } else { 
-        feeDisplay.parentElement.parentElement.classList.remove('hidden'); 
-        feeDisplay.innerText = REGISTRATION_FEE; 
-    }
-
-    // --- NEW LOGIC: DETERMINE PROGRAM & FIELDS ---
-    const isSpecial = child.special_needs;
-    const isPT = child.skills_rating?.personal_training;
-    const batch = child.recommended_batch || 'Standard Batch';
-    
-    // 1. Set Program Title & Visibility
-    const programTitleEl = document.getElementById('reg-program-display');
-    const groupBatch = document.getElementById('group-batch');
-    const groupPT = document.getElementById('group-pt-level');
-    const groupDuration = document.getElementById('group-duration');
-    const groupSessions = document.getElementById('group-sessions');
-
-    // Reset visibility
-    groupBatch.classList.add('hidden');
-    groupPT.classList.add('hidden');
-    groupDuration.classList.add('hidden');
-    groupSessions.classList.add('hidden');
-
-    if (isSpecial) {
-        // CASE: Special Needs
-        if (isPT) {
-            programTitleEl.innerText = "Special Needs + Personal Training";
-            groupPT.classList.remove('hidden'); // Show PT Levels
-            groupSessions.classList.remove('hidden'); // Pay per session
-        } else {
-            programTitleEl.innerText = `Special Needs + ${batch}`;
-            groupBatch.classList.remove('hidden'); // Show Batch Options
-            groupPT.classList.remove('hidden'); // Also allow PT Level selection for pricing adjustment if needed, OR just treat as Special Batch?
-            // User requirement: "if PT not selected, show both special needs and batch".
-            // Implementation: We show Batch Frequency.
-            groupDuration.classList.remove('hidden'); // Pay per month
-        }
-    } else {
-        // CASE: Regular
-        if (isPT) {
-            programTitleEl.innerText = "Personal Training";
-            groupPT.classList.remove('hidden');
-            groupSessions.classList.remove('hidden');
-        } else {
-            programTitleEl.innerText = batch; // e.g. "Toddler (3-5 Yrs)"
-            groupBatch.classList.remove('hidden');
-            groupDuration.classList.remove('hidden');
-        }
-    }
-
-    // Reset Inputs
-    document.getElementById('reg-batch-opt').value = "";
-    document.getElementById('reg-pt-level').value = "";
-    document.getElementById('reg-duration').value = "1";
-    document.getElementById('reg-sessions').value = "10";
-    document.getElementById('total-price').innerText = "0";
-    document.getElementById('reg-date').value = "";
-    document.getElementById('payment-proof').value = "";
-    document.getElementById('reg-consent').checked = false;
-    document.querySelectorAll('input[name="session_days"]').forEach(cb => cb.checked = false);
-
     document.getElementById('reg-modal').classList.remove('hidden');
+
+    // 1. Setup Defaults based on Age
+    const timeSlotEl = document.getElementById('reg-time-slot');
+    const batchCatEl = document.getElementById('reg-batch-category');
+    
+    batchCatEl.innerHTML = ''; // Clear
+
+    // Rule: 15+ must be Adult
+    if (age >= ADULT_AGE_THRESHOLD) {
+        timeSlotEl.value = "Morning";
+        timeSlotEl.disabled = true; // Lock to Morning for Adults
+        batchCatEl.innerHTML = `<option value="Adults">Adults (15+)</option>`;
+    } else {
+        timeSlotEl.disabled = false;
+        timeSlotEl.value = "Evening"; // Default for kids
+        // Add options relevant to age
+        if(age <= 5) batchCatEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
+        if(age >= 5 && age <= 8) batchCatEl.innerHTML += `<option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>`;
+        if(age >= 8 && age < 15) batchCatEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
+        // Allow request change
+        batchCatEl.innerHTML += `<option value="Other">Other / Request Change</option>`;
+        
+        // Auto-select based on Trainer Recommendation
+        if (child.recommended_batch) {
+            // Try to match recommendation string to option value
+            const options = Array.from(batchCatEl.options).map(o => o.value);
+            if(options.includes(child.recommended_batch)) batchCatEl.value = child.recommended_batch;
+        }
+    }
+
+    // 2. Load Packages based on Time Slot
+    window.updatePackageOptions();
+
+    // 3. Handle "Approved / Ready to Pay" State
+    if (child.status === 'Ready to Pay') {
+        document.getElementById('reg-program-display').innerText = child.final_batch;
+        document.getElementById('total-price').innerText = child.final_price;
+        // Lock controls
+        timeSlotEl.disabled = true;
+        batchCatEl.disabled = true;
+        document.getElementById('reg-package-select').disabled = true;
+        // Show Pay button
+        document.getElementById('payment-section').classList.remove('hidden');
+        document.getElementById('btn-submit-pay').classList.remove('hidden');
+        document.getElementById('btn-submit-request').classList.add('hidden');
+        document.getElementById('approval-notice').classList.add('hidden');
+    } else {
+        document.getElementById('reg-program-display').innerText = child.recommended_batch || "Standard Batch";
+        window.checkApprovalRequirement(); // Run logic to see button state
+    }
 }
 
-// 4. SMART CALCULATOR
+// Called when Time Slot changes
+export function updatePackageOptions() {
+    const timeSlot = document.getElementById('reg-time-slot').value;
+    const pkgSelect = document.getElementById('reg-package-select');
+    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    
+    pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
+
+    if (timeSlot === 'Morning') {
+        // Morning: Only Monthly Unlimited
+        const pkg = (age >= ADULT_AGE_THRESHOLD) ? MORNING_PACKAGES.ADULT : MORNING_PACKAGES.CHILD;
+        pkgSelect.innerHTML += `<option value="${pkg.id}|${pkg.price}|${pkg.classes}|${pkg.months}">${pkg.label} - ₹${pkg.price}</option>`;
+    } else {
+        // Evening: Load Standard Packages
+        STANDARD_PACKAGES.forEach(pkg => {
+            pkgSelect.innerHTML += `<option value="${pkg.id}|${pkg.price}|${pkg.classes}|${pkg.months}">${pkg.label} - ₹${pkg.price}</option>`;
+        });
+    }
+    window.calculateTotal();
+}
+
+// Logic: Pay Now vs Request Approval
+export function checkApprovalRequirement() {
+    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const batchCat = document.getElementById('reg-batch-category').value;
+    const timeSlot = document.getElementById('reg-time-slot').value;
+    const recBatch = currentLeadData.recommended_batch; // What trainer said
+
+    let needsApproval = false;
+
+    // Rule 1: Changing Batch Category from Recommendation
+    if (recBatch && batchCat !== recBatch && batchCat !== "Other") {
+        // If they pick a standard batch that ISN'T what trainer recommended -> Approval
+        // (Unless they are Adult where there's only one option)
+        if (age < ADULT_AGE_THRESHOLD) needsApproval = true;
+    }
+    
+    // Rule 2: Selecting "Other"
+    if (batchCat === 'Other') needsApproval = true;
+
+    // Rule 3: PT selected (Logic to come if PT dropdown is active)
+    // For now, if Time Slot changed to Morning for a Kid -> Approval
+    if (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning') needsApproval = true;
+
+    // UI Updates
+    const notice = document.getElementById('approval-notice');
+    const btnPay = document.getElementById('btn-submit-pay');
+    const btnReq = document.getElementById('btn-submit-request');
+    const paySection = document.getElementById('payment-section');
+
+    if (needsApproval) {
+        notice.classList.remove('hidden');
+        btnPay.classList.add('hidden');
+        btnReq.classList.remove('hidden');
+        paySection.classList.add('hidden'); 
+    } else {
+        notice.classList.add('hidden');
+        btnPay.classList.remove('hidden');
+        btnReq.classList.add('hidden');
+        paySection.classList.remove('hidden');
+    }
+}
+
 export function calculateTotal() {
+    const pkgVal = document.getElementById('reg-package-select').value;
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     let total = 0;
 
-    // Determine Mode based on visibility
-    const isBatchMode = !document.getElementById('group-batch').classList.contains('hidden');
-    const isPTMode = !document.getElementById('group-pt-level').classList.contains('hidden');
-
-    // 1. Calculate Base Price
-    if (isBatchMode) {
-        const batchVal = document.getElementById('reg-batch-opt').value; // "2 Days / Week"
-        const duration = parseInt(document.getElementById('reg-duration').value) || 0;
-        
-        if (batchVal && BATCH_RATES[batchVal]) {
-            total = BATCH_RATES[batchVal] * duration;
-        }
-    } 
-    
-    // Note: If Special Needs without PT, we use Batch Logic.
-    // If PT is active (either Regular PT or Special+PT), we add/use PT rates.
-    
-    if (isPTMode) {
-        const ptLevel = document.getElementById('reg-pt-level').value; // "Beginner"
-        const sessions = parseInt(document.getElementById('reg-sessions').value) || 0;
-        
-        if (ptLevel && PT_RATES[ptLevel]) {
-            // If it's pure PT, this is the cost.
-            // If it's Special + Batch, this might be additive? 
-            // Current Logic: If PT Mode is visible, we prioritize Session-based billing unless Batch is ALSO visible.
-            // Let's assume for this version: PT overrides Batch billing if selected.
-            total = PT_RATES[ptLevel] * sessions;
-        }
+    if (pkgVal) {
+        const parts = pkgVal.split('|'); // id|price|classes|months
+        total = parseInt(parts[1]);
     }
 
-    // 2. Add Registration Fee (One-time)
-    if (!isRenewal && total > 0) {
-        total += REGISTRATION_FEE;
-    }
-
-    document.getElementById('total-price').innerText = total.toLocaleString('en-IN');
+    if (!isRenewal && total > 0) total += REGISTRATION_FEE;
+    
+    document.getElementById('total-price').innerText = total;
 }
 
-// 5. SUBMIT HANDLER (Updated for new fields)
-export async function submitRegistration() {
+export async function submitRegistration(actionType) {
+    const pkgVal = document.getElementById('reg-package-select').value;
     const total = document.getElementById('total-price').innerText;
-    const fileInput = document.getElementById('payment-proof');
-    const startDate = document.getElementById('reg-date').value;
-    const consent = document.getElementById('reg-consent').checked;
-    const days = Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value);
-
-    // Identify what was selected
-    const isBatchMode = !document.getElementById('group-batch').classList.contains('hidden');
-    const isPTMode = !document.getElementById('group-pt-level').classList.contains('hidden');
     
-    let pkgName = "";
-    if (isPTMode) {
-        const level = document.getElementById('reg-pt-level').value;
-        const sessions = document.getElementById('reg-sessions').value;
-        if (!level) return alert("Please select a Training Level.");
-        pkgName = `Personal Training (${level}) - ${sessions} Classes`;
-    } else if (isBatchMode) {
-        const batch = document.getElementById('reg-batch-opt').value;
-        const duration = document.getElementById('reg-duration').value;
-        if (!batch) return alert("Please select a Batch Frequency.");
-        pkgName = `${batch} - ${duration} Months`;
+    if (!pkgVal) return alert("Please select a package.");
+
+    // ACTION: REQUEST APPROVAL
+    if (actionType === 'REQUEST') {
+        const batchCat = document.getElementById('reg-batch-category').value;
+        const timeSlot = document.getElementById('reg-time-slot').value;
+        // Parse friendly name from value
+        const pkgLabel = document.querySelector(`#reg-package-select option[value="${pkgVal}"]`).text;
+        
+        const note = `Request: ${timeSlot} - ${batchCat}. Plan: ${pkgLabel}`;
+        
+        await supabaseClient.from('leads').update({
+            status: 'Enrollment Requested',
+            parent_note: note,
+            final_price: total // Proposed price
+        }).eq('id', currentRegistrationId);
+        
+        document.getElementById('reg-modal').classList.add('hidden');
+        showSuccessModal("Request Sent", "Admin will verify your batch request and approve the fee.", () => window.location.reload());
+        return;
     }
 
-    if (total === "0" || total === "2,000") return alert("Total cannot be zero (excluding Reg Fee). Please select options.");
-    if (days.length === 0) return alert("Please select Session Days.");
-    if (!startDate) return alert("Select Start Date.");
+    // ACTION: PAY NOW
+    const fileInput = document.getElementById('payment-proof');
     if (fileInput.files.length === 0) return alert("Upload Payment Proof.");
-    if (!consent) return alert("Agree to Terms.");
-
-    const btn = document.getElementById('btn-submit-reg');
+    
+    const btn = document.getElementById('btn-submit-pay');
     btn.innerText = "Uploading..."; btn.disabled = true;
 
     try {
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
-        
         const { error: uploadError } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
         if(uploadError) throw uploadError;
-        
         const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
 
-        const { error } = await supabaseClient.from('leads').update({
-            status: 'Registration Requested', 
-            selected_package: pkgName, 
+        const pkgParts = pkgVal.split('|'); // id|price|classes|months
+
+        // Construct Final Package Name
+        const pkgLabel = document.querySelector(`#reg-package-select option[value="${pkgVal}"]`).text;
+
+        await supabaseClient.from('leads').update({
+            status: 'Registration Requested',
+            selected_package: pkgLabel, 
             package_price: total,
-            payment_proof_url: publicUrl, 
-            start_date: startDate, 
-            payment_status: 'Verification Pending',
-            session_days: days
+            payment_proof_url: publicUrl,
+            start_date: document.getElementById('reg-date').value,
+            session_days: Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value),
+            payment_status: 'Verification Pending'
         }).eq('id', currentRegistrationId);
 
-        if(error) throw error;
-
         document.getElementById('reg-modal').classList.add('hidden');
-        showSuccessModal("Submitted!", "Registration request received. Admin will verify shortly.", () => window.location.reload());
-
-    } catch (err) { alert("Error: " + err.message); } 
-    finally { btn.innerText = "Submit Registration"; btn.disabled = false; }
+        showSuccessModal("Submitted!", "Payment proof uploaded. Admin will verify shortly.", () => window.location.reload());
+    } catch (e) { alert(e.message); btn.disabled = false; btn.innerText = "Pay & Enroll"; }
 }
 
-// ... (Keep handlePackageChange if referenced, or remove. Keep other exports like openParentChat, openEditModal, etc.) ...
-// For completeness, here are the other untouched functions:
-export function openParentChat(leadString) {
-    const lead = JSON.parse(decodeURIComponent(leadString));
+// --- 4. HELPERS (PRESERVED) ---
+export function openParentChat(str) { 
+    const lead = JSON.parse(decodeURIComponent(str));
     const badge = document.getElementById(`msg-badge-${lead.id}`);
     if(badge) badge.classList.add('hidden');
-    window.openChat(encodeURIComponent(JSON.stringify(lead)));
+    window.openChat(str); 
 }
-export function openEditModal(leadString) { /* ... Same as previous ... */ }
-export async function saveChildInfo() { /* ... Same as previous ... */ }
-export function openFeedbackModal(id) { /* ... Same as previous ... */ }
-export async function submitParentFeedback() { /* ... Same as previous ... */ }
-// Note: handlePackageChange is replaced by logic inside calculateTotal and openRegistrationModal
+export function openEditModal(str) { window.openEditModal(str); }
+export async function saveChildInfo() { window.saveChildInfo(); }
+export function openFeedbackModal(id) { 
+    document.getElementById('feedback-lead-id').value = id;
+    document.getElementById('feedback-modal').classList.remove('hidden');
+}
+export async function submitParentFeedback() { 
+    const id = document.getElementById('feedback-lead-id').value;
+    const reason = document.getElementById('feedback-reason').value;
+    const dateStr = document.getElementById('feedback-date').value;
+    const note = document.getElementById('feedback-note').value;
+    if (!reason) return alert("Please select a reason.");
+    try {
+        await supabaseClient.from('leads').update({
+            status: 'Follow Up', feedback_reason: reason, 
+            follow_up_date: dateStr || null, parent_note: note
+        }).eq('id', id);
+        showSuccessModal("Feedback Saved", "Thank you!", () => window.location.reload());
+    } catch (e) { alert(e.message); }
+}
 export function handlePackageChange() { window.calculateTotal(); }
