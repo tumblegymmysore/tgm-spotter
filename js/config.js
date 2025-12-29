@@ -1,4 +1,4 @@
-// js/config.js (v47 - Crash Proof)
+// js/config.js (v53 - Centralized Pricing)
 
 // 1. Credentials
 export const supabaseUrl = 'https://znfsbuconoezbjqksxnu.supabase.co'; 
@@ -6,7 +6,20 @@ export const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 
 // 2. Constants
 export const REGISTRATION_FEE = 2000;
-export const SPECIAL_RATES = { "Beginner": 700, "Intermediate": 850, "Advanced": 1000 };
+
+// Rate per Session (for Personal Training)
+export const PT_RATES = { 
+    "Beginner": 700, 
+    "Intermediate": 850, 
+    "Advanced": 1000 
+};
+
+// Monthly Rates (for Batches)
+export const BATCH_RATES = {
+    "2 Days / Week": 3500,
+    "3 Days / Week": 4500,
+    "Weekend Batch": 3000
+};
 
 // 3. Initialization with Safety Check
 if (typeof supabase === 'undefined') {
