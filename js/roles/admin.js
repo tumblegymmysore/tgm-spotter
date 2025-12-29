@@ -1,30 +1,24 @@
 // js/roles/admin.js
-// Fix: Import from config and utils (UP one level)
 import { supabaseClient } from '../config.js';
-import { showView, showSuccessModal, showToast } from '../utils.js';
-
-// NOTE: We do NOT import currentUser from auth.js anymore. 
-// The user name is passed into loadAdminDashboard by main.js.
+import { showView, showSuccessModal, showToast, showErrorModal } from '../utils.js';
 
 // --- 1. DASHBOARD LOADER ---
 export async function loadAdminDashboard(adminName) {
-    showView('trainer'); // Re-using the Trainer/Admin layout (id="trainer")
+    showView('trainer'); // Re-using the Trainer layout structure
     
     // Update Header
     const welcomeEl = document.getElementById('trainer-welcome');
     if (welcomeEl) welcomeEl.innerText = `Admin Panel: ${adminName}`;
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' });
 
     // Load Data
     await fetchPendingRegistrations();
-    // We can also load the inbox if admins chat
-    // fetchInbox(); 
 }
 
 // --- 2. FETCH PENDING PAYMENTS ---
 export async function fetchPendingRegistrations() {
-    const listNew = document.getElementById('list-new-trials'); // Re-using the "New" column
-    const listDone = document.getElementById('list-completed-trials'); // Re-using the "Done" column
+    const listNew = document.getElementById('list-new-trials'); 
+    const listDone = document.getElementById('list-completed-trials');
     
     if (!listNew) return;
 
@@ -43,11 +37,7 @@ export async function fetchPendingRegistrations() {
             .or('status.eq.Registration Requested,status.eq.Enrolled')
             .order('updated_at', { ascending: false });
 
-        if (error) {
-            console.error("Admin Fetch Error:", error);
-            listNew.innerHTML = `<div class="p-3 bg-red-50 text-red-600 text-xs rounded">Error: ${error.message}</div>`;
-            return;
-        }
+        if (error) throw error;
 
         listNew.innerHTML = ''; 
         listDone.innerHTML = '';
@@ -68,15 +58,14 @@ export async function fetchPendingRegistrations() {
         if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">All payments verified.</p>';
 
     } catch (err) {
-        console.error("Crash:", err);
-        listNew.innerHTML = `<p class="text-red-500 text-sm">System Crash</p>`;
+        console.error("Admin Fetch Error:", err);
+        listNew.innerHTML = `<p class="text-red-500 text-sm">System Error: ${err.message}</p>`;
     }
 }
 
 // --- 3. CARDS ---
 
 function createVerificationCard(lead) {
-    const leadString = encodeURIComponent(JSON.stringify(lead));
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
@@ -123,9 +112,8 @@ function createEnrolledCard(lead) {
     </div>`;
 }
 
-// --- 4. ACTIONS (Exposed to Window in Main.js if needed, or bound here) ---
+// --- 4. ACTIONS ---
 
-// We need to export these so main.js can bind them to window
 export async function approvePayment(leadId) {
     if(!confirm("Confirm payment verification and enroll student?")) return;
 
@@ -142,10 +130,10 @@ export async function approvePayment(leadId) {
         if (error) throw error;
 
         showSuccessModal("Student Enrolled!", "Payment verified and status updated.");
-        fetchPendingRegistrations(); // Refresh list
+        fetchPendingRegistrations(); 
 
     } catch (err) {
-        alert("Error: " + err.message);
+        showErrorModal("Approval Failed", err.message);
     }
 }
 
@@ -157,7 +145,7 @@ export async function rejectPayment(leadId) {
         const { error } = await supabaseClient
             .from('leads')
             .update({ 
-                status: 'Trial Completed', // Revert to previous state
+                status: 'Trial Completed', 
                 payment_status: 'Rejected',
                 parent_note: `Admin Note: Payment Rejected - ${reason}`
             })
@@ -169,6 +157,6 @@ export async function rejectPayment(leadId) {
         fetchPendingRegistrations();
 
     } catch (err) {
-        alert("Error: " + err.message);
+        showErrorModal("Rejection Failed", err.message);
     }
 }
