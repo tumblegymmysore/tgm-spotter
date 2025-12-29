@@ -1,11 +1,136 @@
-// js/roles/parent.js (v60 - RESTORED Full Logic: PT, Special Needs, Validation)
-import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD } from '../config.js';
+// js/roles/parent.js (v62 - Full Trial Logic + Reg Logic)
+import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
 import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
 let currentRegistrationId = null;
 let currentLeadData = null;
 
-// --- 1. INTAKE FORM (With Strict Validation) ---
+// --- 0. TRIAL SLOT LOGIC (NEW) ---
+window.setTrialPreference = (pref) => {
+    document.getElementById('trial-pref-val').value = pref;
+    
+    // Toggle UI Styles
+    const btnEve = document.getElementById('btn-pref-evening');
+    const btnMorn = document.getElementById('btn-pref-morning');
+    
+    if (pref === 'Evening') {
+        btnEve.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnEve.classList.remove('text-slate-500', 'hover:bg-indigo-50');
+        
+        btnMorn.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnMorn.classList.add('text-slate-500', 'hover:bg-indigo-50');
+    } else {
+        btnMorn.classList.add('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnMorn.classList.remove('text-slate-500', 'hover:bg-indigo-50');
+        
+        btnEve.classList.remove('bg-indigo-600', 'text-white', 'shadow-sm');
+        btnEve.classList.add('text-slate-500', 'hover:bg-indigo-50');
+    }
+    window.generateTrialSlots();
+};
+
+window.generateTrialSlots = () => {
+    const dob = document.getElementById('dob').value;
+    const pref = document.getElementById('trial-pref-val').value;
+    const container = document.getElementById('slots-container');
+    const adultMsg = document.getElementById('adult-message');
+    const hiddenInput = document.getElementById('selected-trial-slot');
+
+    // Reset
+    container.innerHTML = '';
+    hiddenInput.value = '';
+    adultMsg.classList.add('hidden');
+    container.classList.remove('hidden');
+
+    if (!dob) {
+        container.innerHTML = `<p class="text-sm text-slate-400 col-span-3 italic text-center">Please enter Date of Birth to view available slots.</p>`;
+        return;
+    }
+
+    const age = calculateAge(dob);
+
+    // ADULT + EVENING Rule
+    if (age >= ADULT_AGE_THRESHOLD && pref === 'Evening') {
+        container.classList.add('hidden');
+        adultMsg.classList.remove('hidden');
+        hiddenInput.value = 'Adult Appointment Needed'; // Marker
+        return;
+    }
+
+    const slots = [];
+    let datePointer = new Date();
+    datePointer.setDate(datePointer.getDate() + 1); // Start Tomorrow
+
+    // Find next 5 slots
+    let iterations = 0;
+    while (slots.length < 5 && iterations < 30) { // Safety break
+        const dayOfWeek = datePointer.getDay(); // 0=Sun, 1=Mon, etc.
+        const dateStr = datePointer.toISOString().split('T')[0];
+
+        // 1. Check Holiday Master
+        const isHoliday = HOLIDAYS_MYSORE.includes(dateStr);
+        // 2. Check Excluded Days (Mon, Tue)
+        const isExcluded = TRIAL_EXCLUDED_DAYS.includes(dayOfWeek);
+
+        if (!isHoliday && !isExcluded) {
+            let validTime = null;
+
+            if (pref === 'Morning') {
+                if (CLASS_SCHEDULE.MORNING.days.includes(dayOfWeek) && age >= CLASS_SCHEDULE.MORNING.minAge) {
+                    validTime = CLASS_SCHEDULE.MORNING.time;
+                }
+            } else {
+                // Evening / Weekend Logic
+                let scheduleBlock = null;
+                if (dayOfWeek === 6) scheduleBlock = CLASS_SCHEDULE.SATURDAY; // Sat
+                else if (dayOfWeek === 0) scheduleBlock = CLASS_SCHEDULE.SUNDAY; // Sun
+                else scheduleBlock = CLASS_SCHEDULE.EVENING; // Wed, Thu, Fri
+
+                if (scheduleBlock && scheduleBlock.days.includes(dayOfWeek)) {
+                    // Find age specific slot
+                    const slot = scheduleBlock.slots.find(s => age >= s.min && age < s.max);
+                    if (slot) validTime = slot.time;
+                }
+            }
+
+            if (validTime) {
+                const dateDisplay = datePointer.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+                slots.push({ iso: dateStr, display: dateDisplay, time: validTime });
+            }
+        }
+        datePointer.setDate(datePointer.getDate() + 1);
+        iterations++;
+    }
+
+    if (slots.length === 0) {
+        container.innerHTML = `<p class="text-xs text-red-500 col-span-3 text-center font-bold">No eligible classes found for this age group in the next 14 days.</p>`;
+        return;
+    }
+
+    slots.forEach((slot, index) => {
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `p-3 rounded-xl border border-indigo-100 bg-white hover:border-indigo-500 hover:shadow-md transition text-left group`;
+        btn.innerHTML = `
+            <div class="text-xs font-bold text-slate-400 uppercase mb-1">${slot.display}</div>
+            <div class="text-indigo-900 font-bold text-sm group-hover:text-indigo-600">${slot.time}</div>
+        `;
+        btn.onclick = () => {
+            // Select Logic
+            document.querySelectorAll('#slots-container button').forEach(b => {
+                b.classList.remove('ring-2', 'ring-indigo-500', 'bg-indigo-50');
+                b.classList.add('bg-white');
+            });
+            btn.classList.remove('bg-white');
+            btn.classList.add('bg-indigo-50', 'ring-2', 'ring-indigo-500');
+            hiddenInput.value = `${slot.iso} | ${slot.time}`; // Save format
+            document.getElementById('slot-error').classList.add('hidden');
+        };
+        container.appendChild(btn);
+    });
+};
+
+// --- 1. INTAKE FORM (Updated) ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
@@ -15,10 +140,12 @@ export async function handleIntakeSubmit(e) {
     const email = document.getElementById('email').value.trim();
     const phone = document.getElementById('phone').value.trim().replace(/\D/g, ''); 
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 
+    const trialSlot = document.getElementById('selected-trial-slot').value;
 
     // 2. Strict Validation
     if (phone.length !== 10) { alert("Primary Mobile Number must be exactly 10 digits."); return; }
     if (altPhone.length !== 10) { alert("Emergency Contact Number must be exactly 10 digits."); return; }
+    if (!trialSlot) { document.getElementById('slot-error').classList.remove('hidden'); alert("Please select a trial slot."); return; }
 
     btn.innerText = "Processing..."; btn.disabled = true;
 
@@ -36,6 +163,7 @@ export async function handleIntakeSubmit(e) {
         intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
         how_heard: sourceVal, alternate_phone: altPhone,
         marketing_consent: document.getElementById('marketing_check').checked,
+        trial_scheduled_slot: trialSlot, // NEW FIELD
         is_trial: true, status: 'Pending Trial', submitted_at: new Date()
     };
 
@@ -56,9 +184,10 @@ export async function handleIntakeSubmit(e) {
 
         document.getElementById('success-modal').classList.remove('hidden');
         document.querySelector('#success-modal h3').innerText = "Account Created!";
-        document.querySelector('#success-modal p').innerText = "Your trial request has been submitted successfully.";
+        document.querySelector('#success-modal p').innerText = "Your trial slot is confirmed. Check email for details.";
         
         e.target.reset(); document.getElementById('age-display').classList.add('hidden');
+        document.getElementById('slots-container').innerHTML = ''; // Clear slots
     } catch (err) { alert("Error: " + err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
 }
 
@@ -82,11 +211,32 @@ export async function loadParentDashboard(email) {
         const age = calculateAge(child.dob);
         let statusBadge = 'Trial Pending', statusColor = 'bg-yellow-100 text-yellow-700';
         let actionArea = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
+        
+        // Show scheduled slot if pending
+        if (child.status === 'Pending Trial' && child.trial_scheduled_slot) {
+             const [dateStr, timeStr] = child.trial_scheduled_slot.split('|');
+             const formattedDate = new Date(dateStr).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
+             
+             if (child.trial_scheduled_slot.includes('Adult')) {
+                actionArea = `<div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 text-center"><p class="text-xs font-bold text-indigo-900">Adult Appointment</p><p class="text-[10px] text-indigo-700">Please contact us to schedule.</p></div>`;
+             } else {
+                actionArea = `
+                <div class="bg-indigo-50 p-4 rounded-xl mb-4 border border-indigo-100 flex items-start gap-3">
+                    <div class="bg-indigo-600 text-white rounded-full w-8 h-8 flex items-center justify-center shrink-0 shadow-sm font-bold text-xs">
+                        ${new Date(dateStr).getDate()}
+                    </div>
+                    <div>
+                        <h4 class="font-bold text-indigo-900 text-sm">Scheduled Trial</h4>
+                        <p class="text-xs text-indigo-700 mt-0.5">${formattedDate} @ ${timeStr}</p>
+                        <p class="text-[10px] text-indigo-400 mt-1">Please arrive 10 mins early.</p>
+                    </div>
+                </div>`;
+             }
+        }
 
         if (child.status === 'Trial Completed') {
             statusBadge = 'Assessment Ready'; statusColor = 'bg-blue-100 text-blue-700';
             const rec = child.recommended_batch || 'Standard';
-            // Logic to show "Special Needs" or "PT" in the card text if applicable
             let subText = `Trainer recommends: <strong>${rec}</strong>`;
             if (child.special_needs) subText = `<strong>Special Needs Program</strong> recommended.`;
             if (child.skills_rating?.personal_training) subText += ` <br>(Personal Training Advised)`;
@@ -129,7 +279,7 @@ export async function loadParentDashboard(email) {
     container.innerHTML = html;
 }
 
-// --- 3. SMART REGISTRATION LOGIC (RESTORED) ---
+// --- 3. SMART REGISTRATION LOGIC ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
@@ -146,8 +296,6 @@ export function openRegistrationModal(leadString, isRenewal) {
     const batchCatEl = document.getElementById('reg-batch-category');
     batchCatEl.innerHTML = ''; 
 
-    // --- RESTORED LOGIC: Check for Special Needs / PT Recommendation ---
-    // If trainer checked "Special Needs" or "PT", we should pre-select or notify
     const isSpecial = child.special_needs;
     const isPT = child.skills_rating?.personal_training;
 
@@ -164,13 +312,11 @@ export function openRegistrationModal(leadString, isRenewal) {
         if(age >= 5 && age <= 8) batchCatEl.innerHTML += `<option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>`;
         if(age >= 8 && age < 15) batchCatEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
         
-        // --- RESTORED: Add Special/PT Options if applicable ---
         if (isSpecial) batchCatEl.innerHTML += `<option value="Special Needs" selected>Special Needs</option>`;
         if (isPT) batchCatEl.innerHTML += `<option value="Personal Training" selected>Personal Training</option>`;
         
         batchCatEl.innerHTML += `<option value="Other">Other / Request Change</option>`;
         
-        // Auto-select logic
         if (isPT) batchCatEl.value = "Personal Training";
         else if (isSpecial) batchCatEl.value = "Special Needs";
         else if (child.recommended_batch) {
@@ -179,7 +325,6 @@ export function openRegistrationModal(leadString, isRenewal) {
         }
     }
 
-    // 2. Load Packages/UI
     window.checkApprovalRequirement(); // This now triggers UI update for PT too
 
     // 3. State Handling (Approved vs Pending)
@@ -222,7 +367,6 @@ export function updatePackageOptions() {
     window.calculateTotal();
 }
 
-// --- RESTORED: Logic to Switch between Batch UI and PT UI ---
 export function checkApprovalRequirement() {
     const age = parseInt(document.getElementById('reg-child-age').innerText);
     const batchCat = document.getElementById('reg-batch-category').value;
@@ -242,18 +386,17 @@ export function checkApprovalRequirement() {
         pkgSelectContainer.classList.remove('hidden');
         ptOptionsContainer.classList.add('hidden');
         ptOptionsContainer.classList.remove('grid');
-        window.updatePackageOptions(); // Refresh standard packages
+        window.updatePackageOptions(); 
     }
 
     // 2. Approval Logic
     let needsApproval = false;
     
-    // Changing from recommended
     if (recBatch && batchCat !== recBatch && batchCat !== "Other" && batchCat !== "Personal Training") {
         if (age < ADULT_AGE_THRESHOLD) needsApproval = true;
     }
     if (batchCat === 'Other') needsApproval = true;
-    if (batchCat === 'Personal Training' && !currentLeadData.skills_rating?.personal_training) needsApproval = true; // Selected PT but not recommended
+    if (batchCat === 'Personal Training' && !currentLeadData.skills_rating?.personal_training) needsApproval = true; 
     if (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning') needsApproval = true;
 
     // UI Toggle
@@ -274,10 +417,9 @@ export function checkApprovalRequirement() {
         paySection.classList.remove('hidden');
     }
     
-    window.calculateTotal(); // Recalculate based on new mode
+    window.calculateTotal(); 
 }
 
-// --- RESTORED: Calculate Total handles both PT and Batch ---
 export function calculateTotal() {
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     const batchCat = document.getElementById('reg-batch-category').value;
@@ -303,7 +445,7 @@ export function calculateTotal() {
     document.getElementById('total-price').innerText = total;
 }
 
-// --- 4. SUBMIT (Handles PT Fields) ---
+// --- 4. SUBMIT ---
 export async function submitRegistration(actionType) {
     const batchCat = document.getElementById('reg-batch-category').value;
     const total = document.getElementById('total-price').innerText;
