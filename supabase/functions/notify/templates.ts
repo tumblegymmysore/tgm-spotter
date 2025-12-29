@@ -1,16 +1,20 @@
 // supabase/functions/notify/templates.ts
 
-// 1. WELCOME EMAIL (Updated with Trial Slot Logic)
+// ==========================================
+// 1. WELCOME EMAIL (Fixed: Dress Code, Time, Legal)
+// ==========================================
 export const generateWelcomeEmail = (data: any) => {
   const dobDate = new Date(data.dob);
-  const formattedDOB = dobDate.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
+  const formattedDOB = dobDate.toLocaleDateString("en-IN", { day: 'numeric', month: 'short', year: 'numeric' });
   const ageDiffMs = Date.now() - dobDate.getTime();
   const age = Math.abs(new Date(ageDiffMs).getUTCFullYear() - 1970);
+  
+  // Consent Badge
   const consentBadge = data.marketing_consent 
     ? `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">YES</span>` 
     : `<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">NO</span>`;
 
-  // --- NEW: Trial Slot Display Logic ---
+  // Trial Slot Display Logic
   let trialInfoHTML = "";
   if (data.trial_scheduled_slot) {
       if (data.trial_scheduled_slot.includes('Adult')) {
@@ -18,10 +22,9 @@ export const generateWelcomeEmail = (data: any) => {
           trialInfoHTML = `
             <div style="background-color: #fff7ed; border-left: 4px solid #ea580c; padding: 15px; margin: 20px 0; border-radius: 4px;">
                 <h3 style="margin-top: 0; color: #9a3412; font-size: 16px;">Appointment Required</h3>
-                <p style="margin-bottom: 5px; color: #9a3412; font-size: 14px;">Since you are enrolling as an Adult for Evening sessions, please contact us to schedule your specific PT slot.</p>
+                <p style="margin-bottom: 5px; color: #9a3412; font-size: 14px;">Since you are enrolling as an Adult, please contact us to schedule your specific slot.</p>
                 <a href="https://wa.me/918618684685" style="display:inline-block; margin-top:10px; background:#ea580c; color:white; text-decoration:none; padding:8px 15px; border-radius:4px; font-weight:bold; font-size:12px;">Message on WhatsApp</a>
-            </div>
-          `;
+            </div>`;
       } else {
           // Case: Specific Slot Selected
           try {
@@ -29,21 +32,24 @@ export const generateWelcomeEmail = (data: any) => {
             const isoDate = parts[0].trim();
             const time = parts[1].trim();
             const dateObj = new Date(isoDate);
-            const dateReadable = dateObj.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
+            const dateReadable = dateObj.toLocaleDateString("en-IN", { weekday: 'long', day: 'numeric', month: 'long' });
             
             trialInfoHTML = `
               <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; margin: 20px 0; border-radius: 8px; text-align: center;">
                   <div style="color: #1e3a8a; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Confirmed Trial Slot</div>
                   <div style="color: #2563eb; font-size: 20px; font-weight: bold; margin: 5px 0;">${dateReadable}</div>
                   <div style="color: #1e40af; font-size: 18px;">@ ${time}</div>
-                  <div style="margin-top:10px; font-size:12px; color:#60a5fa;">Please arrive on time!</div>
-              </div>
-            `;
-          } catch (e) {
-             console.error("Error parsing slot", e);
-          }
+                  <div style="margin-top:10px; font-size:12px; color:#60a5fa;">Please arrive on time.</div>
+              </div>`;
+          } catch (e) { console.error("Error parsing slot", e); }
       }
   }
+
+  // Handle Declarations Block
+  // Uses the formatted string from frontend if available, else a default message.
+  const declarationsBlock = data.legal_declarations 
+    ? `<pre style="font-family: inherit; font-size: 11px; color: #64748b; white-space: pre-wrap; margin: 0; line-height: 1.4;">${data.legal_declarations}</pre>`
+    : `<p><strong>Declaration:</strong> By submitting, you acknowledge inherent risks and release The Tumble Gym from liability.</p>`;
 
   return `
     <!DOCTYPE html>
@@ -67,7 +73,8 @@ export const generateWelcomeEmail = (data: any) => {
           .info-table th { text-align: left; padding: 10px 15px; color: #64748b; font-size: 11px; text-transform: uppercase; border-bottom: 1px solid #e2e8f0; background: #f8fafc; width: 35%; }
           .info-table td { padding: 10px 15px; font-size: 13px; color: #0f172a; font-weight: 500; border-bottom: 1px solid #e2e8f0; }
           .info-table tr:last-child td { border-bottom: none; }
-          .declaration { margin-top: 30px; font-size: 10px; color: #94a3b8; text-align: center; border-top: 1px solid #e2e8f0; padding-top: 20px; }
+          .declaration-box { margin-top: 30px; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 15px; }
+          .declaration-title { font-size: 12px; font-weight: bold; color: #475569; margin-bottom: 8px; text-transform: uppercase; }
         </style>
       </head>
       <body>
@@ -79,7 +86,7 @@ export const generateWelcomeEmail = (data: any) => {
           <div class="body-content">
             <div>
               <strong>Dear ${data.parent_name},</strong><br><br>
-              Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore!
+              Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore! We are excited to welcome your child and introduce them to the wonderful world of gymnastics.
             </div>
             
             ${trialInfoHTML}
@@ -87,14 +94,20 @@ export const generateWelcomeEmail = (data: any) => {
             <div class="next-steps">
               <h3>Next Steps:</h3>
               <ul>
-                <li><strong>Preparation:</strong> Please ensure your child wears comfortable clothing suitable for physical activity.</li>
-                <li><strong>Arrival:</strong> Plan to arrive 10 minutes early to settle in.</li>
+                <li><strong>Dress Code:</strong> Please wear comfortable clothing (e.g., shorts/leggings and a t-shirt). No zippers or buttons.</li>
+                <li><strong>Timing:</strong> Please arrive on time for the session.</li>
+                <li><strong>Water:</strong> Bring a water bottle.</li>
               </ul>
             </div>
+            
             <div class="closing-text">
-              Questions? <a href="mailto:tumblegymmysore@gmail.com">tumblegymmysore@gmail.com</a> or <a href="tel:+918618684685">+91 8618684685</a>.
-              <br><br>We look forward to seeing you!<br><strong>The Tumble Gym Team</strong>
+              If you have any questions or need to reschedule, please do not hesitate to contact us at <a href="mailto:tumblegymmysore@gmail.com">tumblegymmysore@gmail.com</a> or <a href="tel:+918618684685">+91 8618684685</a>.
+              <br><br>
+              We look forward to seeing you and your child soon!
+              <br>
+              <strong>Warm regards,<br>The Tumble Gym Team</strong>
             </div>
+
             <div class="reference-header">Submission Reference Details</div>
             <table class="info-table">
               <tr><th>Child Name</th><td>${data.child_name}</td></tr>
@@ -111,11 +124,13 @@ export const generateWelcomeEmail = (data: any) => {
             </table>
             <table class="info-table">
               <tr><th>Intent</th><td>${data.intent}</td></tr>
-              <tr><th>Source</th><td>${data.source}</td></tr>
+              <tr><th>Source</th><td>${data.source || data.how_heard || 'Web'}</td></tr>
               <tr><th>Marketing</th><td>${consentBadge}</td></tr>
             </table>
-            <div class="declaration">
-              <p><strong>Declaration:</strong> By submitting, you acknowledge inherent risks and release The Tumble Gym from liability.</p>
+            
+            <div class="declaration-box">
+              <div class="declaration-title">Legal Declarations & Consent</div>
+              ${declarationsBlock}
             </div>
           </div>
         </div>
@@ -124,7 +139,9 @@ export const generateWelcomeEmail = (data: any) => {
   `;
 };
 
-// 2. TRIAL FEEDBACK EMAIL (Preserved exactly as original)
+// ==========================================
+// 2. TRIAL FEEDBACK EMAIL (Original Logic)
+// ==========================================
 export const generateFeedbackEmail = (data: any) => {
   
   const isSpecial = data.special_needs;
