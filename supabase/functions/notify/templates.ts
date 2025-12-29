@@ -1,6 +1,6 @@
 // supabase/functions/notify/templates.ts
 
-// 1. WELCOME EMAIL (Preserved)
+// 1. WELCOME EMAIL (Updated with Trial Slot)
 export const generateWelcomeEmail = (data: any) => {
   const dobDate = new Date(data.dob);
   const formattedDOB = dobDate.toLocaleDateString("en-US", { year: 'numeric', month: 'long', day: 'numeric' });
@@ -9,6 +9,41 @@ export const generateWelcomeEmail = (data: any) => {
   const consentBadge = data.marketing_consent 
     ? `<span style="background-color: #dcfce7; color: #166534; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">YES</span>` 
     : `<span style="background-color: #fee2e2; color: #991b1b; padding: 2px 6px; border-radius: 4px; font-size: 10px; font-weight: bold;">NO</span>`;
+
+  // --- NEW: Parse Trial Slot ---
+  let trialInfoHTML = "";
+  if (data.trial_scheduled_slot) {
+      if (data.trial_scheduled_slot.includes('Adult')) {
+          // Adult Case
+          trialInfoHTML = `
+            <div style="background-color: #fff7ed; border-left: 4px solid #ea580c; padding: 15px; margin: 20px 0; border-radius: 4px;">
+                <h3 style="margin-top: 0; color: #9a3412; font-size: 16px;">Appointment Required</h3>
+                <p style="margin-bottom: 5px; color: #9a3412; font-size: 14px;">Since you are enrolling as an Adult for Evening sessions, please contact us to schedule your specific PT slot.</p>
+                <a href="https://wa.me/918618684685" style="display:inline-block; margin-top:10px; background:#ea580c; color:white; text-decoration:none; padding:8px 15px; border-radius:4px; font-weight:bold; font-size:12px;">Message on WhatsApp</a>
+            </div>
+          `;
+      } else {
+          // Scheduled Slot Case
+          try {
+            const parts = data.trial_scheduled_slot.split('|');
+            const isoDate = parts[0].trim();
+            const time = parts[1].trim();
+            const dateObj = new Date(isoDate);
+            const dateReadable = dateObj.toLocaleDateString("en-US", { weekday: 'long', month: 'long', day: 'numeric' });
+            
+            trialInfoHTML = `
+              <div style="background-color: #eff6ff; border: 1px solid #bfdbfe; padding: 15px; margin: 20px 0; border-radius: 8px; text-align: center;">
+                  <div style="color: #1e3a8a; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px;">Confirmed Trial Slot</div>
+                  <div style="color: #2563eb; font-size: 20px; font-weight: bold; margin: 5px 0;">${dateReadable}</div>
+                  <div style="color: #1e40af; font-size: 18px;">@ ${time}</div>
+                  <div style="margin-top:10px; font-size:12px; color:#60a5fa;">Please arrive 10 minutes early!</div>
+              </div>
+            `;
+          } catch (e) {
+             console.error("Error parsing slot", e);
+          }
+      }
+  }
 
   return `
     <!DOCTYPE html>
@@ -21,10 +56,10 @@ export const generateWelcomeEmail = (data: any) => {
           .header h1 { margin: 0; font-size: 24px; font-weight: bold; }
           .header p { margin: 5px 0 0; opacity: 0.9; font-size: 14px; }
           .body-content { padding: 30px; line-height: 1.6; color: #374151; }
-          .next-steps { background-color: #eff6ff; border-left: 4px solid #2563eb; padding: 20px; margin: 20px 0; border-radius: 4px; }
-          .next-steps h3 { margin-top: 0; color: #1e3a8a; font-size: 16px; margin-bottom: 10px; }
+          .next-steps { background-color: #f8fafc; padding: 20px; margin: 20px 0; border-radius: 4px; border: 1px solid #e2e8f0; }
+          .next-steps h3 { margin-top: 0; color: #334155; font-size: 16px; margin-bottom: 10px; }
           .next-steps ul { margin-bottom: 0; padding-left: 20px; margin-top: 0; }
-          .next-steps li { margin-bottom: 8px; font-size: 14px; color: #1e40af; }
+          .next-steps li { margin-bottom: 8px; font-size: 14px; color: #475569; }
           .closing-text { margin: 20px 0 30px 0; font-size: 14px; color: #4b5563; }
           .closing-text a { color: #2563eb; text-decoration: none; font-weight: bold; }
           .reference-header { background-color: #f1f5f9; padding: 10px 15px; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; color: #64748b; border-top: 2px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; margin-top: 10px; margin-bottom: 15px; }
@@ -46,10 +81,14 @@ export const generateWelcomeEmail = (data: any) => {
               <strong>Dear ${data.parent_name},</strong><br><br>
               Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore!
             </div>
+            
+            ${trialInfoHTML}
+
             <div class="next-steps">
-              <h3>Next Steps:</h3>
+              <h3>Important Instructions:</h3>
               <ul>
-                <li><strong>Preparation:</strong> Please ensure your child wears comfortable clothing suitable for physical activity.</li>
+                <li><strong>Clothing:</strong> Comfortable sportswear (shorts/leggings & t-shirt). No zippers/buttons.</li>
+                <li><strong>Water:</strong> Please bring a water bottle.</li>
                 <li><strong>Arrival:</strong> Plan to arrive 10 minutes early to settle in.</li>
               </ul>
             </div>
@@ -68,13 +107,6 @@ export const generateWelcomeEmail = (data: any) => {
               <tr><th>Parent Name</th><td>${data.parent_name}</td></tr>
               <tr><th>Mobile</th><td>+91 ${data.phone}</td></tr>
               <tr><th>Email</th><td>${data.email}</td></tr>
-              <tr><th>Address</th><td>${data.address || 'N/A'}</td></tr>
-              <tr><th>Alternate No.</th><td>${data.alternate_phone || 'N/A'}</td></tr>
-            </table>
-            <table class="info-table">
-              <tr><th>Intent</th><td>${data.intent}</td></tr>
-              <tr><th>Source</th><td>${data.source}</td></tr>
-              <tr><th>Marketing</th><td>${consentBadge}</td></tr>
             </table>
             <div class="declaration">
               <p><strong>Declaration:</strong> By submitting, you acknowledge inherent risks and release The Tumble Gym from liability.</p>
@@ -86,18 +118,15 @@ export const generateWelcomeEmail = (data: any) => {
   `;
 };
 
-// 2. TRIAL FEEDBACK EMAIL (Smart Logic Update)
+// 2. TRIAL FEEDBACK EMAIL (Preserved)
 export const generateFeedbackEmail = (data: any) => {
-  
   const isSpecial = data.special_needs;
   const isPT = data.pt_recommended;
   const feedback = data.feedback && data.feedback.trim() !== "" ? data.feedback : "";
 
   // 1. Define Visual Blocks
   const ptBlock = `<div style="background-color:#fefce8; border:1px solid #fde047; padding:12px; margin-top:10px; border-radius:6px; color:#854d0e; font-size:14px; font-weight:bold;">✨ Personal Training Recommended</div>`;
-  
   const specialBlock = `<div style="background-color:#f3e8ff; border:1px solid #d8b4fe; padding:12px; margin-top:10px; border-radius:6px; color:#6b21a8; font-size:14px; font-weight:bold;">🌟 Special Needs / Adapted Program</div>`;
-  
   const batchBlock = `
     <hr style="border:0; border-top:1px solid #bbf7d0; margin:15px 0;">
     <div style="font-size:14px;">
@@ -110,19 +139,14 @@ export const generateFeedbackEmail = (data: any) => {
 
   if (isSpecial) {
       if (isPT) {
-          // Case: Special Needs + PT -> Show Both (Usually implies customized attention)
           recommendationHTML = specialBlock + ptBlock;
       } else {
-          // Case: Special Needs + Batch -> Show Both
           recommendationHTML = specialBlock + batchBlock;
       }
   } else {
-      // Case: Regular Kid
       if (isPT) {
-          // Case: PT Only (Hide Batch per instruction)
           recommendationHTML = ptBlock;
       } else {
-          // Case: Regular Batch
           recommendationHTML = batchBlock;
       }
   }
