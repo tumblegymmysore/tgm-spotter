@@ -1,4 +1,4 @@
-// js/roles/parent.js (v65 - Validation Fixes + Optimization)
+// js/roles/parent.js (v66 - Fix: Separate DB Data vs Email Data)
 import { supabaseClient, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
 
@@ -97,7 +97,7 @@ window.generateTrialSlots = () => {
     });
 };
 
-// --- 2. INTAKE FORM ---
+// --- 2. INTAKE FORM (Fix: Split DB vs Email Data) ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
     const btn = document.getElementById('btn-submit');
@@ -109,14 +109,12 @@ export async function handleIntakeSubmit(e) {
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 
     const trialSlot = document.getElementById('selected-trial-slot').value;
     
-    // B. Capture Source (Fixing Null Issue)
     let sourceVal = document.getElementById('source').value;
     if(sourceVal.includes('Other')) sourceVal = document.getElementById('source_other').value;
 
-    // C. Validation (Specific & Apt)
+    // B. Validation
     if (phone.length !== 10) return showErrorModal("Invalid Mobile Number", "Primary number should be a valid 10-digit mobile number for WhatsApp communication.");
     
-    // Logic: Landlines start with '0' (STD code). Mobiles don't.
     const isLandline = altPhone.startsWith('0');
     if (isLandline) {
         if (altPhone.length < 10 || altPhone.length > 12) return showErrorModal("Invalid Landline Number", "Landline numbers must include the STD code (starting with 0) and be 10-12 digits long.");
@@ -135,8 +133,8 @@ export async function handleIntakeSubmit(e) {
     let intentVal = document.getElementById('intent').value;
     if(intentVal.includes('Other')) intentVal = document.getElementById('intent_other').value;
 
-    // Construct Data
-    const formData = {
+    // 1. DATA FOR DATABASE (Strict Schema Compliance)
+    const dbData = {
         parent_name: document.getElementById('p_name').value.trim(), 
         child_name: document.getElementById('k_name').value.trim(),
         phone: phone, email: email, 
@@ -144,30 +142,37 @@ export async function handleIntakeSubmit(e) {
         dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
         intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
         how_heard: sourceVal, 
-        source: sourceVal, // Added Alias for Email Template
         alternate_phone: altPhone,
         marketing_consent: document.getElementById('marketing_check').checked,
-        terms_accepted: true, // Explicit flag for email
-        legal_declarations: "Risk Acknowledgement, Liability Waiver, Medical Fitness, Media Consent, Policy Agreement", // Explicit text for email
         trial_scheduled_slot: trialSlot,
         is_trial: true, status: 'Pending Trial', submitted_at: new Date()
     };
 
     try {
+        // Auth
         const { data: authData } = await supabaseClient.auth.signUp({ email: email, password: phone });
         if(authData.user) {
             const { data: roleData } = await supabaseClient.from('user_roles').select('*').eq('id', authData.user.id);
             if(!roleData || roleData.length === 0) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
         }
         
-        const { error } = await supabaseClient.from('leads').insert([formData]);
+        // DB Insert (Using strict dbData)
+        const { error } = await supabaseClient.from('leads').insert([dbData]);
         if (error) {
             if (error.code === '23505') throw new Error("Welcome Back! It looks like you are already registered. Please check your email or contact support.");
             throw error;
         }
         
+        // 2. DATA FOR EMAIL (Enriched with Alias & Declarations)
+        const emailData = {
+            ...dbData,
+            source: sourceVal, // Fix: Alias 'how_heard' to 'source' for email template
+            terms_accepted: true, // Fix: Explicit flag
+            legal_declarations: "Risk Acknowledgement, Liability Waiver, Medical Fitness, Media Consent, Policy & Non-Refundable Fee Agreement" // Fix: Full text for email
+        };
+
         await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { 
-            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: formData}) 
+            method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: emailData}) 
         });
 
         // Success Handling
@@ -185,7 +190,7 @@ export async function handleIntakeSubmit(e) {
     } catch (err) { showErrorModal("Submission Failed", err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
 }
 
-// --- 3. PARENT DASHBOARD (Optimized with Strategy Pattern) ---
+// --- 3. PARENT DASHBOARD ---
 export async function loadParentDashboard(email) {
     showView('parent-portal');
     const container = document.getElementById('parent-content');
