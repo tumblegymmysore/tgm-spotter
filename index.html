@@ -244,7 +244,7 @@
         </div>
     </div>
 
-<div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
+    <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
     <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
         
         <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
@@ -257,112 +257,146 @@
             </button>
         </div>
 
-        <div class="p-6 overflow-y-auto space-y-6">
+        <div class="p-6 overflow-y-auto space-y-8">
             <input type="hidden" id="is-renewal">
             <input type="hidden" id="default-batch-rec">
             <input type="hidden" id="calc-final-price">
 
-            <div class="bg-blue-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+            <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex items-center justify-between">
                 <div>
-                    <p class="text-xs text-blue-500 font-bold uppercase mb-1">Trainer Recommendation</p>
-                    <h3 id="reg-program-display" class="text-lg font-bold text-blue-900">Loading...</h3>
+                    <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">Recommended Program</p>
+                    <h3 id="reg-program-display" class="text-xl font-extrabold text-blue-900">Loading...</h3>
                 </div>
-                <div class="w-10 h-10 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center">
-                    <i class="fas fa-dumbbell"></i>
+                <div class="w-12 h-12 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-sm text-xl">
+                    <i class="fas fa-medal"></i>
                 </div>
             </div>
 
-            <div class="bg-white p-5 rounded-2xl border border-slate-100 shadow-sm">
-                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4"><i class="fas fa-sliders-h mr-2"></i> Configure Plan</h3>
+            <div class="bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Days</h3>
+                <p class="text-xs text-slate-500 mb-4">Select preferred days (Classes not available Mondays).</p>
                 
-                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Tuesday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Tuesday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Wednesday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Wednesday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Thursday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Thursday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Friday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Friday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Saturday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Saturday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Sunday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Sunday</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4"><i class="fas fa-sliders-h mr-2"></i> Customize Plan</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Time Preference</label>
-                        <select id="reg-time-slot" onchange="window.updatePackageOptions()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium w-full bg-slate-50">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Time Preference</label>
+                        <select id="reg-time-slot" onchange="window.updatePackageOptions()" class="input-field w-full bg-white">
                             <option value="Evening">Evening / Weekend</option>
                             <option value="Morning">Morning (Mixed Batch)</option>
                         </select>
                     </div>
 
                     <div id="group-batch-select">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Batch Category</label>
-                        <select id="reg-batch-category" onchange="window.checkApprovalRequirement()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium w-full bg-slate-50">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Batch Category</label>
+                        <select id="reg-batch-category" onchange="window.checkApprovalRequirement()" class="input-field w-full bg-white">
                             </select>
                     </div>
 
                     <div class="md:col-span-2">
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Select Package</label>
-                        <select id="reg-package-select" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl border-slate-200 text-sm font-medium w-full bg-white border-2 border-blue-100 focus:border-blue-500">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Select Package</label>
+                        <select id="reg-package-select" onchange="window.calculateTotal()" class="input-field w-full bg-white border-2 border-slate-200 focus:border-blue-500 text-slate-800 font-bold">
                             <option value="" disabled selected>Select a Package...</option>
                             </select>
                     </div>
 
-                    <div id="group-pt-options" class="hidden md:col-span-2 grid grid-cols-2 gap-4">
+                    <div id="group-pt-options" class="hidden md:col-span-2 grid grid-cols-2 gap-6">
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">PT Level</label>
-                            <select id="reg-pt-level" onchange="window.calculateTotal()" class="input-field p-3 rounded-xl text-sm w-full">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">PT Level</label>
+                            <select id="reg-pt-level" onchange="window.calculateTotal()" class="input-field w-full bg-white">
                                 <option value="Beginner">Beginner</option>
                                 <option value="Intermediate">Intermediate</option>
                                 <option value="Advanced">Advanced</option>
                             </select>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-1">No. of Classes</label>
-                            <input type="number" id="reg-pt-sessions" value="10" class="input-field p-3 rounded-xl text-sm w-full">
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">No. of Classes</label>
+                            <input type="number" id="reg-pt-sessions" value="10" class="input-field w-full bg-white">
                         </div>
                     </div>
-
                 </div>
             </div>
 
             <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                 
-                <div id="approval-notice" class="hidden mb-4 p-3 bg-yellow-50 border border-yellow-200 rounded-lg text-xs text-yellow-800 flex items-start">
-                    <i class="fas fa-exclamation-circle mt-0.5 mr-2"></i>
-                    <span>
-                        <strong>Admin Approval Required:</strong> You have selected options that differ from the standard recommendation. You can submit this request, but payment will be enabled after Admin verification.
-                    </span>
+                <div id="approval-notice" class="hidden mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                    <i class="fas fa-info-circle text-amber-600 mt-0.5"></i>
+                    <div class="text-xs text-amber-800 leading-relaxed">
+                        <strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve the final fee shortly.
+                    </div>
                 </div>
 
                 <div class="flex justify-between items-center mb-4">
                     <span class="text-sm font-bold text-slate-500">Registration Fee</span>
                     <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
                 </div>
-                <div class="flex justify-between items-center mb-4 pt-4 border-t border-slate-200">
-                    <span class="text-lg font-bold text-slate-800">Total Amount</span>
-                    <span class="text-2xl font-black text-blue-600">₹<span id="total-price">0</span></span>
+                <div class="flex justify-between items-center mb-6 pt-4 border-t border-slate-200">
+                    <span class="text-lg font-bold text-slate-800">Total Payable</span>
+                    <span class="text-3xl font-black text-blue-600 tracking-tight">₹<span id="total-price">0</span></span>
                 </div>
 
-                <div id="payment-section" class="space-y-3 transition-all duration-300">
-                    <label class="block text-xs font-bold text-slate-500 uppercase">Start Date</label>
-                    <input type="date" id="reg-date" class="input-field p-3 rounded-xl bg-white text-sm w-full border-slate-200">
-                    
-                    <label class="block text-xs font-bold text-slate-500 uppercase mt-4">Upload Payment Screenshot</label>
-                    <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 cursor-pointer">
+                <div id="payment-section" class="space-y-4 transition-all duration-300">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Start Date</label>
+                        <input type="date" id="reg-date" class="input-field w-full bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Payment Screenshot</label>
+                        <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
+                    </div>
                 </div>
             </div>
 
             <div class="flex items-start gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
                 <input type="checkbox" id="reg-consent" class="mt-1 accent-blue-600 w-5 h-5 rounded cursor-pointer">
                 <label for="reg-consent" class="text-xs text-slate-600 leading-relaxed cursor-pointer">
-                    I acknowledge that participation in gymnastics carries inherent risks. I release Tumble Gym Mysore from liability for injuries. I agree to the <a href="#" class="text-blue-600 underline">Terms & Conditions</a>. (Membership is non-transferable/non-refundable).
+                    I acknowledge that participation carries inherent risks. I release Tumble Gym Mysore from liability. I agree to the <a href="#" class="text-blue-600 underline font-bold">Terms & Conditions</a>.
                 </label>
             </div>
         </div>
 
         <div class="bg-white p-4 border-t border-slate-100 flex gap-3 sticky bottom-0 z-10">
-            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 py-3 rounded-xl text-slate-500 font-bold hover:bg-slate-50 transition">Cancel</button>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 py-3.5 rounded-xl text-slate-500 font-bold hover:bg-slate-50 transition">Cancel</button>
             
-            <button id="btn-submit-pay" onclick="window.submitRegistration('PAY')" class="flex-1 bg-green-600 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-green-700 transition hidden">
-                Pay & Enroll
+            <button id="btn-submit-pay" onclick="window.submitRegistration('PAY')" class="flex-1 bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 transition hidden">
+                Pay & Enroll <i class="fas fa-check-circle ml-2"></i>
             </button>
-            <button id="btn-submit-request" onclick="window.submitRegistration('REQUEST')" class="flex-1 bg-orange-500 text-white font-bold py-3 rounded-xl shadow-lg hover:bg-orange-600 transition hidden">
-                Request Approval
+            
+            <button id="btn-submit-request" onclick="window.submitRegistration('REQUEST')" class="flex-1 bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition hidden">
+                Request Approval <i class="fas fa-paper-plane ml-2"></i>
             </button>
         </div>
     </div>
-</div>
+    </div>
     
     <div id="admin-modal" class="modal-overlay hidden">
         <div class="modal-content"><div id="admin-modal-body"></div><button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button></div>
