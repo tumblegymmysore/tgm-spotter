@@ -1,9 +1,25 @@
-// js/roles/trainer.js
+// js/roles/trainer.js (v52 - Skeleton Loaders)
 import { supabaseClient } from '../config.js';
 import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
 let currentAssessmentLead = null;
 
+// --- 1. SKELETON (NEW) ---
+function getTrainerSkeleton() {
+    return `
+    <div class="bg-white p-4 rounded-lg border border-slate-100 animate-pulse mb-3">
+        <div class="flex justify-between items-start mb-2">
+            <div class="space-y-2 w-2/3">
+                <div class="h-5 bg-slate-200 rounded w-1/2"></div>
+                <div class="h-4 bg-slate-200 rounded w-1/3"></div>
+            </div>
+            <div class="h-6 w-16 bg-slate-200 rounded"></div>
+        </div>
+        <div class="h-10 bg-slate-200 rounded mt-3 w-full"></div>
+    </div>`;
+}
+
+// --- 2. TRAINER DASHBOARD ---
 export async function loadTrainerDashboard(trainerName) {
     showView('trainer');
     const welcomeEl = document.getElementById('trainer-welcome');
@@ -17,18 +33,25 @@ export async function fetchTrials() {
     const listNew = document.getElementById('list-new-trials');
     const listDone = document.getElementById('list-completed-trials');
     if (!listNew) return;
-    listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Syncing data...</p>';
+
+    // UX UPGRADE: Inject skeletons instantly
+    listNew.innerHTML = getTrainerSkeleton() + getTrainerSkeleton();
+    // Keep completed list clean or maybe simple text, as urgency is on New Trials
+    listDone.innerHTML = '<p class="text-xs text-slate-400">Loading history...</p>';
 
     try {
         const { data, error } = await supabaseClient.from('leads').select('*').order('submitted_at', { ascending: false });
         if (error) { listNew.innerHTML = `<div class="p-3 bg-red-50 text-red-600 text-xs rounded">Access Denied: ${error.message}</div>`; return; }
+        
         listNew.innerHTML = ''; listDone.innerHTML = '';
         if (!data || data.length === 0) { listNew.innerHTML = '<p class="text-slate-400 text-sm">No new requests.</p>'; return; }
+        
         data.forEach(lead => {
             const card = createTrialCard(lead);
             if (lead.status === 'Pending Trial') listNew.innerHTML += card;
             else if (lead.status === 'Trial Completed') listDone.innerHTML += card;
         });
+        
         if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending requests.</p>';
     } catch (err) { console.error("Crash:", err); listNew.innerHTML = `<p class="text-red-500 text-sm">System Crash</p>`; }
 }
@@ -57,7 +80,8 @@ function createTrialCard(lead) {
     </div>`;
 }
 
-export async function fetchInbox() {
+// ... (Keep existing fetchInbox, openAssessment, submitAssessment, switchTab exports same as before) ...
+export async function fetchInbox() { /* Same as before */ 
     const container = document.getElementById('list-inbox');
     if (!container) return;
     try {
@@ -90,7 +114,7 @@ export async function fetchInbox() {
     } catch (e) { console.warn("Inbox Error:", e); }
 }
 
-export function openAssessment(leadString) {
+export function openAssessment(leadString) { /* Same as before */
     const lead = JSON.parse(decodeURIComponent(leadString));
     currentAssessmentLead = lead; 
     document.getElementById('assess-lead-id').value = lead.id;
@@ -106,7 +130,7 @@ export function openAssessment(leadString) {
     document.getElementById('assessment-modal').classList.remove('hidden');
 }
 
-export async function submitAssessment() {
+export async function submitAssessment() { /* Same as before */
     const btn = document.getElementById('btn-save-assess'); const orgTxt = btn.innerText;
     const feedback = document.getElementById('assess-feedback').value;
     const batch = document.getElementById('assess-batch').value;
