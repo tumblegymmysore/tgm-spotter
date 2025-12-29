@@ -155,4 +155,472 @@
             </button>
             <button onclick="window.switchTab('inbox')" id="tab-btn-inbox" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600 relative">
                 <i class="fas fa-inbox mr-2"></i>Inbox
-                <span id="inbox-badge" class="hidden absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2
+                <span id="inbox-badge" class="hidden absolute top-2 right-2 w-3 h-3 bg-red-500 rounded-full border-2 border-white"></span>
+            </button>
+            <button onclick="window.switchTab('batches')" id="tab-btn-batches" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600">
+                <i class="fas fa-users mr-2"></i>My Batches
+            </button>
+            <button onclick="window.switchTab('attendance')" id="tab-btn-attendance" class="tab-btn px-6 py-3 font-bold text-slate-500 hover:text-blue-600">
+                <i class="fas fa-check-circle mr-2"></i>Attendance
+            </button>
+        </div>
+
+        <div id="view-trials" class="tab-content">
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-lg mb-4 text-blue-900 flex items-center">
+                        <i class="fas fa-star text-yellow-400 mr-2"></i> New Requests
+                    </h3>
+                    <div id="list-new-trials" class="space-y-3">
+                        <p class="text-sm text-slate-400 italic">Initializing System...</p>
+                    </div>
+                </div>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-slate-100">
+                    <h3 class="font-bold text-lg mb-4 text-green-700 flex items-center">
+                        <i class="fas fa-check-double mr-2"></i> Completed (Recent)
+                    </h3>
+                    <div id="list-completed-trials" class="space-y-3"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-inbox" class="tab-content hidden">
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+                <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                    <h3 class="font-bold text-slate-700">Recent Conversations</h3>
+                    <button onclick="fetchInbox()" class="text-xs text-blue-600 hover:underline"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="list-inbox" class="divide-y divide-slate-100">
+                    <div class="p-8 text-center text-slate-400">Loading messages...</div>
+                </div>
+            </div>
+        </div>
+
+        <div id="view-batches" class="tab-content hidden">
+            <div class="bg-white p-8 rounded-2xl shadow text-center">
+                <div class="w-16 h-16 bg-blue-100 text-blue-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-layer-group text-2xl"></i></div>
+                <h3 class="text-xl font-bold text-slate-800">Batch Management</h3>
+                <p class="text-slate-500 mb-6">View student lists and batch timings.</p>
+                <button class="bg-blue-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
+            </div>
+        </div>
+
+        <div id="view-attendance" class="tab-content hidden">
+            <div class="bg-white p-8 rounded-2xl shadow text-center">
+                <div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-user-check text-2xl"></i></div>
+                <h3 class="text-xl font-bold text-slate-800">Daily Attendance</h3>
+                <p class="text-slate-500 mb-6">Mark presence for active students.</p>
+                <button class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
+            </div>
+        </div>
+
+    </div>
+
+    <div id="admin" class="hide pt-24 px-4 fade-in max-w-6xl mx-auto pb-20">
+        <div class="flex justify-between items-end mb-8"><h1 class="text-3xl font-bold text-slate-800">Admin Dashboard</h1></div>
+        <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+            <div class="stat-card"><div class="stat-value" id="stat-total">0</div><div class="stat-label">Total Leads</div></div>
+            <div class="stat-card"><div class="stat-value text-yellow-600" id="stat-reqs">0</div><div class="stat-label">Reg Requests</div></div>
+        </div>
+        <div class="bg-white p-6 rounded-2xl shadow"><div class="overflow-x-auto"><table class="w-full text-left text-sm"><tbody id="admin-list"></tbody></table></div></div>
+    </div>
+
+    <div id="login-modal" class="modal-overlay hidden">
+        <div class="modal-content text-center">
+            <h3 class="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h3>
+            <input type="email" id="login-email" class="input-field mb-3" placeholder="Email Address">
+            <input type="password" id="login-password" class="input-field mb-4" placeholder="Password">
+            <button onclick="window.handleLogin()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg mb-3">Login with Password</button>
+            <button onclick="window.handleMagicLink()" class="w-full bg-white text-slate-700 font-bold py-3 rounded-lg border">Email Login Link</button>
+            <button onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-6 underline">Cancel</button>
+        </div>
+    </div>
+
+    <div id="success-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="modal-content text-center p-8 bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4">
+            <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-check text-2xl text-green-600"></i>
+            </div>
+            <h3 id="success-title" class="text-2xl font-bold text-slate-800 mb-2">Success!</h3>
+            <p id="success-msg" class="text-slate-600 text-sm mb-6">Action completed successfully.</p>
+            <button onclick="document.getElementById('success-modal').classList.add('hidden'); window.location.reload();" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">
+                Awesome
+            </button>
+        </div>
+    </div>
+
+    <div id="error-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm">
+        <div class="modal-content text-center p-8 bg-white rounded-2xl shadow-2xl max-w-sm w-full mx-4 border-t-4 border-red-500">
+            <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
+            </div>
+            
+            <h3 id="error-title" class="text-2xl font-bold text-slate-800 mb-2">Attention Needed</h3>
+            <p id="error-msg" class="text-slate-600 text-sm mb-6">Something went wrong.</p>
+            
+            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition">
+                Okay, I'll Fix It
+            </button>
+        </div>
+    </div>
+
+    <div id="trial-modal" class="modal-overlay hidden">
+        <div class="modal-content">
+            <h3 class="text-lg font-bold mb-2">Assessment</h3>
+            <p class="text-sm mb-4" id="modal-child-name"></p>
+            <label>Feedback</label><textarea id="trainer-feedback" class="input-field mb-4" rows="4"></textarea>
+            <label>Batch</label><select id="trainer-batch" class="input-field mb-6"><option value="3-5 Yrs">3-5 Yrs</option><option value="5-8 Yrs">5-8 Yrs</option><option value="8+ Yrs">8+ Yrs</option><option value="Adult">Adult</option></select>
+            <button id="btn-save-trial" onclick="window.submitTrialResult()" class="w-full bg-green-600 text-white font-bold py-3 rounded-lg">Save</button>
+            <button onclick="document.getElementById('trial-modal').classList.add('hidden')" class="w-full text-slate-400 mt-2 text-xs">Close</button>
+        </div>
+    </div>
+
+    <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
+        
+        <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
+            <div>
+                <h2 class="text-xl font-bold text-slate-800">Complete Registration</h2>
+                <p class="text-xs text-slate-500 font-medium mt-1">Finalize enrollment for <span id="reg-child-name" class="text-blue-600 font-bold">Child</span> (<span id="reg-child-age">0</span> Yrs)</p>
+            </div>
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition flex items-center justify-center shadow-sm">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <div class="p-6 overflow-y-auto space-y-8">
+            <input type="hidden" id="is-renewal">
+            <input type="hidden" id="default-batch-rec">
+            <input type="hidden" id="calc-final-price">
+
+            <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex items-center justify-between">
+                <div>
+                    <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">Recommended Program</p>
+                    <h3 id="reg-program-display" class="text-xl font-extrabold text-blue-900">Loading...</h3>
+                </div>
+                <div class="w-12 h-12 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-sm text-xl">
+                    <i class="fas fa-medal"></i>
+                </div>
+            </div>
+
+            <div class="bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Days</h3>
+                <p class="text-xs text-slate-500 mb-4">Select preferred days (Classes not available Mondays).</p>
+                
+                <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Tuesday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Tuesday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Wednesday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Wednesday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Thursday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Thursday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Friday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Friday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Saturday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Saturday</span>
+                    </label>
+                    <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                        <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded" value="Sunday" name="session_days">
+                        <span class="text-sm text-slate-700 font-bold">Sunday</span>
+                    </label>
+                </div>
+            </div>
+
+            <div>
+                <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-4"><i class="fas fa-sliders-h mr-2"></i> Customize Plan</h3>
+                
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Time Preference</label>
+                        <select id="reg-time-slot" onchange="window.updatePackageOptions()" class="input-field w-full bg-white">
+                            <option value="Evening">Evening / Weekend</option>
+                            <option value="Morning">Morning (Mixed Batch)</option>
+                        </select>
+                    </div>
+
+                    <div id="group-batch-select">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Batch Category</label>
+                        <select id="reg-batch-category" onchange="window.checkApprovalRequirement()" class="input-field w-full bg-white">
+                            </select>
+                    </div>
+
+                    <div class="md:col-span-2">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Select Package</label>
+                        <select id="reg-package-select" onchange="window.calculateTotal()" class="input-field w-full bg-white border-2 border-slate-200 focus:border-blue-500 text-slate-800 font-bold">
+                            <option value="" disabled selected>Select a Package...</option>
+                            </select>
+                    </div>
+
+                    <div id="group-pt-options" class="hidden md:col-span-2 grid grid-cols-2 gap-6">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">PT Level</label>
+                            <select id="reg-pt-level" onchange="window.calculateTotal()" class="input-field w-full bg-white">
+                                <option value="Beginner">Beginner</option>
+                                <option value="Intermediate">Intermediate</option>
+                                <option value="Advanced">Advanced</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">No. of Classes</label>
+                            <input type="number" id="reg-pt-sessions" value="10" class="input-field w-full bg-white">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
+                
+                <div id="approval-notice" class="hidden mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
+                    <i class="fas fa-info-circle text-amber-600 mt-0.5"></i>
+                    <div class="text-xs text-amber-800 leading-relaxed">
+                        <strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve the final fee shortly.
+                    </div>
+                </div>
+
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-bold text-slate-500">Registration Fee</span>
+                    <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
+                </div>
+                <div class="flex justify-between items-center mb-6 pt-4 border-t border-slate-200">
+                    <span class="text-lg font-bold text-slate-800">Total Payable</span>
+                    <span class="text-3xl font-black text-blue-600 tracking-tight">₹<span id="total-price">0</span></span>
+                </div>
+
+                <div id="payment-section" class="space-y-4 transition-all duration-300">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Start Date</label>
+                        <input type="date" id="reg-date" class="input-field w-full bg-white">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Payment Screenshot</label>
+                        <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex items-start gap-3 p-4 bg-yellow-50 rounded-xl border border-yellow-100">
+                <input type="checkbox" id="reg-consent" class="mt-1 accent-blue-600 w-5 h-5 rounded cursor-pointer">
+                <label for="reg-consent" class="text-xs text-slate-600 leading-relaxed cursor-pointer">
+                    I acknowledge that participation carries inherent risks. I release Tumble Gym Mysore from liability. I agree to the <a href="#" class="text-blue-600 underline font-bold">Terms & Conditions</a>.
+                </label>
+            </div>
+        </div>
+
+        <div class="bg-white p-4 border-t border-slate-100 flex gap-3 sticky bottom-0 z-10">
+            <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="flex-1 py-3.5 rounded-xl text-slate-500 font-bold hover:bg-slate-50 transition">Cancel</button>
+            
+            <button id="btn-submit-pay" onclick="window.submitRegistration('PAY')" class="flex-1 bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 transition hidden">
+                Pay & Enroll <i class="fas fa-check-circle ml-2"></i>
+            </button>
+            
+            <button id="btn-submit-request" onclick="window.submitRegistration('REQUEST')" class="flex-1 bg-amber-500 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-amber-200 hover:bg-amber-600 transition hidden">
+                Request Approval <i class="fas fa-paper-plane ml-2"></i>
+            </button>
+        </div>
+    </div>
+    </div>
+    
+    <div id="admin-modal" class="modal-overlay hidden">
+        <div class="modal-content"><div id="admin-modal-body"></div><button onclick="document.getElementById('admin-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs">Close</button></div>
+    </div>
+
+    <div id="assessment-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-lg overflow-hidden flex flex-col max-h-[90vh]">
+            
+            <div class="bg-blue-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-clipboard-check mr-2"></i> Trial Assessment</h3>
+                <button onclick="document.getElementById('assessment-modal').classList.add('hidden')" class="text-blue-100 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div class="p-6 overflow-y-auto">
+                <input type="hidden" id="assess-lead-id">
+                
+                <div class="text-center mb-6">
+                    <h2 id="assess-child-name" class="text-2xl font-bold text-slate-800">Child Name</h2>
+                    <p class="text-slate-500 text-sm">Trial Session Evaluation</p>
+                </div>
+
+                <div class="space-y-4 mb-6">
+                    <label class="block text-sm font-bold text-slate-700 uppercase tracking-wide">Skills Assessment</label>
+                    <div class="grid grid-cols-2 gap-3">
+                        <div class="border p-3 rounded-lg flex justify-between items-center">
+                            <span class="text-sm font-medium">Listening</span>
+                            <input type="checkbox" id="skill-listen" class="w-5 h-5 text-blue-600 rounded">
+                        </div>
+                        <div class="border p-3 rounded-lg flex justify-between items-center">
+                            <span class="text-sm font-medium">Flexibility</span>
+                            <input type="checkbox" id="skill-flex" class="w-5 h-5 text-blue-600 rounded">
+                        </div>
+                        <div class="border p-3 rounded-lg flex justify-between items-center">
+                            <span class="text-sm font-medium">Strength</span>
+                            <input type="checkbox" id="skill-strength" class="w-5 h-5 text-blue-600 rounded">
+                        </div>
+                        <div class="border p-3 rounded-lg flex justify-between items-center">
+                            <span class="text-sm font-medium">Balance</span>
+                            <input type="checkbox" id="skill-balance" class="w-5 h-5 text-blue-600 rounded">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Trainer Feedback</label>
+                    <textarea id="assess-feedback" rows="3" class="w-full border border-slate-300 rounded-lg p-3 text-sm focus:ring-2 focus:ring-blue-500 outline-none" placeholder="E.g., Great energy! Needs to work on focus."></textarea>
+                </div>
+
+                <div class="mb-6">
+                    <label class="block text-sm font-bold text-slate-700 mb-2">Recommendation</label>
+                    
+                    <select id="assess-batch" class="w-full border border-slate-300 rounded-lg p-3 text-sm bg-white mb-3 font-medium text-slate-700">
+                        <option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>
+                        <option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>
+                        <option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>
+                        <option value="Adult Fitness">Adult Fitness</option>
+                    </select>
+
+                    <div class="flex items-center p-3 bg-purple-50 border border-purple-100 rounded-lg mb-2 transition hover:bg-purple-100 cursor-pointer" onclick="document.getElementById('assess-special').click()">
+                        <input type="checkbox" id="assess-special" class="w-5 h-5 text-purple-600 rounded mr-3 pointer-events-none">
+                        <label class="text-sm font-bold text-purple-800 cursor-pointer">Special Needs / Autism?</label>
+                    </div>
+
+                    <div class="flex items-center p-3 bg-blue-50 border border-blue-100 rounded-lg transition hover:bg-blue-100 cursor-pointer" onclick="document.getElementById('assess-pt').click()">
+                        <input type="checkbox" id="assess-pt" class="w-5 h-5 text-blue-600 rounded mr-3 pointer-events-none">
+                        <label class="text-sm font-bold text-blue-800 cursor-pointer">Recommend Personal Training?</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="p-4 border-t bg-slate-50 shrink-0">
+                <button onclick="window.submitAssessment()" id="btn-save-assess" class="w-full bg-green-600 text-white font-bold py-3 rounded-xl hover:bg-green-700 shadow-lg transition flex items-center justify-center">
+                    <span>Complete Trial & Email Parent</span>
+                    <i class="fas fa-paper-plane ml-2"></i>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <div id="chat-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md h-[600px] flex flex-col overflow-hidden">
+            
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="font-bold text-lg" id="chat-header-name">Parent Name</h3>
+                    <p class="text-xs text-slate-400">Student: <span id="chat-student-name">...</span></p>
+                </div>
+                <button onclick="document.getElementById('chat-modal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+
+            <div id="chat-history" class="flex-1 overflow-y-auto p-4 bg-slate-50 space-y-4">
+                <div class="text-center text-xs text-slate-400 mt-4">Start of conversation</div>
+            </div>
+
+            <div class="p-3 bg-white border-t border-slate-200 shrink-0">
+                <div class="flex items-center bg-slate-100 rounded-full px-4 py-2">
+                    <input type="hidden" id="chat-lead-id">
+                    <input type="text" id="chat-input" class="bg-transparent flex-1 outline-none text-sm" placeholder="Type a message to parent...">
+                    <button onclick="window.sendChatMessage()" class="text-blue-600 hover:text-blue-700 ml-2">
+                        <i class="fas fa-paper-plane text-lg"></i>
+                    </button>
+                </div>
+                <p class="text-[10px] text-center text-slate-400 mt-2">
+                    <i class="fas fa-lock text-[8px]"></i> Messages are logged for Admin review.
+                </p>
+            </div>
+        </div>
+    </div>
+
+    <div id="feedback-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-sm p-6">
+            <div class="text-center mb-6">
+                <div class="w-12 h-12 bg-blue-50 text-blue-600 rounded-full flex items-center justify-center mx-auto mb-3">
+                    <i class="fas fa-comment-alt text-lg"></i>
+                </div>
+                <h3 class="text-lg font-bold text-slate-800">Help Us Improve</h3>
+                <p class="text-xs text-slate-500">We noticed you haven't registered yet. Is there a specific reason?</p>
+            </div>
+
+            <input type="hidden" id="feedback-lead-id">
+            
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Reason</label>
+            <select id="feedback-reason" class="input-field mb-4 text-sm">
+                <option value="" disabled selected>Select a reason...</option>
+                <option value="Schedule Conflict">Schedule Conflict</option>
+                <option value="Fees / Pricing">Fees / Pricing</option>
+                <option value="Distance / Location">Distance / Location</option>
+                <option value="Health Issues">Health Issues</option>
+                <option value="Traveling / Out of Station">Traveling / Out of Station</option>
+                <option value="Will Join Later">Will Join Later</option>
+                <option value="Other">Other</option>
+            </select>
+
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Follow-up Date (Optional)</label>
+            <input type="date" id="feedback-date" class="input-field mb-4 text-sm">
+
+            <label class="block text-xs font-bold text-slate-600 uppercase mb-2">Comments</label>
+            <textarea id="feedback-note" rows="2" class="input-field mb-6 text-sm" placeholder="Any additional details..."></textarea>
+
+            <button onclick="window.submitParentFeedback()" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition shadow-lg text-sm">Submit Feedback</button>
+            <button onclick="document.getElementById('feedback-modal').classList.add('hidden')" class="w-full text-slate-400 mt-4 text-xs hover:text-slate-600">Cancel</button>
+        </div>
+    </div>
+
+    <div id="edit-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
+            <div class="bg-slate-800 p-4 text-white flex justify-between items-center">
+                <h3 class="font-bold text-lg">Update Details</h3>
+                <button onclick="document.getElementById('edit-modal').classList.add('hidden')" class="text-slate-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 space-y-4">
+                <input type="hidden" id="edit-lead-id">
+                
+                <div class="grid grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">Child Name</label>
+                        <input type="text" id="read-child-name" class="input-field bg-slate-100 text-slate-500 cursor-not-allowed" readonly>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-1">DOB</label>
+                        <input type="text" id="read-dob" class="input-field bg-slate-100 text-slate-500 cursor-not-allowed" readonly>
+                    </div>
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Medical Info / Allergies</label>
+                    <textarea id="update-medical" rows="2" class="input-field"></textarea>
+                </div>
+                
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Emergency Contact</label>
+                    <input type="tel" id="update-alt-phone" class="input-field">
+                </div>
+
+                <div>
+                    <label class="block text-xs font-bold text-slate-700 uppercase mb-1">Address</label>
+                    <input type="text" id="update-address" class="input-field">
+                </div>
+
+                <button onclick="window.saveChildInfo()" id="btn-save-info" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 shadow-md transition mt-2">
+                    Save Changes
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <script type="module" src="js/main.js?v=48"></script>
+</body>
+</html>
