@@ -1,13 +1,13 @@
-// js/utils.js (v50 - Fix Export Name)
+// js/utils.js (v51 - Added Error Modal)
 
-// 1. Age Calculator (Renamed to match imports)
+// 1. Age Calculator
 export function calculateAge(dob) {
     if(!dob) return 0;
     const diff = Date.now() - new Date(dob).getTime();
     return Math.abs(new Date(diff).getUTCFullYear() - 1970);
 }
 
-// Keep 'getAge' as an alias just in case other files use it
+// Keep 'getAge' as an alias
 export const getAge = calculateAge; 
 
 // 2. UI Helper for Public Form
@@ -36,19 +36,17 @@ export function showToast(msg) {
     }
 }
 
-// UPDATED: Success Modal with Callback support
+// 5. Success Modal
 export function showSuccessModal(title, message, onCloseCallback = null) {
     const modal = document.getElementById('success-modal');
     if (modal) {
-        modal.querySelector('h3').innerText = title;
-        modal.querySelector('p').innerText = message;
+        modal.querySelector('#success-title').innerText = title;
+        modal.querySelector('#success-msg').innerText = message;
         modal.classList.remove('hidden');
 
         // Handle the "OK" button click
         const okBtn = modal.querySelector('button');
-        
-        // Remove old listeners to prevent stacking
-        const newBtn = okBtn.cloneNode(true);
+        const newBtn = okBtn.cloneNode(true); // Remove old listeners
         okBtn.parentNode.replaceChild(newBtn, okBtn);
         
         newBtn.addEventListener('click', () => {
@@ -61,7 +59,19 @@ export function showSuccessModal(title, message, onCloseCallback = null) {
     }
 }
 
-// 6. View Switcher
+// 6. Error Modal (NEW - Fixes the ugly alerts)
+export function showErrorModal(title, message) {
+    const modal = document.getElementById('error-modal');
+    if (modal) {
+        document.getElementById('error-title').innerText = title;
+        document.getElementById('error-msg').innerText = message;
+        modal.classList.remove('hidden');
+    } else {
+        alert(`${title}\n${message}`); // Fallback
+    }
+}
+
+// 7. View Switcher
 export function showView(viewId) {
     const views = ['landing', 'trainer', 'parent-portal', 'admin'];
     views.forEach(id => {
