@@ -1,75 +1,69 @@
-// js/roles/parent.js (v51 - Feedback & Reg Fix)
+// js/roles/parent.js (v52 - Skeleton Loaders)
 import { supabaseClient, REGISTRATION_FEE, SPECIAL_RATES } from '../config.js';
 import { showView, showSuccessModal, calculateAge } from '../utils.js';
 
 let currentRegistrationId = null;
 
-// --- 1. INTAKE FORM ---
-export async function handleIntakeSubmit(e) {
-    e.preventDefault();
-    const btn = document.getElementById('btn-submit');
-    const originalText = btn.innerText;
-    btn.innerText = "Processing..."; btn.disabled = true;
-
-    const email = document.getElementById('email').value.trim();
-    const phone = document.getElementById('phone').value.trim().replace(/\D/g, '');
-    let intentVal = document.getElementById('intent').value.includes('Other') ? document.getElementById('intent_other').value : document.getElementById('intent').value;
-    let sourceVal = document.getElementById('source').value.includes('Other') ? document.getElementById('source_other').value : document.getElementById('source').value;
-
-    const formData = {
-        parent_name: document.getElementById('p_name').value.trim(), 
-        child_name: document.getElementById('k_name').value.trim(),
-        phone: phone, email: email, 
-        address: document.getElementById('address').value.trim(),
-        dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
-        intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
-        how_heard: sourceVal, alternate_phone: document.getElementById('alt_phone').value.trim().replace(/\D/g, ''),
-        marketing_consent: document.getElementById('marketing_check').checked,
-        is_trial: true, status: 'Pending Trial', submitted_at: new Date()
-    };
-
-    try {
-        const { data: authData } = await supabaseClient.auth.signUp({ email: email, password: phone });
-        if(authData.user) {
-            const { data: roleData } = await supabaseClient.from('user_roles').select('*').eq('id', authData.user.id);
-            if(!roleData || roleData.length === 0) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
-        }
-        const { error } = await supabaseClient.from('leads').insert([formData]);
-        if (error) throw error;
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: formData}) });
-        document.getElementById('success-modal').classList.remove('hidden');
-        e.target.reset(); document.getElementById('age-display').classList.add('hidden');
-    } catch (err) { alert("Error: " + err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
+// --- 1. SKELETON GENERATOR (NEW) ---
+function getParentSkeleton() {
+    return `
+    <div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white animate-pulse">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex items-center gap-4">
+                <div class="w-14 h-14 bg-slate-200 rounded-2xl"></div>
+                <div class="space-y-2">
+                    <div class="h-5 w-32 bg-slate-200 rounded"></div>
+                    <div class="h-3 w-20 bg-slate-200 rounded"></div>
+                </div>
+            </div>
+            <div class="w-8 h-8 bg-slate-200 rounded-full"></div>
+        </div>
+        <div class="h-10 bg-slate-200 rounded-lg mb-4 w-2/3"></div>
+        <div class="h-12 bg-slate-200 rounded-xl mb-3"></div>
+        <div class="flex gap-3">
+            <div class="flex-1 h-10 bg-slate-200 rounded-xl"></div>
+            <div class="w-12 h-10 bg-slate-200 rounded-xl"></div>
+        </div>
+    </div>`;
 }
 
 // --- 2. PARENT DASHBOARD ---
 export async function loadParentDashboard(email) {
     showView('parent-portal');
     const container = document.getElementById('parent-content');
-    container.innerHTML = '<div class="flex justify-center items-center py-20 text-slate-400"><i class="fas fa-circle-notch fa-spin mr-2"></i> Loading family...</div>';
+    
+    // UX UPGRADE: Show 2 Skeletons immediately
+    container.className = "space-y-6 max-w-lg mx-auto";
+    container.innerHTML = getParentSkeleton() + getParentSkeleton();
 
     const { data, error } = await supabaseClient.from('leads').select('*').eq('email', email).order('created_at', { ascending: false });
 
     if (error) { container.innerHTML = `<p class="text-red-500 text-center">Error: ${error.message}</p>`; return; }
+    
     if (!data || data.length === 0) { 
-        container.innerHTML = `<div class="text-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-sm mx-auto mt-10"><h3 class="text-lg font-bold text-slate-800">No Students Yet</h3><button onclick="window.location.reload()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg mt-4">Register Now</button></div>`; 
+        container.innerHTML = `
+            <div class="text-center bg-white p-8 rounded-3xl shadow-sm border border-slate-100 max-w-sm mx-auto mt-10">
+                <div class="w-16 h-16 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-500 text-2xl"><i class="fas fa-plus"></i></div>
+                <h3 class="text-lg font-bold text-slate-800">No Students Yet</h3>
+                <p class="text-slate-500 text-sm mb-6">Register your first child to get started.</p>
+                <button onclick="window.location.reload()" class="w-full bg-blue-600 text-white font-bold py-3 rounded-xl shadow-lg shadow-blue-200">Register Now</button>
+            </div>`; 
         return; 
     }
 
-    container.className = "space-y-6 max-w-lg mx-auto";
     let html = '';
     
     for (const child of data) {
         const leadString = encodeURIComponent(JSON.stringify(child));
         const age = calculateAge(child.dob);
         
+        // Status Logic
         let cardBg = 'bg-white border-slate-100';
         let statusIcon = '<div class="bg-yellow-100 text-yellow-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-clock"></i></div>';
         let statusBadge = 'Trial Pending';
         let statusMessage = `<div class="p-3 bg-slate-50 rounded-lg border border-slate-100 text-center text-xs text-slate-500">We will contact you shortly to schedule the trial.</div>`;
         let primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>`;
 
-        // NEW: Follow Up Status
         if (child.status === 'Follow Up') {
             cardBg = 'bg-orange-50 border-orange-200';
             statusIcon = '<div class="bg-orange-100 text-orange-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-pause"></i></div>';
@@ -104,7 +98,7 @@ export async function loadParentDashboard(email) {
             statusIcon = '<div class="bg-purple-100 text-purple-600 w-8 h-8 rounded-full flex items-center justify-center"><i class="fas fa-hourglass-half"></i></div>';
             statusBadge = 'Payment Verification';
             statusMessage = `<div class="p-3 bg-purple-50 rounded-lg border border-purple-100 text-center"><p class="text-xs font-bold text-purple-700">Payment Verification Pending</p></div>`;
-            primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Processing Payment...</button>`;
+            primaryAction = `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Processing...</button>`;
         }
         else if (child.status === 'Enrolled') {
             cardBg = 'bg-gradient-to-br from-green-50 to-white border-green-200';
@@ -152,7 +146,44 @@ export async function loadParentDashboard(email) {
     container.innerHTML = html;
 }
 
-// --- 3. CHAT OPENER ---
+// --- 3. OTHER EXPORTS (Keep exact same logic as before) ---
+export async function handleIntakeSubmit(e) { /* ... (Same code as provided in your snippet) ... */ 
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit');
+    const originalText = btn.innerText;
+    btn.innerText = "Processing..."; btn.disabled = true;
+
+    const email = document.getElementById('email').value.trim();
+    const phone = document.getElementById('phone').value.trim().replace(/\D/g, '');
+    let intentVal = document.getElementById('intent').value.includes('Other') ? document.getElementById('intent_other').value : document.getElementById('intent').value;
+    let sourceVal = document.getElementById('source').value.includes('Other') ? document.getElementById('source_other').value : document.getElementById('source').value;
+
+    const formData = {
+        parent_name: document.getElementById('p_name').value.trim(), 
+        child_name: document.getElementById('k_name').value.trim(),
+        phone: phone, email: email, 
+        address: document.getElementById('address').value.trim(),
+        dob: document.getElementById('dob').value, gender: document.getElementById('gender').value,
+        intent: intentVal, medical_info: document.getElementById('medical').value.trim(), 
+        how_heard: sourceVal, alternate_phone: document.getElementById('alt_phone').value.trim().replace(/\D/g, ''),
+        marketing_consent: document.getElementById('marketing_check').checked,
+        is_trial: true, status: 'Pending Trial', submitted_at: new Date()
+    };
+
+    try {
+        const { data: authData } = await supabaseClient.auth.signUp({ email: email, password: phone });
+        if(authData.user) {
+            const { data: roleData } = await supabaseClient.from('user_roles').select('*').eq('id', authData.user.id);
+            if(!roleData || roleData.length === 0) await supabaseClient.from('user_roles').insert([{ id: authData.user.id, role: 'parent', email: email }]);
+        }
+        const { error } = await supabaseClient.from('leads').insert([formData]);
+        if (error) throw error;
+        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: {'Content-Type':'application/json', 'Authorization':`Bearer ${supabaseClient.supabaseKey}`}, body: JSON.stringify({record: formData}) });
+        document.getElementById('success-modal').classList.remove('hidden');
+        e.target.reset(); document.getElementById('age-display').classList.add('hidden');
+    } catch (err) { alert("Error: " + err.message); } finally { btn.innerText = originalText; btn.disabled = false; }
+}
+
 export function openParentChat(leadString) {
     const lead = JSON.parse(decodeURIComponent(leadString));
     const badge = document.getElementById(`msg-badge-${lead.id}`);
@@ -160,7 +191,6 @@ export function openParentChat(leadString) {
     window.openChat(encodeURIComponent(JSON.stringify(lead)));
 }
 
-// --- 4. REGISTRATION LOGIC ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
@@ -242,7 +272,6 @@ export async function submitRegistration() {
     } catch (err) { console.error(err); alert("Error submitting: " + err.message); } finally { btn.innerText = "Submit Registration"; btn.disabled = false; }
 }
 
-// --- 5. EDIT & FEEDBACK ---
 export function openEditModal(leadString) {
     const child = JSON.parse(decodeURIComponent(leadString));
     document.getElementById('edit-lead-id').value = child.id;
@@ -281,7 +310,6 @@ export async function submitParentFeedback() {
 
     if (!reason) return alert("Please select a reason.");
 
-    // Date Validation
     if (dateStr) {
         const selectedDate = new Date(dateStr);
         const today = new Date();
