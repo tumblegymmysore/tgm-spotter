@@ -1,6 +1,5 @@
-// js/roles/trainer.js (v59 - Consistent Age Logic)
-import { supabaseClient, ADULT_AGE_THRESHOLD } from '../config.js'; // Imported Constant
-import { showView, showSuccessModal, calculateAge } from '../utils.js';
+import { supabaseClient, ADULT_AGE_THRESHOLD } from '../config.js'; 
+import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
 
 let currentAssessmentLead = null;
 
@@ -24,7 +23,7 @@ export async function loadTrainerDashboard(trainerName) {
     showView('trainer');
     const welcomeEl = document.getElementById('trainer-welcome');
     if (welcomeEl) welcomeEl.innerText = `Welcome back, ${trainerName}!`;
-    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'short', day: 'numeric' });
+    document.getElementById('current-date').innerText = new Date().toLocaleDateString('en-IN', { weekday: 'long', month: 'short', day: 'numeric' });
     await fetchTrials(); 
     fetchInbox(); 
 }
@@ -39,7 +38,7 @@ export async function fetchTrials() {
 
     try {
         const { data, error } = await supabaseClient.from('leads').select('*').order('submitted_at', { ascending: false });
-        if (error) { listNew.innerHTML = `<div class="p-3 bg-red-50 text-red-600 text-xs rounded">Access Denied: ${error.message}</div>`; return; }
+        if (error) throw error;
         
         listNew.innerHTML = ''; listDone.innerHTML = '';
         if (!data || data.length === 0) { listNew.innerHTML = '<p class="text-slate-400 text-sm">No new requests.</p>'; return; }
@@ -51,7 +50,10 @@ export async function fetchTrials() {
         });
         
         if (listNew.innerHTML === '') listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending requests.</p>';
-    } catch (err) { console.error("Crash:", err); listNew.innerHTML = `<p class="text-red-500 text-sm">System Crash</p>`; }
+    } catch (err) { 
+        console.error("Crash:", err); 
+        listNew.innerHTML = `<p class="text-red-500 text-sm">System Error: ${err.message}</p>`; 
+    }
 }
 
 function createTrialCard(lead) {
@@ -78,7 +80,7 @@ function createTrialCard(lead) {
     </div>`;
 }
 
-// --- 3. ASSESSMENT (FIXED AGE LOGIC) ---
+// --- 3. ASSESSMENT ---
 export function openAssessment(leadString) {
     const lead = JSON.parse(decodeURIComponent(leadString));
     currentAssessmentLead = lead; 
@@ -92,7 +94,6 @@ export function openAssessment(leadString) {
     const age = calculateAge(lead.dob);
     let batch = "Toddler (3-5 Yrs)";
     
-    // LOGIC UPDATE: Use Constant (15+)
     if (age >= ADULT_AGE_THRESHOLD) batch = "Adult Fitness"; 
     else if (age >= 8) batch = "Intermediate (8+ Yrs)"; 
     else if (age >= 5) batch = "Beginner (5-8 Yrs)";
@@ -101,7 +102,6 @@ export function openAssessment(leadString) {
     document.getElementById('assessment-modal').classList.remove('hidden');
 }
 
-// ... (Keep existing submitAssessment, fetchInbox, switchTab) ...
 export async function submitAssessment() { 
     const btn = document.getElementById('btn-save-assess'); const orgTxt = btn.innerText;
     const feedback = document.getElementById('assess-feedback').value;
@@ -109,7 +109,7 @@ export async function submitAssessment() {
     const pt = document.getElementById('assess-pt').checked;
     const special = document.getElementById('assess-special').checked; 
     
-    if (!batch) return alert("Please select a Recommended Batch.");
+    if (!batch) return showErrorModal("Missing Info", "Please select a Recommended Batch.");
     btn.disabled = true; btn.innerText = "Saving...";
 
     const skills = {
@@ -127,7 +127,7 @@ export async function submitAssessment() {
         document.getElementById('assessment-modal').classList.add('hidden');
         showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
         fetchTrials(); 
-    } catch (e) { console.error(e); alert("Error saving assessment."); } finally { btn.disabled = false; btn.innerText = orgTxt; }
+    } catch (e) { console.error(e); showErrorModal("Save Error", e.message); } finally { btn.disabled = false; btn.innerText = orgTxt; }
 }
 
 export async function fetchInbox() { /* Same as previous version */ 
