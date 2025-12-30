@@ -282,8 +282,8 @@ function createAdminTrialCard(lead) {
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border-l-4 border-yellow-400 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
+            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span> <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
                 <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
             </div>
@@ -321,8 +321,8 @@ function createAdminCompletedTrialCard(lead) {
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border-l-4 border-green-500 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name}</h4>
+            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
                 <p class="text-xs text-slate-500">${lead.parent_name}</p>
             </div>
             <span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded">Completed</span>
@@ -604,8 +604,8 @@ function createVerificationCard(lead, isNew = false) {
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name}${newBadge}</h4>
+            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name}${newBadge} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
                 <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
             </div>
@@ -671,8 +671,8 @@ function createEnrolledCard(lead) {
     return `
     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 mb-3">
         <div class="flex justify-between items-center">
-            <div>
-                <h4 class="font-bold text-slate-700 text-sm">${lead.child_name}</h4>
+            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                <h4 class="font-bold text-slate-700 text-sm hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
                 <p class="text-[10px] text-slate-500">${selectedPkg}</p>
             </div>
             <span class="text-green-700 text-[10px] font-bold uppercase">Active</span>
@@ -1664,8 +1664,8 @@ function createFollowUpCard(lead, isOverdue) {
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isOverdue ? 'border-red-500' : 'border-orange-400'} mb-3">
         <div class="flex justify-between items-start mb-2">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name}</h4>
+            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
                 <p class="text-xs text-slate-500">${lead.parent_name} • ${lead.phone || 'N/A'}</p>
             </div>
             <span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded">${lead.status}</span>
@@ -1731,8 +1731,8 @@ export async function fetchAllStudents() {
                 const pkgMeta = getPackageMetadata(lead);
                 const pkgName = pkgMeta?.selected_package || lead.selected_package || 'N/A';
                 html += `<div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <div>
-                        <span class="font-bold">${lead.child_name}</span>
+                    <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                        <span class="font-bold hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></span>
                         <span class="text-xs text-slate-500 ml-2">${pkgName}</span>
                     </div>
                     <button onclick="window.modifyAdminPackage('${lead.id}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
