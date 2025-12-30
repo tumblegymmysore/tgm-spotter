@@ -1,6 +1,6 @@
 // js/roles/parent.js (v67 - Final Optimized & Fixed)
 import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
-import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput } from '../utils.js';
+import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput, getFinalPrice, getPackageMetadata } from '../utils.js';
 
 let currentRegistrationId = null;
 let currentLeadData = null;
@@ -276,7 +276,10 @@ const STATUS_STRATEGIES = {
         return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
     },
     'Enrollment Requested': () => ({ badge: 'Pending Approval', color: 'bg-orange-100 text-orange-700', action: `<div class="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-100 flex items-start gap-3"><div class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-clock text-xs"></i></div><div><h4 class="font-bold text-orange-900 text-sm">Request Sent</h4><p class="text-xs text-orange-800 mt-1">Admin is verifying batch availability.</p></div></div><button disabled class="w-full bg-orange-100 text-orange-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Admin...</button>` }),
-    'Ready to Pay': (child, str) => ({ badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong><br>Fee: ₹${child.final_price || child.package_price || '0'}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse">Pay Now & Enroll</button>` }),
+    'Ready to Pay': (child, str) => {
+        const finalPrice = getFinalPrice(child);
+        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong><br>Fee: ₹${finalPrice || child.package_price || '0'}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse">Pay Now & Enroll</button>` };
+    },
     'Registration Requested': () => ({ badge: 'Verifying Payment', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">Payment Receipt Uploaded</p><button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` }),
     'Enrolled': (child, str) => ({ badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div><button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">Renew Membership</button>` }),
     'Follow Up': (child, str) => ({ badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` })
@@ -337,12 +340,14 @@ export function openRegistrationModal(leadString, isRenewal) {
     
     window.checkApprovalRequirement();
 
-    // Check if package is admin-locked
-    const isPackageLocked = child.package_locked === true;
+    // Check if package is admin-locked (from metadata or direct field)
+    const meta = getPackageMetadata(child);
+    const isPackageLocked = meta?.package_locked === true || child.package_locked === true;
     
     if (child.status === 'Ready to Pay' || isPackageLocked) {
         document.getElementById('reg-program-display').innerText = child.recommended_batch || 'Standard Batch';
-        document.getElementById('total-price').innerText = child.final_price || child.package_price || 0;
+        const finalPrice = getFinalPrice(child);
+        document.getElementById('total-price').innerText = finalPrice || child.package_price || 0;
         
         // Lock all fields if package is admin-locked
         if (isPackageLocked) {
@@ -360,8 +365,8 @@ export function openRegistrationModal(leadString, isRenewal) {
                     <div class="text-xs text-purple-800 leading-relaxed">
                         <strong>Admin-Locked Package:</strong> This package has been set by Admin and cannot be modified. 
                         Please contact Admin if you need to make changes.
-                        <br><strong>Package:</strong> ${child.selected_package || 'Not Set'}
-                        <br><strong>Price:</strong> ₹${child.final_price || child.package_price || 0}
+                        <br><strong>Package:</strong> ${meta?.selected_package || child.selected_package || 'Not Set'}
+                        <br><strong>Price:</strong> ₹${getFinalPrice(child) || meta?.package_price || child.package_price || 0}
                     </div>
                 </div>
             `;
@@ -448,7 +453,13 @@ export async function submitRegistration(actionType) {
 
     if (actionType === 'REQUEST') {
         const note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
-        await supabaseClient.from('leads').update({ status: 'Enrollment Requested', parent_note: note, final_price: total }).eq('id', currentRegistrationId);
+        // Store final_price in parent_note metadata (column doesn't exist)
+        const existingNote = currentLeadData?.parent_note || '';
+        const metaNote = `[PACKAGE_META]${JSON.stringify({ final_price: total })}[/PACKAGE_META]`;
+        const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
+        const updatedNote = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
+        
+        await supabaseClient.from('leads').update({ status: 'Enrollment Requested', parent_note: updatedNote }).eq('id', currentRegistrationId);
         document.getElementById('reg-modal').classList.add('hidden');
         showSuccessModal("Request Sent!", "Admin will review your custom plan request.", () => window.location.reload());
         return;

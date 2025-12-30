@@ -1,5 +1,49 @@
 // js/utils.js (v51 - Added Error Modal)
 
+// Helper function to get package metadata from parent_note
+export function getPackageMetadata(lead) {
+    if (lead.parent_note) {
+        const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
+        if (metaMatch) {
+            try {
+                return JSON.parse(metaMatch[1]);
+            } catch (e) {
+                console.warn('Could not parse package metadata', e);
+            }
+        }
+    }
+    return null;
+}
+
+// Helper function to get final_price from metadata or calculate it
+export function getFinalPrice(lead) {
+    // Try to get from metadata first
+    const meta = getPackageMetadata(lead);
+    if (meta && meta.final_price) {
+        return meta.final_price;
+    }
+    
+    // Fallback: calculate from package_price + registration fee
+    const packagePrice = meta?.package_price || lead.package_price;
+    if (packagePrice) {
+        const regFee = 2000; // Default registration fee
+        return packagePrice + (lead.status !== 'Enrolled' ? regFee : 0);
+    }
+    return 0;
+}
+
+// Helper to get selected_package from metadata or direct field
+export function getSelectedPackage(lead) {
+    const meta = getPackageMetadata(lead);
+    return meta?.selected_package || lead.selected_package || null;
+}
+
+// Helper to get package_price from metadata or direct field
+export function getPackagePrice(lead) {
+    const meta = getPackageMetadata(lead);
+    return meta?.package_price || lead.package_price || 0;
+}
+
 // 1. Age Calculator
 export function calculateAge(dob) {
     if(!dob) return 0;

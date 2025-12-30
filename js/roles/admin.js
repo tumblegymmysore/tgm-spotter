@@ -1,6 +1,6 @@
 // js/roles/admin.js
 import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
-import { showView, showSuccessModal, showToast, showErrorModal, calculateAge } from '../utils.js';
+import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
 
 // --- 1. DASHBOARD LOADER ---
@@ -428,7 +428,11 @@ function createVerificationCard(lead) {
     };
     const statusColor = statusColors[lead.status] || 'bg-purple-100 text-purple-700';
     
-    const hasPackage = lead.selected_package || lead.final_price;
+    // Get final_price from metadata
+    const finalPrice = getFinalPrice(lead);
+    const meta = getPackageMetadata(lead);
+    const selectedPkg = meta?.selected_package || lead.selected_package;
+    const hasPackage = selectedPkg || finalPrice;
     const showPaymentActions = lead.status === 'Registration Requested' && lead.payment_proof_url;
     
     return `
@@ -445,8 +449,8 @@ function createVerificationCard(lead) {
         <div class="bg-slate-50 p-3 rounded border border-slate-100 text-xs mb-3">
             <p><strong>Status:</strong> ${lead.status || 'N/A'}</p>
             ${hasPackage ? `
-                <p><strong>Package:</strong> ${lead.selected_package || lead.recommended_batch || 'Not Set'}</p>
-                <p><strong>Amount:</strong> ₹${lead.final_price || lead.package_price || '0'}</p>
+                <p><strong>Package:</strong> ${selectedPkg || lead.recommended_batch || 'Not Set'}</p>
+                <p><strong>Amount:</strong> ₹${finalPrice || meta?.package_price || lead.package_price || '0'}</p>
             ` : `
                 <p><strong>Recommended Batch:</strong> ${lead.recommended_batch || 'Not Set'}</p>
                 <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
@@ -480,12 +484,14 @@ function createVerificationCard(lead) {
 }
 
 function createEnrolledCard(lead) {
+    const meta = getPackageMetadata(lead);
+    const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
     return `
     <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 opacity-75 mb-3">
         <div class="flex justify-between items-center">
             <div>
                 <h4 class="font-bold text-slate-700 text-sm">${lead.child_name}</h4>
-                <p class="text-[10px] text-slate-500">${lead.selected_package}</p>
+                <p class="text-[10px] text-slate-500">${selectedPkg}</p>
             </div>
             <span class="text-green-700 text-[10px] font-bold uppercase">Active</span>
         </div>
@@ -600,13 +606,22 @@ export async function modifyAdminPackage(leadId) {
         document.getElementById('admin-pkg-child-name').innerText = lead.child_name;
         document.getElementById('admin-pkg-status').innerText = lead.status || 'N/A';
         document.getElementById('admin-pkg-current-batch').innerText = lead.recommended_batch || 'Not Set';
-        document.getElementById('admin-pkg-current-package').innerText = lead.selected_package || 'Not Set';
-        document.getElementById('admin-pkg-current-price').innerText = lead.final_price || lead.package_price || '₹0';
-        document.getElementById('admin-pkg-current-locked').innerText = lead.package_locked ? 'Yes' : 'No';
+        // Get package data from metadata or direct fields
+        const meta = getPackageMetadata(lead);
+        const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+        const packagePrice = meta?.package_price || lead.package_price || 0;
+        const finalPrice = getFinalPrice(lead);
+        document.getElementById('admin-pkg-current-package').innerText = selectedPkg;
+        document.getElementById('admin-pkg-current-price').innerText = finalPrice || packagePrice || '₹0';
+        const isLocked = meta?.package_locked || lead.package_locked || false;
+        document.getElementById('admin-pkg-current-locked').innerText = isLocked ? 'Yes' : 'No';
 
         // Reset form
         document.getElementById('admin-pkg-type').value = '';
-        document.getElementById('admin-pkg-lock').checked = lead.package_locked || false;
+        // Get lock status from metadata or direct field
+        const meta = getPackageMetadata(lead);
+        const isLocked = meta?.package_locked || lead.package_locked || false;
+        document.getElementById('admin-pkg-lock').checked = isLocked;
         // Get package_lock_type from parent_note metadata if stored there
         let lockType = 'one-time';
         if (lead.parent_note) {
@@ -772,11 +787,11 @@ export async function saveAdminPackage() {
         regFee = parseInt(regFeeOverride.value) || REGISTRATION_FEE;
     }
     
-    // Build package data - only include fields that definitely exist in database
-    // Store additional metadata in parent_note as JSON
+    // Build package data - SAFE APPROACH: Only update status field
+    // Store ALL package data in parent_note metadata to avoid column errors
     let packageData = {
-        // Core fields that should exist
-        package_locked: isLocked
+        // Only update status - this should definitely exist
+        // All other fields stored in metadata below
     };
     
     // Store custom fee overrides and additional metadata in parent_note as JSON
@@ -818,11 +833,15 @@ export async function saveAdminPackage() {
         const basePrice = parseInt(price);
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
-        packageData.selected_package = pkg.label;
-        packageData.package_price = finalPackagePrice;
-        packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageData.package_classes = parseInt(classes);
-        packageData.package_months = parseInt(months);
+        // Store ALL package data in metadata (columns may not exist)
+        const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
+        packageMetadata.selected_package = pkg.label;
+        packageMetadata.package_price = finalPackagePrice;
+        packageMetadata.final_price = calculatedFinalPrice;
+        packageMetadata.package_classes = parseInt(classes);
+        packageMetadata.package_months = parseInt(months);
+        packageMetadata.package_locked = isLocked;
+        packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'morning') {
         const val = document.getElementById('admin-pkg-morning-select').value;
         if (!val) {
@@ -834,12 +853,15 @@ export async function saveAdminPackage() {
         const basePrice = parseInt(price);
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
-        packageData.selected_package = pkg.label;
-        packageData.package_price = finalPackagePrice;
-        packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        // Store classes and months in metadata
+        // Store ALL package data in metadata (columns may not exist)
+        const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
+        packageMetadata.selected_package = pkg.label;
+        packageMetadata.package_price = finalPackagePrice;
+        packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = parseInt(classes);
         packageMetadata.package_months = parseInt(months);
+        packageMetadata.package_locked = isLocked;
+        packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'pt') {
         const level = document.getElementById('admin-pkg-pt-level').value;
         const sessions = parseInt(document.getElementById('admin-pkg-pt-sessions').value) || 0;
@@ -850,12 +872,15 @@ export async function saveAdminPackage() {
         const basePrice = PT_RATES[level] * sessions;
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
-        packageData.selected_package = `PT (${level}) - ${sessions} Classes`;
-        packageData.package_price = finalPackagePrice;
-        packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        // Store classes and months in metadata
+        // Store ALL package data in metadata (columns may not exist)
+        const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
+        packageMetadata.selected_package = `PT (${level}) - ${sessions} Classes`;
+        packageMetadata.package_price = finalPackagePrice;
+        packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = sessions;
         packageMetadata.package_months = 1; // PT is typically monthly
+        packageMetadata.package_locked = isLocked;
+        packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'custom') {
         const name = document.getElementById('admin-pkg-custom-name').value.trim();
         const price = parseInt(document.getElementById('admin-pkg-custom-price').value) || 0;
@@ -868,12 +893,15 @@ export async function saveAdminPackage() {
         }
         const finalPackagePrice = customFees.package_fee_override || price;
         
-        packageData.selected_package = name;
-        packageData.package_price = finalPackagePrice;
-        packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        // Store classes and months in metadata
+        // Store ALL package data in metadata (columns may not exist)
+        const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
+        packageMetadata.selected_package = name;
+        packageMetadata.package_price = finalPackagePrice;
+        packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = classes;
         packageMetadata.package_months = months;
+        packageMetadata.package_locked = isLocked;
+        packageMetadata.package_lock_type = isLocked ? lockType : null;
     }
 
     // Update status to "Ready to Pay" if it was "Enrollment Requested"
@@ -887,21 +915,18 @@ export async function saveAdminPackage() {
         }
     }
 
-    // Store package metadata in parent_note
-    if (packageMetadata.package_classes || packageMetadata.package_months || packageMetadata.package_lock_type) {
-        const existingNote = currentLead?.parent_note || '';
-        const metaNote = `[PACKAGE_META]${JSON.stringify(packageMetadata)}[/PACKAGE_META]`;
-        // Remove old metadata note if exists
-        const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
-        if (metadataNote) {
-            packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metadataNote}\n${metaNote}` : `${metadataNote}\n${metaNote}`;
-        } else {
-            packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
-        }
-    } else if (metadataNote) {
-        const existingNote = currentLead?.parent_note || '';
-        const cleanedNote = existingNote.replace(/\[ADMIN_FEES\].*?\[\/ADMIN_FEES\]/g, '').trim();
-        packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metadataNote}` : metadataNote;
+    // ALWAYS store package metadata in parent_note (all package data goes here to avoid column errors)
+    const existingNote = currentLead?.parent_note || '';
+    const metaNote = `[PACKAGE_META]${JSON.stringify(packageMetadata)}[/PACKAGE_META]`;
+    // Remove old metadata notes if exist
+    let cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
+    cleanedNote = cleanedNote.replace(/\[ADMIN_FEES\].*?\[\/ADMIN_FEES\]/g, '').trim();
+    
+    // Combine all metadata
+    if (metadataNote) {
+        packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metadataNote}\n${metaNote}` : `${metadataNote}\n${metaNote}`;
+    } else {
+        packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
     }
 
     try {
@@ -1293,10 +1318,12 @@ export async function fetchAllStudents() {
         if (grouped['Enrolled']) {
             html += '<div class="bg-white p-4 rounded-xl shadow-sm"><h3 class="font-bold mb-4">Enrolled Students</h3><div class="space-y-2">';
             grouped['Enrolled'].forEach(lead => {
+                const pkgMeta = getPackageMetadata(lead);
+                const pkgName = pkgMeta?.selected_package || lead.selected_package || 'N/A';
                 html += `<div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
                     <div>
                         <span class="font-bold">${lead.child_name}</span>
-                        <span class="text-xs text-slate-500 ml-2">${lead.selected_package || 'N/A'}</span>
+                        <span class="text-xs text-slate-500 ml-2">${pkgName}</span>
                     </div>
                     <button onclick="window.modifyAdminPackage('${lead.id}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
                         Edit Package
