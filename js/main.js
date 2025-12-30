@@ -118,6 +118,7 @@ window.checkApprovalRequirement = Parent.checkApprovalRequirement;
 window.calculateTotal = Parent.calculateTotal;
 window.updateSessionDaysSection = Parent.updateSessionDaysSection;
 window.limitSessionDays = Parent.limitSessionDays;
+window.togglePaymentMode = Parent.togglePaymentMode;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {

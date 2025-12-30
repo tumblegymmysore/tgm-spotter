@@ -524,32 +524,81 @@ export function openRegistrationModal(leadString, isRenewal) {
             }
         }
         
-        // Batch dropdown: Only show 3-5, 5-8, 8+ (and Adult if applicable)
+        // Batch dropdown: Show recommended batch + one level above and one below
         // Special Needs and Personal Training are NOT selectable - shown as badges only
         // Clear and rebuild options
         batchEl.innerHTML = '<option value="">Select Batch...</option>';
         
-        if(age >= 3 && age <= 5) {
-            batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
-            // Hide morning option for 3-5 years initially
+        // Determine which batches to show based on recommended batch and age
+        const recommendedBatch = child.recommended_batch;
+        const batchesToShow = new Set();
+        
+        // Always include the recommended batch
+        if (recommendedBatch) {
+            batchesToShow.add(recommendedBatch);
+        }
+        
+        // Add batches based on age and recommended batch
+        // If recommended is Toddler (3-5 Yrs), also show Beginner (5-8 Yrs) - one above
+        if (recommendedBatch === 'Toddler (3-5 Yrs)' || (age >= 3 && age <= 5 && !recommendedBatch)) {
+            batchesToShow.add('Toddler (3-5 Yrs)');
+            if (age >= 5 || recommendedBatch === 'Toddler (3-5 Yrs)') {
+                batchesToShow.add('Beginner (5-8 Yrs)'); // One above
+            }
+        }
+        
+        // If recommended is Beginner (5-8 Yrs), show both Toddler (3-5 Yrs) - one below, and Intermediate (8+ Yrs) - one above
+        if (recommendedBatch === 'Beginner (5-8 Yrs)' || (age >= 5 && age <= 8 && !recommendedBatch)) {
+            batchesToShow.add('Beginner (5-8 Yrs)');
+            batchesToShow.add('Toddler (3-5 Yrs)'); // One below
+            if (age >= 8 || recommendedBatch === 'Beginner (5-8 Yrs)') {
+                batchesToShow.add('Intermediate (8+ Yrs)'); // One above
+            }
+        }
+        
+        // If recommended is Intermediate (8+ Yrs), show Beginner (5-8 Yrs) - one below
+        if (recommendedBatch === 'Intermediate (8+ Yrs)' || (age >= 8 && age < 15 && !recommendedBatch)) {
+            batchesToShow.add('Intermediate (8+ Yrs)');
+            batchesToShow.add('Beginner (5-8 Yrs)'); // One below
+        }
+        
+        // Fallback: If no recommended batch, show based on age
+        if (batchesToShow.size === 0) {
+            if (age >= 3 && age <= 5) {
+                batchesToShow.add('Toddler (3-5 Yrs)');
+                if (age >= 5) batchesToShow.add('Beginner (5-8 Yrs)');
+            } else if (age >= 5 && age <= 8) {
+                batchesToShow.add('Toddler (3-5 Yrs)');
+                batchesToShow.add('Beginner (5-8 Yrs)');
+                if (age >= 8) batchesToShow.add('Intermediate (8+ Yrs)');
+            } else if (age >= 8 && age < 15) {
+                batchesToShow.add('Beginner (5-8 Yrs)');
+                batchesToShow.add('Intermediate (8+ Yrs)');
+            }
+        }
+        
+        // Add options in order: Toddler -> Beginner -> Intermediate
+        const batchOrder = ['Toddler (3-5 Yrs)', 'Beginner (5-8 Yrs)', 'Intermediate (8+ Yrs)'];
+        batchOrder.forEach(batch => {
+            if (batchesToShow.has(batch)) {
+                batchEl.innerHTML += `<option value="${batch}">${batch}</option>`;
+            }
+        });
+        
+        // Hide morning option for 3-5 years initially (unless batch is changed to 5-8)
+        if (age >= 3 && age <= 5 && recommendedBatch === 'Toddler (3-5 Yrs)') {
             const morningOption = timeEl.querySelector('option[value="Morning"]');
             if (morningOption) morningOption.style.display = 'none';
         }
-        if(age >= 5 && age <= 8) {
-            batchEl.innerHTML += `<option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>`;
-        }
-        if(age >= 8 && age < 15) {
-            batchEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
-        }
         
         // Pre-select recommended batch if it's one of the standard options
-        if (child.recommended_batch && Array.from(batchEl.options).map(o=>o.value).includes(child.recommended_batch)) {
-            batchEl.value = child.recommended_batch;
-        } else if (age >= 3 && age <= 5) {
+        if (recommendedBatch && Array.from(batchEl.options).map(o=>o.value).includes(recommendedBatch)) {
+            batchEl.value = recommendedBatch;
+        } else if (batchesToShow.has('Toddler (3-5 Yrs)') && age >= 3 && age <= 5) {
             batchEl.value = "Toddler (3-5 Yrs)";
-        } else if (age >= 5 && age <= 8) {
+        } else if (batchesToShow.has('Beginner (5-8 Yrs)') && age >= 5 && age <= 8) {
             batchEl.value = "Beginner (5-8 Yrs)";
-        } else if (age >= 8 && age < 15) {
+        } else if (batchesToShow.has('Intermediate (8+ Yrs)') && age >= 8 && age < 15) {
             batchEl.value = "Intermediate (8+ Yrs)";
         }
         
@@ -940,6 +989,50 @@ export function limitSessionDays() {
         }, 3000);
     } else if (checkboxes.length === 2) {
         if (errorEl) errorEl.classList.add('hidden');
+    } else if (checkboxes.length < 2) {
+        // Show error if less than 2 selected
+        if (errorEl) errorEl.classList.remove('hidden');
+    }
+};
+
+// Toggle payment mode (UPI/Cash) and show/hide relevant sections
+export function togglePaymentMode() {
+    const paymentMode = document.getElementById('payment-mode').value;
+    const upiSection = document.getElementById('upi-payment-section');
+    const cashSection = document.getElementById('cash-payment-section');
+    const paymentProof = document.getElementById('payment-proof');
+    
+    if (paymentMode === 'UPI') {
+        if (upiSection) upiSection.classList.remove('hidden');
+        if (cashSection) cashSection.classList.add('hidden');
+        if (paymentProof) {
+            paymentProof.required = true;
+            // Load appropriate QR code based on registration number
+            const regNumber = currentRegistrationId;
+            if (regNumber) {
+                const qrImage = document.getElementById('qr-code-image');
+                if (qrImage) {
+                    // Odd registration number = QR1, Even = QR2
+                    const qrFile = (regNumber % 2 === 1) ? 'qr1.png' : 'qr2.png';
+                    qrImage.src = qrFile;
+                }
+            }
+        }
+    } else if (paymentMode === 'Cash') {
+        if (upiSection) upiSection.classList.add('hidden');
+        if (cashSection) cashSection.classList.remove('hidden');
+        if (paymentProof) {
+            paymentProof.required = false;
+            paymentProof.value = ''; // Clear file input
+        }
+    } else {
+        // No selection
+        if (upiSection) upiSection.classList.add('hidden');
+        if (cashSection) cashSection.classList.add('hidden');
+        if (paymentProof) {
+            paymentProof.required = false;
+            paymentProof.value = '';
+        }
     }
 };
 
@@ -983,11 +1076,22 @@ export async function submitRegistration(actionType) {
         pkgLabel = document.querySelector(`#reg-package-select option[value="${val}"]`).text;
         
         // Check session days for limited packages
-        const isUnlimited = val.split('|')[2] >= 999;
+        const pkgParts = val.split('|');
+        const classes = parseInt(pkgParts[2] || '0', 10);
+        const isUnlimited = classes >= 999;
+        
+        // Only validate session days if it's a limited package AND the session days section is visible
         if (!isUnlimited) {
-            const selectedDays = Array.from(document.querySelectorAll('.session-day-checkbox:checked'));
-            if (selectedDays.length !== 2) {
-                return showErrorModal("Session Days Required", "Please select exactly 2 preferred days for planning purposes.");
+            const sessionDaysSection = document.getElementById('session-days-section');
+            const limitedSelect = document.getElementById('limited-session-select');
+            
+            // Only validate if the limited session select section is visible
+            if (sessionDaysSection && !sessionDaysSection.classList.contains('hidden') && 
+                limitedSelect && !limitedSelect.classList.contains('hidden')) {
+                const selectedDays = Array.from(document.querySelectorAll('.session-day-checkbox:checked'));
+                if (selectedDays.length !== 2) {
+                    return showErrorModal("Session Days Required", "Please select exactly 2 preferred days for planning purposes.");
+                }
             }
         }
     }
