@@ -90,6 +90,16 @@ window.saveAdminFormEdit = Admin.saveAdminFormEdit;
 window.openAdminFilters = Admin.openAdminFilters;
 window.openAdminEmailTemplates = Admin.openAdminEmailTemplates;
 window.openAdminSettings = Admin.openAdminSettings;
+// Toggle parent info section
+window.toggleParentInfo = function() {
+    const content = document.getElementById('parent-info-content');
+    const icon = document.getElementById('parent-info-icon');
+    if (content && icon) {
+        content.classList.toggle('hidden');
+        icon.classList.toggle('rotate-180');
+    }
+};
+
 window.togglePTValidityInput = function() {
     const validityType = document.getElementById('admin-pkg-pt-validity-type').value;
     const validityDateInput = document.getElementById('admin-pkg-pt-validity-date');

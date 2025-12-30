@@ -66,9 +66,9 @@
                         </h3>
                         <div class="grid md:grid-cols-2 gap-6">
                             <div><label>Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
-                            <div>
+                            <div class="relative">
                                 <label>Date of Birth *</label>
-                                <input type="date" id="dob" class="input-field" onchange="window.calculateAgeDisplay(); window.checkAgeEligibility(); window.generateTrialSlots()" required>
+                                <input type="date" id="dob" class="input-field w-full max-w-full" onchange="window.calculateAgeDisplay(); window.checkAgeEligibility(); window.generateTrialSlots()" required style="max-width: 100%; box-sizing: border-box;">
                                 <p id="age-display" class="text-xs font-bold text-blue-600 mt-1 hidden">Age: <span id="age-value"></span> Years</p>
                                 <!-- Age Eligibility Message -->
                                 <div id="age-ineligible-message" class="hidden mt-4 p-6 bg-gradient-to-br from-orange-50 via-amber-50 to-yellow-50 rounded-xl border-2 border-orange-300 shadow-lg">
@@ -171,12 +171,18 @@
             <p class="text-slate-600 text-sm">Welcome back! Here's everything about your little star! ⭐</p>
         </div>
         
-        <!-- Common Information Section -->
-        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border-2 border-blue-200 shadow-md">
-            <h2 class="text-xl font-bold text-blue-900 mb-4 flex items-center">
-                <span class="text-2xl mr-2">📋</span> Important Information for Parents
-            </h2>
-            <div class="space-y-4">
+        <!-- Primary Content: Kids Information (Always at Top) -->
+        <div id="parent-content" class="space-y-6 mb-6"></div>
+        
+        <!-- Collapsible Information Section (Accessible but Secondary) -->
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl border-2 border-blue-200 shadow-md overflow-hidden">
+            <button onclick="window.toggleParentInfo()" class="w-full p-4 flex items-center justify-between hover:bg-blue-100 transition" id="parent-info-toggle">
+                <h2 class="text-lg font-bold text-blue-900 flex items-center">
+                    <span class="text-2xl mr-2">📋</span> Quick Reference Guide
+                </h2>
+                <i class="fas fa-chevron-down text-blue-600 transition-transform" id="parent-info-icon"></i>
+            </button>
+            <div id="parent-info-content" class="hidden px-6 pb-6 space-y-4">
                 <div class="bg-white rounded-xl p-4 border border-blue-100">
                     <h3 class="font-bold text-blue-800 mb-2 flex items-center">
                         <span class="mr-2">👕</span> What to Wear
@@ -203,14 +209,12 @@
                         <span class="mr-2">📍</span> Find Us at Tumble Gym Mysore
                     </h3>
                     <p class="text-sm text-blue-700 mb-2">Need directions? Click below to navigate to our location:</p>
-                    <a href="https://maps.google.com/?q=Tumble+Gym+Mysore" target="_blank" class="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg transform hover:scale-105 transition-all">
-                        <span class="mr-2">🗺️</span> Open in Google Maps
+                    <a href="https://maps.google.com/?q=Tumble+Gym+Mysore" target="_blank" class="inline-flex items-center gap-2 bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg transform hover:scale-105 transition-all">
+                        <span>🗺️</span> Open in Google Maps
                     </a>
                 </div>
             </div>
         </div>
-        
-        <div id="parent-content" class="space-y-6"></div>
     </div>
 
 <div id="trainer" class="hidden pt-20 px-4 max-w-6xl mx-auto pb-20 min-h-screen">

@@ -329,3 +329,17 @@ label {
     background-clip: text;
     margin-bottom: 1.5rem;
 }
+
+/* Fix date input on mobile */
+input[type="date"] {
+    max-width: 100%;
+    box-sizing: border-box;
+    -webkit-appearance: none;
+    appearance: none;
+}
+
+/* Collapsible section animation */
+.rotate-180 {
+    transform: rotate(180deg);
+    transition: transform 0.3s ease;
+}
