@@ -589,7 +589,7 @@ function createVerificationCard(lead, isNew = false) {
         'Ready to Pay': 'bg-green-100 text-green-700'
     };
     const statusColor = statusColors[lead.status] || 'bg-purple-100 text-purple-700';
-    const newBadge = isNew ? '<span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse font-bold">NEW!</span>' : '';
+    const newBadge = isNew ? '<span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">NEW!</span>' : '';
     
     // Get final_price from metadata
     const finalPrice = getFinalPrice(lead);
@@ -602,7 +602,7 @@ function createVerificationCard(lead, isNew = false) {
     const showPaymentActions = lead.status === 'Registration Requested' && (lead.payment_proof_url || paymentMode === 'Cash');
     
     return `
-    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition ${isNew ? 'animate-pulse' : ''}">
+    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
             <div>
                 <h4 class="font-bold text-slate-800">${lead.child_name}${newBadge}</h4>
@@ -669,7 +669,7 @@ function createEnrolledCard(lead) {
     const meta = getPackageMetadata(lead);
     const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
     return `
-    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 opacity-75 mb-3">
+    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 mb-3">
         <div class="flex justify-between items-center">
             <div>
                 <h4 class="font-bold text-slate-700 text-sm">${lead.child_name}</h4>
@@ -683,40 +683,144 @@ function createEnrolledCard(lead) {
 // --- 4. ACTIONS ---
 
 export async function approvePayment(leadId) {
-    // Use a more user-friendly confirmation approach
-    const confirmed = await new Promise((resolve) => {
-        const modal = document.createElement('div');
-        modal.className = 'modal-overlay';
-        modal.innerHTML = `
-            <div class="modal-content">
-                <h3 class="text-xl font-bold mb-4">Confirm Enrollment</h3>
-                <p class="mb-6">Are you sure you want to verify payment and enroll this student?</p>
-                <div class="flex gap-3">
-                    <button onclick="this.closest('.modal-overlay').remove(); window.__adminConfirmResolve(true)" class="flex-1 bg-green-600 text-white font-bold py-2 rounded-lg">Yes, Enroll</button>
-                    <button onclick="this.closest('.modal-overlay').remove(); window.__adminConfirmResolve(false)" class="flex-1 bg-slate-200 text-slate-700 font-bold py-2 rounded-lg">Cancel</button>
-                </div>
-            </div>
-        `;
-        document.body.appendChild(modal);
-        window.__adminConfirmResolve = resolve;
-    });
-    
-    if (!confirmed) return;
-
     try {
-        // Only update fields that exist - enrollment_date may not exist in schema
+        // Fetch lead details to get payment mode and other info
+        const { data: lead, error: fetchError } = await supabaseClient
+            .from('leads')
+            .select('*')
+            .eq('id', leadId)
+            .single();
+        
+        if (fetchError || !lead) {
+            showErrorModal("Error", "Could not fetch student details.");
+            return;
+        }
+        
+        const meta = getPackageMetadata(lead);
+        const paymentMode = meta?.payment_mode || lead.payment_mode || null;
+        const paymentProofUrl = lead.payment_proof_url;
+        const finalPrice = getFinalPrice(lead);
+        const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+        
+        // Get current admin name
+        const currentAdminName = document.getElementById('user-role-badge')?.innerText || 'Admin';
+        
+        // Fetch team members (admin and trainer roles)
+        const { data: teamMembers } = await supabaseClient
+            .from('user_roles')
+            .select('full_name, role')
+            .in('role', ['admin', 'trainer'])
+            .order('full_name');
+        
+        const teamList = teamMembers || [];
+        const defaultTeamMember = currentAdminName;
+        
+        // Create comprehensive approval modal
+        const approvalData = await new Promise((resolve) => {
+            const modal = document.createElement('div');
+            modal.className = 'modal-overlay z-50';
+            modal.innerHTML = `
+                <div class="modal-content max-w-2xl">
+                    <h3 class="text-xl font-bold mb-4 text-green-700"><i class="fas fa-check-circle mr-2"></i>Verify Payment & Enroll Student</h3>
+                    
+                    <div class="bg-blue-50 p-4 rounded-xl border border-blue-200 mb-4">
+                        <h4 class="font-bold text-blue-900 mb-2 text-sm">Student Information</h4>
+                        <p class="text-sm text-blue-800"><strong>Name:</strong> ${lead.child_name}</p>
+                        <p class="text-sm text-blue-800"><strong>Parent:</strong> ${lead.parent_name}</p>
+                        <p class="text-sm text-blue-800"><strong>Package:</strong> ${selectedPkg}</p>
+                        <p class="text-sm text-blue-800"><strong>Total Amount:</strong> ₹${finalPrice || '0'}</p>
+                    </div>
+                    
+                    <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-4">
+                        <h4 class="font-bold text-purple-900 mb-3 text-sm">Payment Verification Details</h4>
+                        
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Payment Mode</label>
+                            <div class="bg-white p-3 rounded-lg border border-purple-200">
+                                <span class="font-bold text-purple-700">${paymentMode || 'Not Specified'}</span>
+                            </div>
+                        </div>
+                        
+                        ${paymentProofUrl ? `
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Payment Proof</label>
+                            <div class="bg-white p-3 rounded-lg border border-purple-200">
+                                <a href="${paymentProofUrl}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800 flex items-center">
+                                    <i class="fas fa-paperclip mr-2"></i> View Payment Screenshot
+                                </a>
+                            </div>
+                        </div>
+                        ` : ''}
+                        
+                        ${paymentMode === 'Cash' ? `
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Payment Collected By *</label>
+                            <select id="payment-collected-by" class="input-field w-full" required>
+                                ${teamList.map(member => 
+                                    `<option value="${member.full_name || member.email}" ${(member.full_name || member.email) === defaultTeamMember ? 'selected' : ''}>${member.full_name || member.email} (${member.role})</option>`
+                                ).join('')}
+                                ${teamList.length === 0 ? `<option value="${defaultTeamMember}" selected>${defaultTeamMember} (Admin)</option>` : ''}
+                            </select>
+                            <p class="text-xs text-slate-500 mt-1">Select who collected the cash payment</p>
+                        </div>
+                        ` : ''}
+                        
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Verification Notes (Optional)</label>
+                            <textarea id="verification-notes" rows="3" class="input-field w-full" placeholder="Any additional notes about payment verification, receipt number, transaction ID, etc."></textarea>
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Verification Date</label>
+                            <input type="date" id="verification-date" class="input-field w-full" value="${new Date().toISOString().split('T')[0]}" required>
+                        </div>
+                    </div>
+                    
+                    <div class="flex gap-3 mt-6">
+                        <button onclick="const data = { collectedBy: document.getElementById('payment-collected-by')?.value || '${defaultTeamMember}', notes: document.getElementById('verification-notes').value, date: document.getElementById('verification-date').value }; this.closest('.modal-overlay').remove(); window.__adminApprovalResolve(data)" class="flex-1 bg-green-600 text-white font-bold py-3 rounded-lg hover:bg-green-700 transition">
+                            <i class="fas fa-check mr-2"></i>Verify & Enroll
+                        </button>
+                        <button onclick="this.closest('.modal-overlay').remove(); window.__adminApprovalResolve(null)" class="flex-1 bg-slate-200 text-slate-700 font-bold py-3 rounded-lg hover:bg-slate-300 transition">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+            window.__adminApprovalResolve = resolve;
+        });
+        
+        if (!approvalData) return;
+        
+        // Build verification metadata
+        const verificationMeta = {
+            verified_by: currentAdminName,
+            verified_date: approvalData.date,
+            payment_collected_by: approvalData.collectedBy || currentAdminName,
+            verification_notes: approvalData.notes || null,
+            payment_mode: paymentMode,
+            verified_at: new Date().toISOString()
+        };
+        
+        // Store verification details in parent_note metadata
+        const existingNote = lead.parent_note || '';
+        const verificationNote = `[VERIFICATION_META]${JSON.stringify(verificationMeta)}[/VERIFICATION_META]`;
+        const cleanedNote = existingNote.replace(/\[VERIFICATION_META\].*?\[\/VERIFICATION_META\]/g, '').trim();
+        const updatedNote = cleanedNote ? `${cleanedNote}\n${verificationNote}` : verificationNote;
+        
+        // Update lead with enrollment status and verification metadata
         const { error } = await supabaseClient
             .from('leads')
             .update({ 
                 status: 'Enrolled', 
-                payment_status: 'Paid'
-                // enrollment_date removed - may not exist in schema
+                payment_status: 'Paid',
+                parent_note: updatedNote
             })
             .eq('id', leadId);
 
         if (error) throw error;
 
-        showSuccessModal("Student Enrolled!", "Payment verified and status updated.");
+        showSuccessModal("Student Enrolled!", `Payment verified by ${approvalData.collectedBy || currentAdminName}. Student is now enrolled.`);
         fetchPendingRegistrations(); 
 
     } catch (err) {
@@ -798,8 +902,9 @@ export async function modifyAdminPackage(leadId) {
         const isLocked = meta?.package_locked || lead.package_locked || false;
         document.getElementById('admin-pkg-current-locked').innerText = isLocked ? 'Yes' : 'No';
 
-        // Reset form
-        document.getElementById('admin-pkg-type').value = '';
+        // Determine and default package type based on current selection
+        let defaultPkgType = '';
+        let defaultPkgValue = '';
         
         // Check if this is an adult PT request
         const ptRequestInfo = document.getElementById('admin-pt-request-info');
@@ -812,11 +917,87 @@ export async function modifyAdminPackage(leadId) {
             `;
             // Pre-fill start date
             document.getElementById('admin-pkg-pt-start-date').value = meta.pt_request.preferred_start_date;
-            // Auto-select PT type
-            document.getElementById('admin-pkg-type').value = 'pt';
-            window.updateAdminPackageOptions();
+            defaultPkgType = 'pt';
         } else {
             ptRequestInfo.classList.add('hidden');
+            
+            // Try to determine package type from current selection
+            // First check if package_id is stored in metadata for accurate matching
+            if (meta?.package_id) {
+                // Check if it's a standard package ID
+                const standardPkg = STANDARD_PACKAGES.find(p => p.id === meta.package_id);
+                if (standardPkg) {
+                    defaultPkgType = 'standard';
+                    defaultPkgValue = `${standardPkg.id}|${standardPkg.price}|${standardPkg.classes}|${standardPkg.months}`;
+                } else if (meta.package_id.startsWith('morn_')) {
+                    defaultPkgType = 'morning';
+                    defaultPkgValue = 'morn_child|5500|999|1';
+                } else if (meta.package_id.startsWith('pt_') || meta.package_id.includes('pt')) {
+                    defaultPkgType = 'pt';
+                }
+            } else if (selectedPkg && selectedPkg !== 'Not Set') {
+                // Fallback: Try to match by label text
+                const pkgLower = selectedPkg.toLowerCase();
+                // Remove amount part if present (e.g., "1 Month - 8 Classes - ₹3500" -> "1 Month - 8 Classes")
+                const pkgLabelOnly = selectedPkg.split(' - ₹')[0].trim().toLowerCase();
+                
+                if (pkgLower.includes('morning') || (pkgLower.includes('unlimited') && pkgLower.includes('morning'))) {
+                    defaultPkgType = 'morning';
+                    defaultPkgValue = 'morn_child|5500|999|1';
+                } else if (pkgLower.includes('personal training') || pkgLower.includes('pt') || pkgLower.includes('personal')) {
+                    defaultPkgType = 'pt';
+                } else {
+                    // Check if it matches any standard package by label
+                    let foundStandard = false;
+                    for (const pkg of STANDARD_PACKAGES) {
+                        const pkgLabelLower = pkg.label.toLowerCase();
+                        // Match by label (with or without amount)
+                        if (pkgLabelOnly.includes(pkgLabelLower) || pkgLabelLower.includes(pkgLabelOnly) || 
+                            selectedPkg.includes(pkg.label) || selectedPkg.includes(pkg.id)) {
+                            defaultPkgType = 'standard';
+                            defaultPkgValue = `${pkg.id}|${pkg.price}|${pkg.classes}|${pkg.months}`;
+                            foundStandard = true;
+                            break;
+                        }
+                    }
+                    if (!foundStandard && selectedPkg !== 'Not Set') {
+                        defaultPkgType = 'custom';
+                    }
+                }
+            }
+        }
+        
+        // Set default package type and trigger update
+        if (defaultPkgType) {
+            document.getElementById('admin-pkg-type').value = defaultPkgType;
+            // Use setTimeout to ensure DOM is ready
+            setTimeout(() => {
+                window.updateAdminPackageOptions();
+                
+                // Set default package value after options are populated
+                setTimeout(() => {
+                    if (defaultPkgType === 'standard' && defaultPkgValue) {
+                        const standardSelect = document.getElementById('admin-pkg-standard-select');
+                        if (standardSelect) standardSelect.value = defaultPkgValue;
+                    } else if (defaultPkgType === 'morning') {
+                        const morningSelect = document.getElementById('admin-pkg-morning-select');
+                        if (morningSelect) morningSelect.value = 'morn_child|5500|999|1';
+                    } else if (defaultPkgType === 'pt' && meta?.pt_request) {
+                        // Pre-fill PT details from metadata if available
+                        if (meta.pt_request.rate_per_session) {
+                            const ptRate = document.getElementById('admin-pkg-pt-rate');
+                            if (ptRate) ptRate.value = meta.pt_request.rate_per_session;
+                        }
+                        if (meta.pt_request.sessions) {
+                            const ptSessions = document.getElementById('admin-pkg-pt-sessions');
+                            if (ptSessions) ptSessions.value = meta.pt_request.sessions;
+                        }
+                    }
+                    window.calculateAdminPackageTotal();
+                }, 100);
+            }, 50);
+        } else {
+            document.getElementById('admin-pkg-type').value = '';
         }
         
         // Get lock status from metadata or direct field (already declared above, reuse)
@@ -1030,26 +1211,28 @@ export async function saveAdminPackage() {
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
         packageMetadata.selected_package = pkg.label;
+        packageMetadata.package_id = id; // Store package ID for future matching
         packageMetadata.package_price = finalPackagePrice;
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = parseInt(classes);
         packageMetadata.package_months = parseInt(months);
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
-           } else if (pkgType === 'morning') {
-               const val = document.getElementById('admin-pkg-morning-select').value;
-               if (!val) {
-                   showErrorModal("Selection Required", "Please select a morning package.");
-                   return;
-               }
-               const [id, price, classes, months] = val.split('|');
-               const pkg = MORNING_PACKAGES.CHILD; // Same for all now
-               const basePrice = parseInt(price);
-               const finalPackagePrice = customFees.package_fee_override || basePrice;
+    } else if (pkgType === 'morning') {
+        const val = document.getElementById('admin-pkg-morning-select').value;
+        if (!val) {
+            showErrorModal("Selection Required", "Please select a morning package.");
+            return;
+        }
+        const [id, price, classes, months] = val.split('|');
+        const pkg = MORNING_PACKAGES.CHILD; // Same for all now
+        const basePrice = parseInt(price);
+        const finalPackagePrice = customFees.package_fee_override || basePrice;
         
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
         packageMetadata.selected_package = pkg.label;
+        packageMetadata.package_id = id; // Store package ID for future matching
         packageMetadata.package_price = finalPackagePrice;
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = parseInt(classes);
