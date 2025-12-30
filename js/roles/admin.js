@@ -647,8 +647,7 @@ export async function modifyAdminPackage(leadId) {
             ptRequestInfo.classList.add('hidden');
         }
         
-        // Get lock status from metadata or direct field
-        const isLocked = meta?.package_locked || lead.package_locked || false;
+        // Get lock status from metadata or direct field (already declared above, reuse)
         document.getElementById('admin-pkg-lock').checked = isLocked;
         
         // Get package_lock_type from metadata
