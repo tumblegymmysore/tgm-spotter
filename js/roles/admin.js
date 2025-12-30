@@ -36,7 +36,8 @@ export async function loadAdminDashboard(adminName) {
         if (tab === 'trials') {
             fetchAdminTrials();
         } else if (tab === 'inbox') {
-            fetchPendingRegistrations();
+            // Inbox tab shows messages/conversations
+            fetchAdminInbox();
         } else if (tab === 'batches') {
             fetchDeclinedRegistrations();
         } else if (tab === 'attendance') {
@@ -44,9 +45,9 @@ export async function loadAdminDashboard(adminName) {
         }
     };
     
-    // Load Data - Start with pending registrations (inbox tab) to show what needs immediate attention
-    // Switch to inbox tab and load pending registrations
-    window.switchTab('inbox');
+    // Load Data - Start with pending registrations (trials tab shows registrations)
+    // Switch to trials tab and load pending registrations
+    window.switchTab('trials');
     await fetchPendingRegistrations();
 }
 
@@ -58,12 +59,12 @@ function updateAdminTabs() {
     const attendanceTab = document.getElementById('tab-btn-attendance');
     
     if (trialsTab) {
-        trialsTab.innerHTML = '<i class="fas fa-clipboard-list mr-2"></i>Pending Trials';
-        trialsTab.onclick = () => { window.switchTab('trials'); fetchAdminTrials(); };
+        trialsTab.innerHTML = '<i class="fas fa-file-invoice-dollar mr-2"></i>Registrations';
+        trialsTab.onclick = () => { window.switchTab('trials'); fetchPendingRegistrations(); };
     }
     if (inboxTab) {
-        inboxTab.innerHTML = '<i class="fas fa-file-invoice-dollar mr-2"></i>Registrations';
-        inboxTab.onclick = () => { window.switchTab('inbox'); fetchPendingRegistrations(); };
+        inboxTab.innerHTML = '<i class="fas fa-comments mr-2"></i>Messages';
+        inboxTab.onclick = () => { window.switchTab('inbox'); fetchAdminInbox(); };
     }
     if (batchesTab) {
         batchesTab.innerHTML = '<i class="fas fa-user-times mr-2"></i>Declined/Follow-ups';
@@ -426,6 +427,156 @@ export async function fetchPendingRegistrations() {
         console.error("Admin Fetch Error:", err);
         listNew.innerHTML = `<p class="text-red-500 text-sm">System Error: ${err.message}</p>`;
     }
+}
+
+// --- ADMIN INBOX: View all conversations (trainer-parent, admin-parent, admin-trainer) ---
+export async function fetchAdminInbox() {
+    const container = document.getElementById('list-inbox');
+    if (!container) return;
+    
+    container.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading conversations...</p>';
+    
+    try {
+        // Fetch ALL messages with lead details
+        const { data: messages, error } = await supabaseClient
+            .from('messages')
+            .select(`*, leads (id, child_name, parent_name, email, phone)`)
+            .order('created_at', { ascending: false });
+        
+        if (error) {
+            console.error('Messages fetch error:', error);
+            container.innerHTML = `<p class="text-red-500 text-sm">Error loading messages: ${error.message}</p>`;
+            return;
+        }
+        
+        if (!messages || messages.length === 0) {
+            container.innerHTML = '<div class="p-8 text-center text-slate-400">No conversations yet.</div>';
+            return;
+        }
+        
+        // Group messages by lead_id and sender_role to create conversations
+        const conversations = {};
+        let globalUnread = 0;
+        
+        messages.forEach(msg => {
+            if (!msg.leads) return;
+            const lid = msg.leads.id;
+            const convKey = `${lid}_${msg.sender_role}`; // Separate conversations for trainer and admin with same parent
+            
+            if (!conversations[convKey]) {
+                conversations[convKey] = {
+                    leadId: lid,
+                    details: msg.leads,
+                    senderRole: msg.sender_role,
+                    lastMessage: msg,
+                    unread: 0,
+                    messages: []
+                };
+            }
+            
+            conversations[convKey].messages.push(msg);
+            
+            // Update last message if this is more recent
+            if (new Date(msg.created_at) > new Date(conversations[convKey].lastMessage.created_at)) {
+                conversations[convKey].lastMessage = msg;
+            }
+            
+            // Count unread messages (not from admin and not read)
+            if (msg.sender_role !== 'admin' && !msg.is_read) {
+                conversations[convKey].unread++;
+                globalUnread++;
+            }
+        });
+        
+        // Sort conversations: unread first, then by most recent message
+        const sortedConversations = Object.values(conversations).sort((a, b) => {
+            if (a.unread > 0 && b.unread === 0) return -1;
+            if (a.unread === 0 && b.unread > 0) return 1;
+            return new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at);
+        });
+        
+        // Add filter buttons
+        const filterContainer = document.getElementById('inbox-filters');
+        if (filterContainer) {
+            filterContainer.innerHTML = `
+                <button onclick="window.filterAdminInbox('all')" id="admin-filter-all" class="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white">All</button>
+                <button onclick="window.filterAdminInbox('unread')" id="admin-filter-unread" class="px-4 py-2 rounded-lg text-sm font-bold bg-slate-200 text-slate-700">Unread</button>
+                <button onclick="window.filterAdminInbox('read')" id="admin-filter-read" class="px-4 py-2 rounded-lg text-sm font-bold bg-slate-200 text-slate-700">Read</button>
+            `;
+        }
+        
+        // Store conversations globally for filtering
+        window.adminConversations = sortedConversations;
+        window.currentAdminInboxFilter = 'all';
+        
+        renderAdminInbox(sortedConversations);
+        
+    } catch (e) {
+        console.error("Admin Inbox Error:", e);
+        container.innerHTML = `<p class="text-red-500 text-sm">Error: ${e.message}</p>`;
+    }
+}
+
+// Render admin inbox with filtering
+function renderAdminInbox(conversations) {
+    const container = document.getElementById('list-inbox');
+    if (!container) return;
+    
+    const filter = window.currentAdminInboxFilter || 'all';
+    const filtered = conversations.filter(conv => {
+        if (filter === 'unread') return conv.unread > 0;
+        if (filter === 'read') return conv.unread === 0;
+        return true;
+    });
+    
+    container.innerHTML = '';
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400">No conversations found.</div>';
+        return;
+    }
+    
+    filtered.forEach(conv => {
+        const leadString = encodeURIComponent(JSON.stringify(conv.details));
+        const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
+        const senderLabel = conv.senderRole === 'trainer' ? 'Trainer' : conv.senderRole === 'admin' ? 'Admin' : 'Parent';
+        const senderIcon = conv.senderRole === 'trainer' ? '👨‍🏫' : conv.senderRole === 'admin' ? '👤' : '👨‍👩‍👧';
+        
+        container.innerHTML += `
+            <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
+                <div class="flex items-center flex-1">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">${conv.details.child_name.charAt(0)}</div>
+                    <div class="overflow-hidden flex-1">
+                        <div class="flex items-center gap-2 mb-1">
+                            <h4 class="font-bold text-slate-800 text-sm">${conv.details.parent_name}</h4>
+                            <span class="text-xs text-slate-500">${senderIcon} ${senderLabel}</span>
+                        </div>
+                        <p class="text-xs text-slate-500 truncate">${conv.lastMessage.sender_role === 'admin' ? 'You: ' : conv.lastMessage.sender_role === 'trainer' ? 'Trainer: ' : 'Parent: '}${conv.lastMessage.message_text}</p>
+                    </div>
+                </div>
+                ${conv.unread > 0 ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full ml-2">${conv.unread}</span>` : ''}
+            </div>`;
+    });
+}
+
+// Filter admin inbox function
+window.filterAdminInbox = function(filter) {
+    window.currentAdminInboxFilter = filter;
+    const conversations = window.adminConversations || [];
+    renderAdminInbox(conversations);
+    
+    // Update button styles
+    ['all', 'unread', 'read'].forEach(f => {
+        const btn = document.getElementById(`admin-filter-${f}`);
+        if (btn) {
+            if (f === filter) {
+                btn.classList.remove('bg-slate-200', 'text-slate-700');
+                btn.classList.add('bg-blue-600', 'text-white');
+            } else {
+                btn.classList.remove('bg-blue-600', 'text-white');
+                btn.classList.add('bg-slate-200', 'text-slate-700');
+            }
+        }
+    });
 }
 
 // --- 3. CARDS ---

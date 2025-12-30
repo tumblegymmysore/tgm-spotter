@@ -119,6 +119,7 @@ window.calculateTotal = Parent.calculateTotal;
 window.updateSessionDaysSection = Parent.updateSessionDaysSection;
 window.limitSessionDays = Parent.limitSessionDays;
 window.togglePaymentMode = Parent.togglePaymentMode;
+window.fetchAdminInbox = Admin.fetchAdminInbox;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {
@@ -134,16 +135,27 @@ window.openChat = async (str) => {
     
     // Mark Read Logic and update placeholder
     const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    const isAdmin = document.querySelector('#trainer h1')?.innerText === 'Admin Dashboard';
     const chatInput = document.getElementById('chat-input');
     if (chatInput) {
-        chatInput.placeholder = isParent ? "Type a message to coach..." : "Type a message to parent...";
+        if (isParent) {
+            chatInput.placeholder = "Type a message to coach...";
+        } else if (isAdmin) {
+            chatInput.placeholder = "Type a message to parent or trainer...";
+        } else {
+            chatInput.placeholder = "Type a message to parent...";
+        }
     }
     
     if (isParent) {
-        // Parent reading Trainer msg
-        await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).eq('sender_role', 'trainer');
+        // Parent reading Trainer/Admin msg
+        await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).in('sender_role', ['trainer', 'admin']);
+    } else if (isAdmin) {
+        // Admin reading Parent/Trainer msg
+        await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).in('sender_role', ['parent', 'trainer']);
+        document.getElementById('inbox-badge')?.classList.add('hidden');
     } else {
-        // Staff reading Parent msg
+        // Trainer reading Parent msg
         await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).neq('sender_role', 'trainer');
         document.getElementById('inbox-badge')?.classList.add('hidden');
     }
@@ -157,10 +169,15 @@ window.loadMessages = async (leadId) => {
     
     // Determine "Me" based on view
     const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    const isAdmin = document.querySelector('#trainer h1')?.innerText === 'Admin Dashboard';
     
     data.forEach(msg => {
-        // If I am Parent, 'parent' is Me. If I am Staff, 'trainer' is Me.
-        const isMe = isParent ? (msg.sender_role !== 'trainer') : (msg.sender_role === 'trainer');
+        // If I am Parent, 'parent' is Me. If I am Admin, 'admin' is Me. If I am Trainer, 'trainer' is Me.
+        const isMe = isParent 
+            ? (msg.sender_role === 'parent') 
+            : isAdmin 
+                ? (msg.sender_role === 'admin')
+                : (msg.sender_role === 'trainer');
         
         // XSS-safe: Create elements instead of innerHTML
         const msgDiv = document.createElement('div');
@@ -188,8 +205,10 @@ window.sendChatMessage = async () => {
 
     const leadId = document.getElementById('chat-lead-id').value;
     const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    const isAdmin = document.querySelector('#trainer h1')?.innerText === 'Admin Dashboard';
     
-    const role = isParent ? 'parent' : 'trainer'; // Admin also uses 'trainer' role for chat usually
+    // Determine role: admin uses 'admin', trainer uses 'trainer', parent uses 'parent'
+    const role = isParent ? 'parent' : (isAdmin ? 'admin' : 'trainer');
     const senderName = document.getElementById('user-role-badge') ? document.getElementById('user-role-badge').innerText : "User";
 
     const container = document.getElementById('chat-history');
@@ -208,7 +227,13 @@ window.sendChatMessage = async () => {
     await window.loadMessages(leadId);
     
     // Refresh Inbox if Trainer/Admin
-    if(!isParent) Trainer.fetchInbox();
+    if(!isParent) {
+        if (isAdmin && window.fetchAdminInbox) {
+            window.fetchAdminInbox();
+        } else if (Trainer.fetchInbox) {
+            Trainer.fetchInbox();
+        }
+    }
 };
 
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden')); });

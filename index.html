@@ -288,8 +288,11 @@
         <div id="view-inbox" class="tab-content hidden">
             <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl mx-auto">
                 <div class="p-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                    <h3 class="font-bold text-slate-700">Recent Conversations</h3>
-                    <button onclick="fetchInbox()" class="text-xs text-blue-600 hover:underline"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    <h3 class="font-bold text-slate-700">All Conversations</h3>
+                    <div class="flex items-center gap-3">
+                        <div id="inbox-filters" class="flex gap-2"></div>
+                        <button onclick="window.fetchAdminInbox ? window.fetchAdminInbox() : fetchInbox()" class="text-xs text-blue-600 hover:underline"><i class="fas fa-sync-alt"></i> Refresh</button>
+                    </div>
                 </div>
                 <div id="list-inbox" class="divide-y divide-slate-100">
                     <div class="p-8 text-center text-slate-400">Loading messages...</div>
