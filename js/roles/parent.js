@@ -468,9 +468,8 @@ export function checkApprovalRequirement() {
                 needsApproval = true;
                 approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details, rate, and validity period before proceeding with payment.';
             } else {
-                // If PT was recommended, still need approval to discuss details
-                needsApproval = true;
-                approvalMessage = 'Please discuss with admin regarding rate per session, number of sessions, and validity period. Admin will confirm these details after your discussion.';
+                // If PT was recommended, hide approval notice (PT details box already covers it)
+                needsApproval = false;
             }
         } else if (isAdultMorning) {
             // Morning batch for adults - can proceed directly (unlimited, fixed schedule)
@@ -555,7 +554,6 @@ export async function submitRegistration(actionType) {
             }
             ptDetails = {
                 preferred_start_date: startDate,
-                preferred_time: document.getElementById('reg-pt-preferred-time').value || null,
                 notes: document.getElementById('reg-pt-notes').value.trim() || null,
                 type: 'adult_pt_request'
             };
@@ -577,7 +575,6 @@ export async function submitRegistration(actionType) {
         let note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
         if (ptDetails) {
             note += `\nPT Details: Start Date: ${ptDetails.preferred_start_date}`;
-            if (ptDetails.preferred_time) note += `, Preferred Time: ${ptDetails.preferred_time}`;
             if (ptDetails.notes) note += `\nNotes: ${ptDetails.notes}`;
         }
         

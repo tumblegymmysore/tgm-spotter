@@ -460,7 +460,6 @@ function createVerificationCard(lead) {
                 <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                     <p class="font-bold text-amber-900 mb-1"><i class="fas fa-dumbbell mr-1"></i> Personal Training Request</p>
                     <p><strong>Preferred Start:</strong> ${new Date(meta.pt_request.preferred_start_date).toLocaleDateString('en-IN')}</p>
-                    ${meta.pt_request.preferred_time ? `<p><strong>Preferred Time:</strong> ${meta.pt_request.preferred_time}</p>` : ''}
                     ${meta.pt_request.notes ? `<p><strong>Notes:</strong> ${meta.pt_request.notes}</p>` : ''}
                     <p class="text-xs text-amber-700 mt-1">Admin to set: Rate per session, Number of sessions, Validity period</p>
                 </div>
@@ -635,7 +634,6 @@ export async function modifyAdminPackage(leadId) {
             ptRequestInfo.classList.remove('hidden');
             ptRequestDetails.innerHTML = `
                 <p><strong>Preferred Start Date:</strong> ${new Date(meta.pt_request.preferred_start_date).toLocaleDateString('en-IN')}</p>
-                ${meta.pt_request.preferred_time ? `<p><strong>Preferred Time:</strong> ${meta.pt_request.preferred_time}</p>` : ''}
                 ${meta.pt_request.notes ? `<p><strong>Notes:</strong> ${meta.pt_request.notes}</p>` : ''}
             `;
             // Pre-fill start date

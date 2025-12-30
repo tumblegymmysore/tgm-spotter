@@ -36,27 +36,34 @@
     <div id="landing" class="pt-16 fade-in">
         <header class="hero-gradient text-white text-center py-20 px-4 rounded-b-[3rem] relative shadow-lg">
             <div class="max-w-3xl mx-auto">
-                <span class="bg-yellow-400 text-blue-900 text-xs font-extrabold px-3 py-1 rounded-full uppercase tracking-wide mb-4 inline-block shadow-sm">Admissions Open</span>
-                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">Where Kids Learn to <br/><span class="text-yellow-300">Fly & Tumble!</span></h1>
-                <p class="text-blue-100 text-lg mb-8 font-medium">Professional gymnastics training for ages 3-14 in Mysore.</p>
-                <button onclick="window.scrollToSection('intake-form')" class="bg-rose-500 text-white px-8 py-3 rounded-full font-bold shadow-lg hover:bg-rose-600 transform hover:scale-105 transition">Book a Free Trial</button>
+                <span class="bg-yellow-400 text-blue-900 text-xs font-extrabold px-4 py-2 rounded-full uppercase tracking-wide mb-4 inline-block shadow-lg animate-bounce">🎉 New Sessions Starting Soon!</span>
+                <h1 class="text-4xl md:text-5xl font-extrabold mb-4 leading-tight">Where Little Champions <br/><span class="text-yellow-300">Flip, Fly & Shine! ✨</span></h1>
+                <p class="text-blue-100 text-lg mb-8 font-semibold">Fun-filled gymnastics adventures for ages 3+ in Mysore! Build strength, confidence & amazing skills! 🏆</p>
+                <button onclick="window.scrollToSection('intake-form')" class="bg-gradient-to-r from-pink-500 to-rose-600 text-white px-10 py-4 rounded-full font-bold shadow-xl hover:shadow-2xl transform hover:scale-110 transition-all text-lg">
+                    🎯 Start Your Gymnastics Journey - Free Trial!
+                </button>
             </div>
         </header>
 
         <section class="max-w-4xl mx-auto -mt-10 px-4 relative z-20">
             <div class="bg-white p-6 rounded-2xl card-shadow grid grid-cols-3 gap-4 text-center divide-x divide-slate-100">
-                <div><div class="text-3xl font-bold text-blue-600">300+</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Happy Kids</div></div>
-                <div><div class="text-3xl font-bold text-yellow-500">12+</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Expert Trainers</div></div>
-                <div><div class="text-3xl font-bold text-rose-500">4.9</div><div class="text-xs text-slate-500 font-bold uppercase mt-1">Rating</div></div>
+                <div><div class="text-3xl font-bold text-blue-600">300+</div><div class="text-xs text-slate-600 font-bold uppercase mt-1">🌟 Happy Gymnasts</div></div>
+                <div><div class="text-3xl font-bold text-yellow-500">12+</div><div class="text-xs text-slate-600 font-bold uppercase mt-1">🏅 Expert Coaches</div></div>
+                <div><div class="text-3xl font-bold text-rose-500">4.9</div><div class="text-xs text-slate-600 font-bold uppercase mt-1">⭐ Star Rating</div></div>
             </div>
         </section>
 
         <section id="intake-form" class="max-w-4xl mx-auto mt-20 mb-24 px-4">
              <div class="bg-white rounded-3xl shadow-xl border border-slate-100 p-8">
-                <div class="text-center mb-10"><h2 class="text-3xl font-bold text-slate-800">Student Application</h2></div>
+                <div class="text-center mb-10">
+                    <h2 class="text-4xl font-extrabold mb-2 section-header">Join the Tumble Gym Family! 🎪</h2>
+                    <p class="text-slate-600 text-sm font-semibold">Let's get your little star ready to shine! ✨</p>
+                </div>
                 <form onsubmit="window.handleIntakeSubmit(event)" class="space-y-8">
-                    <div class="bg-blue-50 p-6 rounded-2xl border border-blue-100">
-                        <h3 class="text-blue-900 font-bold mb-4 flex items-center text-lg"><i class="fas fa-child mr-2"></i> Child's Details</h3>
+                    <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-6 rounded-2xl border-2 border-blue-200 shadow-md">
+                        <h3 class="text-blue-900 font-bold mb-4 flex items-center text-lg">
+                            <span class="text-2xl mr-2">👶</span> Tell Us About Your Little Gymnast!
+                        </h3>
                         <div class="grid md:grid-cols-2 gap-6">
                             <div><label>Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
                             <div>
@@ -69,10 +76,10 @@
                         </div>
                     </div>
 
-                    <div id="trial-section" class="bg-indigo-50 p-6 rounded-2xl border border-indigo-100 relative overflow-hidden">
-                        <div class="absolute -right-6 -top-6 w-24 h-24 bg-indigo-100 rounded-full opacity-50 pointer-events-none"></div>
-                        <h3 class="text-indigo-900 font-bold mb-4 flex items-center text-lg z-10 relative">
-                            <i class="fas fa-calendar-check mr-2"></i> Select Trial Slot
+                    <div id="trial-section" class="bg-gradient-to-br from-purple-50 via-pink-50 to-indigo-50 p-6 rounded-2xl border-2 border-purple-200 relative overflow-hidden shadow-md">
+                        <div class="absolute -right-6 -top-6 w-32 h-32 bg-gradient-to-br from-purple-200 to-pink-200 rounded-full opacity-30 pointer-events-none animate-pulse"></div>
+                        <h3 class="text-purple-900 font-bold mb-4 flex items-center text-lg z-10 relative">
+                            <span class="text-2xl mr-2">📅</span> Pick Your First Adventure Time!
                         </h3>
                         
                         <div class="mb-4">
@@ -99,8 +106,10 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-6 rounded-2xl border border-slate-100">
-                        <h3 class="text-slate-800 font-bold mb-4 flex items-center text-lg"><i class="fas fa-user-shield mr-2"></i> Parent Details</h3>
+                        <div class="bg-gradient-to-br from-slate-50 to-blue-50 p-6 rounded-2xl border-2 border-slate-200 shadow-md">
+                        <h3 class="text-slate-800 font-bold mb-4 flex items-center text-lg">
+                            <span class="text-2xl mr-2">👨‍👩‍👧‍👦</span> Parent/Guardian Information
+                        </h3>
                         <div class="grid md:grid-cols-2 gap-6">
                             <div><label>Parent Name *</label><input type="text" id="p_name" class="input-field" required></div>
                             <div><label>Mobile (WhatsApp) *</label><input type="tel" id="phone" class="input-field" required></div>
@@ -113,8 +122,10 @@
                         <div class="md:col-span-2"><label>Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List any medical conditions, injuries, allergies or 'None'" required></textarea></div>
                         <div class="md:col-span-2"><label>How did you hear about us? *</label><select id="source" class="input-field" onchange="window.checkOther(this, 'source_other')" required><option value="">Select</option><option>Google Search / Maps</option><option>Instagram / Facebook</option><option>Friend / Referral</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
                     </div>
-                    <div class="bg-yellow-50 p-6 rounded-2xl border border-yellow-100">
-                        <h3 class="text-yellow-800 font-bold mb-2 text-lg"><i class="fas fa-file-contract mr-2"></i> Waiver</h3>
+                    <div class="bg-gradient-to-br from-yellow-50 to-amber-50 p-6 rounded-2xl border-2 border-yellow-200 shadow-md">
+                        <h3 class="text-yellow-800 font-bold mb-2 text-lg flex items-center">
+                            <span class="text-2xl mr-2">📋</span> Important Information & Consent
+                        </h3>
                         <div class="terms-box">
                             <p><strong>1. Parent/Guardian Confirmation:</strong> By checking this box, I confirm that I am the legal parent/guardian of the child listed above and authorize their participation in The Tumble Gym's program.</p>
                             <p><strong>2. Risk Acknowledgement:</strong> I acknowledge and understand that participation in physical exercises and fitness activities carries inherent risks. I voluntarily assume all such risks associated with my child's participation.</p>
@@ -125,14 +136,19 @@
                         <div class="checkbox-wrapper"><input type="checkbox" id="terms_check" required><label>I Agree to Terms *</label></div>
                         <div class="checkbox-wrapper"><input type="checkbox" id="marketing_check" required><label>Allow Communication *</label></div>
                     </div>
-                    <button type="submit" id="btn-submit" class="w-full bg-rose-600 text-white font-bold py-4 rounded-xl hover:bg-rose-700 transition shadow-lg text-lg">Request Trial & Create Account</button>
+                    <button type="submit" id="btn-submit" class="w-full bg-gradient-to-r from-pink-500 via-rose-500 to-red-500 text-white font-bold py-5 rounded-xl hover:shadow-2xl transform hover:scale-105 transition-all text-lg shadow-xl">
+                        🚀 Submit & Start Your Gymnastics Journey!
+                    </button>
                 </form>
              </div>
         </section>
     </div>
 
     <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto mb-20">
-        <div class="text-center mb-8"><h1 class="text-3xl font-bold text-slate-800">My Dashboard</h1></div>
+        <div class="text-center mb-8">
+            <h1 class="text-4xl font-extrabold mb-2 section-header">My Gymnastics Hub 🏠</h1>
+            <p class="text-slate-600 text-sm">Welcome back! Here's everything about your little star! ⭐</p>
+        </div>
         <div id="parent-content" class="space-y-6"></div>
     </div>
 
@@ -140,8 +156,8 @@
         
         <header class="mb-8 flex justify-between items-end">
             <div>
-                <h1 class="text-3xl font-bold text-slate-800">Trainer Dashboard</h1>
-                <p id="trainer-welcome" class="text-slate-500">Welcome back!</p>
+                <h1 class="text-4xl font-extrabold section-header mb-2">Coach's Command Center 🎯</h1>
+                <p id="trainer-welcome" class="text-slate-600 font-semibold">Ready to help our little gymnasts shine! ✨</p>
             </div>
             <div class="text-right">
                 <p id="current-date" class="font-bold text-blue-900"></p>
@@ -247,7 +263,9 @@
 
     <div id="login-modal" class="modal-overlay hidden">
         <div class="modal-content text-center">
-            <h3 class="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h3>
+            <h3 class="text-2xl font-extrabold text-slate-800 mb-2 flex items-center justify-center">
+                <span class="mr-2">👋</span> Welcome Back, Champion!
+            </h3>
             <input type="email" id="login-email" class="input-field mb-3" placeholder="Email Address">
             <input type="password" id="login-password" class="input-field mb-4" placeholder="Password">
             <button type="button" id="btn-login-password" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg mb-3 hover:bg-blue-700 transition cursor-pointer">Login with Password</button>
@@ -261,10 +279,10 @@
             <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i class="fas fa-check text-2xl text-green-600"></i>
             </div>
-            <h3 id="success-title" class="text-2xl font-bold text-slate-800 mb-2">Success!</h3>
+            <h3 id="success-title" class="text-2xl font-bold text-slate-800 mb-2">🎉 Amazing! You Did It!</h3>
             <p id="success-msg" class="text-slate-600 text-sm mb-6">Action completed successfully.</p>
-            <button onclick="document.getElementById('success-modal').classList.add('hidden'); window.location.reload();" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition">
-                Awesome
+            <button onclick="document.getElementById('success-modal').classList.add('hidden'); window.location.reload();" class="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white font-bold py-3 rounded-lg hover:shadow-xl transform hover:scale-105 transition-all">
+                🚀 Awesome!
             </button>
         </div>
     </div>
@@ -275,18 +293,20 @@
                 <i class="fas fa-exclamation-triangle text-2xl text-red-600"></i>
             </div>
             
-            <h3 id="error-title" class="text-2xl font-bold text-slate-800 mb-2">Attention Needed</h3>
+            <h3 id="error-title" class="text-2xl font-bold text-slate-800 mb-2">⚠️ Oops! Let's Fix This</h3>
             <p id="error-msg" class="text-slate-600 text-sm mb-6">Something went wrong.</p>
             
-            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="w-full bg-slate-800 text-white font-bold py-3 rounded-lg hover:bg-slate-900 transition">
-                Okay, I'll Fix It
+            <button onclick="document.getElementById('error-modal').classList.add('hidden')" class="w-full bg-gradient-to-r from-slate-700 to-slate-900 text-white font-bold py-3 rounded-lg hover:shadow-xl transform hover:scale-105 transition-all">
+                👍 Got It, Let's Try Again!
             </button>
         </div>
     </div>
 
     <div id="trial-modal" class="modal-overlay hidden">
         <div class="modal-content">
-            <h3 class="text-lg font-bold mb-2">Assessment</h3>
+            <h3 class="text-xl font-bold mb-2 flex items-center">
+                <span class="mr-2">📝</span> Trial Session Assessment
+            </h3>
             <p class="text-sm mb-4" id="modal-child-name"></p>
             <label>Feedback</label><textarea id="trainer-feedback" class="input-field mb-4" rows="4"></textarea>
             <label>Batch</label><select id="trainer-batch" class="input-field mb-6"><option value="3-5 Yrs">3-5 Yrs</option><option value="5-8 Yrs">5-8 Yrs</option><option value="8+ Yrs">8+ Yrs</option><option value="Adult">Adult</option></select>
@@ -300,8 +320,8 @@
         
         <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
             <div>
-                <h2 class="text-xl font-bold text-slate-800">Complete Registration</h2>
-                <p class="text-xs text-slate-500 font-medium mt-1">Finalize enrollment for <span id="reg-child-name" class="text-blue-600 font-bold">Child</span> (<span id="reg-child-age">0</span> Yrs)</p>
+                <h2 class="text-2xl font-extrabold text-slate-800 mb-1">🎯 Complete Your Registration!</h2>
+                <p class="text-xs text-slate-600 font-semibold mt-1">Let's get <span id="reg-child-name" class="text-blue-600 font-bold">your little star</span> (<span id="reg-child-age">0</span> Yrs) ready to shine! ✨</p>
             </div>
             <button onclick="document.getElementById('reg-modal').classList.add('hidden')" class="w-8 h-8 rounded-full bg-white border border-slate-200 text-slate-400 hover:text-red-500 hover:border-red-200 transition flex items-center justify-center shadow-sm">
                 <i class="fas fa-times"></i>
@@ -313,13 +333,15 @@
             <input type="hidden" id="default-batch-rec">
             <input type="hidden" id="calc-final-price">
 
-            <div class="bg-blue-50 p-5 rounded-2xl border border-blue-100 flex items-center justify-between">
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-2xl border-2 border-blue-200 flex items-center justify-between shadow-md">
                 <div>
-                    <p class="text-xs text-blue-600 font-bold uppercase tracking-wide mb-1">Recommended Program</p>
+                    <p class="text-xs text-blue-700 font-bold uppercase tracking-wide mb-1 flex items-center">
+                        <span class="mr-1">⭐</span> Perfect Program for Your Gymnast!
+                    </p>
                     <h3 id="reg-program-display" class="text-xl font-extrabold text-blue-900">Loading...</h3>
                 </div>
-                <div class="w-12 h-12 bg-white text-blue-600 rounded-full flex items-center justify-center shadow-sm text-xl">
-                    <i class="fas fa-medal"></i>
+                <div class="w-14 h-14 bg-gradient-to-br from-blue-500 to-indigo-600 text-white rounded-full flex items-center justify-center shadow-lg text-2xl">
+                    🏆
                 </div>
             </div>
 
@@ -398,20 +420,16 @@
                     
                     <!-- Adult PT Options -->
                     <div id="group-pt-options" class="hidden md:col-span-2 space-y-4">
-                        <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
-                            <p class="text-xs text-amber-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> Personal Training Details</p>
-                            <p class="text-xs text-amber-700">Please discuss with admin regarding rate per session, number of sessions, and validity period. Admin will confirm these details after your discussion.</p>
+                        <div class="bg-gradient-to-br from-amber-50 to-yellow-50 p-5 rounded-xl border-2 border-amber-300 shadow-md">
+                            <p class="text-sm text-amber-900 font-bold mb-2 flex items-center">
+                                <span class="text-lg mr-2">💬</span> Let's Chat About Your Personal Training Plan!
+                            </p>
+                            <p class="text-xs text-amber-800 leading-relaxed">We'd love to discuss the perfect training schedule, session rates, and package options that work best for you. Our team will reach out to finalize all the details! 🎯</p>
                         </div>
                         
-                        <div class="grid grid-cols-2 gap-6">
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Preferred Start Date *</label>
-                                <input type="date" id="reg-pt-start-date" class="input-field w-full bg-white" min="">
-                            </div>
-                            <div>
-                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Preferred Time (Optional)</label>
-                                <input type="time" id="reg-pt-preferred-time" class="input-field w-full bg-white">
-                            </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Preferred Start Date *</label>
+                            <input type="date" id="reg-pt-start-date" class="input-field w-full bg-white" min="">
                         </div>
                         
                         <div>
@@ -421,24 +439,25 @@
                     </div>
                     
                     <!-- Adult Morning Batch Info -->
-                    <div id="adult-morning-info" class="hidden md:col-span-2 bg-green-50 p-4 rounded-xl border border-green-200">
-                        <p class="text-xs text-green-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> Morning Batch Details</p>
-                        <ul class="text-xs text-green-700 space-y-1 list-disc list-inside">
-                            <li>Unlimited classes - Attend as many sessions as you want</li>
-                            <li>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM only</li>
-                            <li>No weekend classes available for adults</li>
-                            <li>No day preference selection needed</li>
+                    <div id="adult-morning-info" class="hidden md:col-span-2 bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-300 shadow-md">
+                        <p class="text-sm text-green-900 font-bold mb-3 flex items-center">
+                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Unlimited Fun!
+                        </p>
+                        <ul class="text-xs text-green-800 space-y-2 list-none">
+                            <li class="flex items-start"><span class="mr-2">✨</span><span>Unlimited classes - Come as often as you want!</span></li>
+                            <li class="flex items-start"><span class="mr-2">⏰</span><span>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM only</span></li>
                         </ul>
                     </div>
                     
                     <!-- Kids Morning Batch Info -->
-                    <div id="kids-morning-info" class="hidden md:col-span-2 bg-green-50 p-4 rounded-xl border border-green-200">
-                        <p class="text-xs text-green-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> Morning Batch Details</p>
-                        <ul class="text-xs text-green-700 space-y-1 list-disc list-inside">
-                            <li>Unlimited classes - Attend as many sessions as you want</li>
-                            <li>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM</li>
-                            <li>Also available on weekends during your age group timings</li>
-                            <li>No day preference selection needed</li>
+                    <div id="kids-morning-info" class="hidden md:col-span-2 bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-300 shadow-md">
+                        <p class="text-sm text-green-900 font-bold mb-3 flex items-center">
+                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Unlimited Fun!
+                        </p>
+                        <ul class="text-xs text-green-800 space-y-2 list-none">
+                            <li class="flex items-start"><span class="mr-2">✨</span><span>Unlimited classes - Come as often as you want!</span></li>
+                            <li class="flex items-start"><span class="mr-2">⏰</span><span>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM</span></li>
+                            <li class="flex items-start"><span class="mr-2">🎉</span><span>Also available on weekends during your age group timings!</span></li>
                         </ul>
                     </div>
                 </div>
