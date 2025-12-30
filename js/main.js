@@ -64,6 +64,11 @@ window.fetchDeclinedRegistrations = Admin.fetchDeclinedRegistrations;
 window.fetchAllStudents = Admin.fetchAllStudents;
 window.editFollowUp = Admin.editFollowUp;
 window.saveFollowUp = Admin.saveFollowUp;
+window.editAdminForm = Admin.editAdminForm;
+window.saveAdminFormEdit = Admin.saveAdminFormEdit;
+window.openAdminFilters = Admin.openAdminFilters;
+window.openAdminEmailTemplates = Admin.openAdminEmailTemplates;
+window.openAdminSettings = Admin.openAdminSettings;
 
 // Add/Ensure these are in js/main.js
 window.updatePackageOptions = Parent.updatePackageOptions;
@@ -82,8 +87,13 @@ window.openChat = async (str) => {
 
     await loadMessages(l.id); 
     
-    // Mark Read Logic
+    // Mark Read Logic and update placeholder
     const isParent = !document.getElementById('parent-portal').classList.contains('hidden');
+    const chatInput = document.getElementById('chat-input');
+    if (chatInput) {
+        chatInput.placeholder = isParent ? "Type a message to coach..." : "Type a message to parent...";
+    }
+    
     if (isParent) {
         // Parent reading Trainer msg
         await supabaseClient.from('messages').update({ is_read: true }).eq('lead_id', l.id).eq('sender_role', 'trainer');

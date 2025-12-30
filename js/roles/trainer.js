@@ -60,12 +60,15 @@ function createTrialCard(lead) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
     const isPending = lead.status === 'Pending Trial';
     const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
+    const age = calculateAge(lead.dob);
+    const dobDisplay = lead.dob ? new Date(lead.dob).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 ${colorClass} hover:shadow-md transition mb-3">
         <div class="flex justify-between items-start">
             <div>
                 <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
+                <p class="text-xs text-blue-600 font-bold mt-1"><i class="fas fa-birthday-cake mr-1"></i>DOB: ${dobDisplay} • Age: ${age} Yrs</p>
                 <button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center">
                     <i class="fas fa-comment-dots mr-2"></i> Message Parent
                 </button>

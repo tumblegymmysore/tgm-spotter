@@ -54,14 +54,20 @@ window.generateTrialSlots = () => {
     let datePointer = new Date();
     datePointer.setDate(datePointer.getDate() + 1); // Start Tomorrow
 
+    // Get admin-suppressed dates from localStorage
+    const suppressedDates = JSON.parse(localStorage.getItem('admin_suppressed_dates') || '[]');
+    const adminHolidays = JSON.parse(localStorage.getItem('admin_holidays') || '[]');
+    const adminHolidayDates = adminHolidays.map(h => h.date);
+    
     let iterations = 0;
     while (slots.length < 5 && iterations < 30) {
         const dayOfWeek = datePointer.getDay(); 
         const dateStr = datePointer.toISOString().split('T')[0];
-        const isHoliday = HOLIDAYS_MYSORE.includes(dateStr);
+        const isHoliday = HOLIDAYS_MYSORE.includes(dateStr) || adminHolidayDates.includes(dateStr);
         const isExcluded = TRIAL_EXCLUDED_DAYS.includes(dayOfWeek);
+        const isSuppressed = suppressedDates.includes(dateStr);
 
-        if (!isHoliday && !isExcluded) {
+        if (!isHoliday && !isExcluded && !isSuppressed) {
             let validTime = null;
             if (pref === 'Morning') {
                 if (CLASS_SCHEDULE.MORNING.days.includes(dayOfWeek) && age >= CLASS_SCHEDULE.MORNING.minAge) validTime = CLASS_SCHEDULE.MORNING.time;
@@ -191,7 +197,15 @@ export async function handleIntakeSubmit(e) {
                 window.location.reload(); 
             });
         } else {
-            showSuccessModal("Account Created!", "Your trial slot is confirmed.\nPlease wear comfortable clothes (shorts/t-shirt) and arrive on time.", () => window.location.reload());
+            showSuccessModal("Account Created!", 
+                "Your trial slot is confirmed!\n\n" +
+                "📋 Important Instructions:\n" +
+                "• Wear comfortable clothes (shorts/t-shirt) and arrive on time\n" +
+                "• Food: Avoid heavy meals 2-3 hours before class\n" +
+                "• No milk or dairy products 1 hour before class\n" +
+                "• Minimal liquids 30 minutes before class\n" +
+                "• Bring a water bottle for after class", 
+                () => window.location.reload());
         }
         
         e.target.reset(); document.getElementById('age-display').classList.add('hidden');
@@ -285,8 +299,8 @@ function generateStudentCard(child, count) {
         </div>
         ${ui.action}
         <div class="flex gap-3 mt-4 pt-4 border-t border-slate-50">
-            <button onclick="window.openParentChat('${str}')" class="flex-1 text-xs font-bold text-slate-500 hover:text-blue-600 relative py-2 rounded-lg hover:bg-slate-50 transition"><i class="fas fa-comment-alt mr-2"></i>Chat with Coach ${badge}</button>
-            <button onclick="window.openEditModal('${str}')" class="w-10 text-xs font-bold text-slate-500 hover:text-blue-600 py-2 rounded-lg hover:bg-slate-50 transition"><i class="fas fa-pen"></i></button>
+            <button onclick="window.openParentChat('${str}')" class="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 relative py-2.5 rounded-lg border border-blue-200 transition"><i class="fas fa-comment-alt mr-2"></i>Chat with Coach ${badge}</button>
+            <button onclick="window.openEditModal('${str}')" class="w-12 text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 py-2.5 rounded-lg border border-slate-300 transition flex items-center justify-center"><i class="fas fa-pen"></i></button>
         </div>
     </div>`;
 }
