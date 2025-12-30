@@ -1083,6 +1083,22 @@
         </div>
     </div>
     
+    <!-- Student Profile Modal for Admin -->
+    <div id="student-profile-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-r from-purple-600 to-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-user-circle mr-2"></i> Student Profile</h3>
+                <button onclick="document.getElementById('student-profile-modal').classList.add('hidden')" class="text-purple-100 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto" id="student-profile-content">
+                <p class="text-center text-slate-400">Loading student information...</p>
+            </div>
+        </div>
+    </div>
+
     <script type="module" src="js/main.js?v=49"></script>
     <!-- Fallback: Ensure handleLogin is available even if module fails -->
     <script>

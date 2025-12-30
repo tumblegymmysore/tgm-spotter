@@ -120,6 +120,7 @@ window.updateSessionDaysSection = Parent.updateSessionDaysSection;
 window.limitSessionDays = Parent.limitSessionDays;
 window.togglePaymentMode = Parent.togglePaymentMode;
 window.fetchAdminInbox = Admin.fetchAdminInbox;
+window.openStudentProfile = Admin.openStudentProfile;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {

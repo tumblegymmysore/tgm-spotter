@@ -2450,3 +2450,223 @@ export async function saveAdminFormEdit() {
         showErrorModal("Save Failed", err.message);
     }
 }
+
+// --- STUDENT PROFILE VIEW ---
+export async function openStudentProfile(leadId) {
+    try {
+        const container = document.getElementById('student-profile-content');
+        container.innerHTML = '<p class="text-center text-slate-400">Loading student information...</p>';
+        document.getElementById('student-profile-modal').classList.remove('hidden');
+        
+        // Fetch complete student data
+        const { data: lead, error: leadError } = await supabaseClient
+            .from('leads')
+            .select('*')
+            .eq('id', leadId)
+            .single();
+        
+        if (leadError || !lead) {
+            container.innerHTML = '<p class="text-red-500 text-center">Error loading student data.</p>';
+            return;
+        }
+        
+        // Fetch messages
+        const { data: messages } = await supabaseClient
+            .from('messages')
+            .select('*')
+            .eq('lead_id', leadId)
+            .order('created_at', { ascending: false });
+        
+        // Parse metadata
+        const meta = getPackageMetadata(lead);
+        const verificationMeta = lead.parent_note?.match(/\[VERIFICATION_META\](.*?)\[\/VERIFICATION_META\]/);
+        let verification = null;
+        if (verificationMeta) {
+            try {
+                verification = JSON.parse(verificationMeta[1]);
+            } catch (e) {
+                console.warn('Could not parse verification metadata:', e);
+            }
+        }
+        
+        // Calculate age
+        const age = calculateAge(lead.dob);
+        const finalPrice = getFinalPrice(lead);
+        const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+        const paymentMode = meta?.payment_mode || lead.payment_mode || null;
+        
+        // Format dates
+        const formatDate = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            try {
+                return new Date(dateStr).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+            } catch (e) {
+                return dateStr;
+            }
+        };
+        
+        // Build profile HTML
+        let profileHTML = `
+            <div class="space-y-6">
+                <!-- Header Section -->
+                <div class="bg-gradient-to-r from-purple-50 to-indigo-50 p-6 rounded-xl border-2 border-purple-200">
+                    <div class="flex items-center justify-between mb-4">
+                        <div>
+                            <h2 class="text-2xl font-black text-purple-900 mb-1">${lead.child_name}</h2>
+                            <p class="text-sm text-purple-700">${lead.parent_name} • ${lead.phone || 'N/A'}</p>
+                        </div>
+                        <span class="px-4 py-2 rounded-lg font-bold text-sm ${lead.status === 'Enrolled' ? 'bg-green-100 text-green-700' : lead.status === 'Trial Completed' ? 'bg-blue-100 text-blue-700' : 'bg-yellow-100 text-yellow-700'}">${lead.status || 'Pending'}</span>
+                    </div>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div><strong class="text-purple-900">Age:</strong> <span class="text-purple-700">${age} years</span></div>
+                        <div><strong class="text-purple-900">DOB:</strong> <span class="text-purple-700">${formatDate(lead.dob)}</span></div>
+                        <div><strong class="text-purple-900">Gender:</strong> <span class="text-purple-700">${lead.gender || 'N/A'}</span></div>
+                        <div><strong class="text-purple-900">Email:</strong> <span class="text-purple-700">${lead.email || 'N/A'}</span></div>
+                    </div>
+                </div>
+                
+                <!-- Quick Actions -->
+                <div class="flex gap-2 flex-wrap">
+                    <button onclick="window.modifyAdminPackage('${lead.id}')" class="px-4 py-2 bg-purple-600 text-white text-sm font-bold rounded-lg hover:bg-purple-700 transition">
+                        <i class="fas fa-cog mr-1"></i> Modify Package
+                    </button>
+                    <button onclick="window.openChat('${encodeURIComponent(JSON.stringify(lead))}'); document.getElementById('student-profile-modal').classList.add('hidden');" class="px-4 py-2 bg-slate-600 text-white text-sm font-bold rounded-lg hover:bg-slate-700 transition">
+                        <i class="fas fa-comment mr-1"></i> Messages
+                    </button>
+                    ${lead.status === 'Trial Completed' || lead.status === 'Enrolled' ? `
+                    <button onclick="window.openAdminAssessment('${encodeURIComponent(JSON.stringify(lead))}'); document.getElementById('student-profile-modal').classList.add('hidden');" class="px-4 py-2 bg-blue-600 text-white text-sm font-bold rounded-lg hover:bg-blue-700 transition">
+                        <i class="fas fa-clipboard-check mr-1"></i> View Assessment
+                    </button>
+                    ` : ''}
+                    ${lead.status === 'Pending Trial' ? `
+                    <button onclick="window.editAdminForm('${encodeURIComponent(JSON.stringify(lead))}'); document.getElementById('student-profile-modal').classList.add('hidden');" class="px-4 py-2 bg-indigo-600 text-white text-sm font-bold rounded-lg hover:bg-indigo-700 transition">
+                        <i class="fas fa-edit mr-1"></i> Edit Form
+                    </button>
+                    ` : ''}
+                </div>
+                
+                <!-- Assessment Section -->
+                ${lead.status === 'Trial Completed' || lead.status === 'Enrolled' ? `
+                <div class="bg-blue-50 p-5 rounded-xl border-2 border-blue-200">
+                    <h3 class="text-lg font-bold text-blue-900 mb-3 flex items-center">
+                        <i class="fas fa-clipboard-check mr-2"></i> Trial Assessment
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><strong class="text-blue-900">Recommended Batch:</strong> <span class="text-blue-700">${lead.recommended_batch || 'Not Set'}</span></div>
+                        <div><strong class="text-blue-900">Trial Date:</strong> <span class="text-blue-700">${formatDate(lead.trial_scheduled_slot?.split('|')[0])}</span></div>
+                        ${lead.feedback ? `<div class="col-span-2"><strong class="text-blue-900">Feedback:</strong> <p class="text-blue-700 mt-1">${lead.feedback}</p></div>` : ''}
+                        ${lead.skills_rating ? `
+                        <div class="col-span-2">
+                            <strong class="text-blue-900">Skills Observed:</strong>
+                            <div class="flex flex-wrap gap-2 mt-2">
+                                ${lead.skills_rating.listening ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Listening</span>' : ''}
+                                ${lead.skills_rating.flexibility ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Flexibility</span>' : ''}
+                                ${lead.skills_rating.strength ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Strength</span>' : ''}
+                                ${lead.skills_rating.balance ? '<span class="px-2 py-1 bg-blue-100 text-blue-700 rounded text-xs font-bold">Balance</span>' : ''}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Package & Payment Section -->
+                ${selectedPkg !== 'Not Set' || finalPrice ? `
+                <div class="bg-green-50 p-5 rounded-xl border-2 border-green-200">
+                    <h3 class="text-lg font-bold text-green-900 mb-3 flex items-center">
+                        <i class="fas fa-box mr-2"></i> Package & Payment
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><strong class="text-green-900">Package:</strong> <span class="text-green-700">${selectedPkg}</span></div>
+                        <div><strong class="text-green-900">Total Amount:</strong> <span class="text-green-700">₹${finalPrice || '0'}</span></div>
+                        <div><strong class="text-green-900">Payment Status:</strong> <span class="text-green-700">${lead.payment_status || 'Pending'}</span></div>
+                        <div><strong class="text-green-900">Payment Mode:</strong> <span class="text-green-700">${paymentMode || 'N/A'}</span></div>
+                        ${meta?.start_date ? `<div><strong class="text-green-900">Start Date:</strong> <span class="text-green-700">${formatDate(meta.start_date)}</span></div>` : ''}
+                        ${verification ? `
+                        <div class="col-span-2 mt-3 p-3 bg-white rounded border border-green-300">
+                            <strong class="text-green-900">Payment Verification:</strong>
+                            <p class="text-xs text-green-700 mt-1"><strong>Verified by:</strong> ${verification.verified_by || 'N/A'}</p>
+                            <p class="text-xs text-green-700"><strong>Verified on:</strong> ${formatDate(verification.verified_date)}</p>
+                            ${verification.payment_collected_by ? `<p class="text-xs text-green-700"><strong>Collected by:</strong> ${verification.payment_collected_by}</p>` : ''}
+                            ${verification.verification_notes ? `<p class="text-xs text-green-700 mt-2"><strong>Notes:</strong> ${verification.verification_notes}</p>` : ''}
+                        </div>
+                        ` : ''}
+                        ${lead.payment_proof_url ? `
+                        <div class="col-span-2">
+                            <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
+                                <i class="fas fa-paperclip mr-1"></i> View Payment Proof
+                            </a>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+                
+                <!-- Contact Information -->
+                <div class="bg-slate-50 p-5 rounded-xl border-2 border-slate-200">
+                    <h3 class="text-lg font-bold text-slate-900 mb-3 flex items-center">
+                        <i class="fas fa-address-card mr-2"></i> Contact Information
+                    </h3>
+                    <div class="grid grid-cols-2 gap-4 text-sm">
+                        <div><strong class="text-slate-900">Parent Name:</strong> <span class="text-slate-700">${lead.parent_name}</span></div>
+                        <div><strong class="text-slate-900">Phone:</strong> <span class="text-slate-700">${lead.phone || 'N/A'}</span></div>
+                        <div><strong class="text-slate-900">Alternate Phone:</strong> <span class="text-slate-700">${lead.alternate_phone || 'N/A'}</span></div>
+                        <div><strong class="text-slate-900">Email:</strong> <span class="text-slate-700">${lead.email || 'N/A'}</span></div>
+                        <div class="col-span-2"><strong class="text-slate-900">Address:</strong> <span class="text-slate-700">${lead.address || 'N/A'}</span></div>
+                    </div>
+                </div>
+                
+                <!-- Medical Information -->
+                ${lead.medical_info ? `
+                <div class="bg-red-50 p-5 rounded-xl border-2 border-red-200">
+                    <h3 class="text-lg font-bold text-red-900 mb-3 flex items-center">
+                        <i class="fas fa-heartbeat mr-2"></i> Medical Information
+                    </h3>
+                    <p class="text-sm text-red-800">${lead.medical_info}</p>
+                </div>
+                ` : ''}
+                
+                <!-- Messages Section -->
+                <div class="bg-indigo-50 p-5 rounded-xl border-2 border-indigo-200">
+                    <h3 class="text-lg font-bold text-indigo-900 mb-3 flex items-center">
+                        <i class="fas fa-comments mr-2"></i> Messages (${messages?.length || 0})
+                    </h3>
+                    ${messages && messages.length > 0 ? `
+                    <div class="space-y-2 max-h-64 overflow-y-auto">
+                        ${messages.slice(0, 10).map(msg => `
+                            <div class="bg-white p-3 rounded-lg border border-indigo-200">
+                                <div class="flex justify-between items-start mb-1">
+                                    <span class="text-xs font-bold ${msg.sender_role === 'admin' ? 'text-purple-600' : msg.sender_role === 'trainer' ? 'text-blue-600' : 'text-green-600'}">
+                                        ${msg.sender_role === 'admin' ? '👤 Admin' : msg.sender_role === 'trainer' ? '👨‍🏫 Trainer' : '👨‍👩‍👧 Parent'}: ${msg.sender_name || 'Unknown'}
+                                    </span>
+                                    <span class="text-xs text-slate-500">${formatDate(msg.created_at)}</span>
+                                </div>
+                                <p class="text-sm text-slate-700">${msg.message_text}</p>
+                            </div>
+                        `).join('')}
+                        ${messages.length > 10 ? `<p class="text-xs text-indigo-700 text-center mt-2">... and ${messages.length - 10} more messages</p>` : ''}
+                    </div>
+                    ` : '<p class="text-sm text-indigo-700">No messages yet.</p>'}
+                </div>
+                
+                <!-- Additional Notes -->
+                ${lead.parent_note && !lead.parent_note.includes('[PACKAGE_META]') && !lead.parent_note.includes('[VERIFICATION_META]') ? `
+                <div class="bg-yellow-50 p-5 rounded-xl border-2 border-yellow-200">
+                    <h3 class="text-lg font-bold text-yellow-900 mb-3 flex items-center">
+                        <i class="fas fa-sticky-note mr-2"></i> Additional Notes
+                    </h3>
+                    <p class="text-sm text-yellow-800 whitespace-pre-wrap">${lead.parent_note}</p>
+                </div>
+                ` : ''}
+            </div>
+        `;
+        
+        container.innerHTML = profileHTML;
+    } catch (err) {
+        console.error('Error loading student profile:', err);
+        document.getElementById('student-profile-content').innerHTML = '<p class="text-red-500 text-center">Error loading student profile.</p>';
+    }
+}
+
+// Expose to window
+window.openStudentProfile = openStudentProfile;

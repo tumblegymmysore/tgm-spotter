@@ -2,7 +2,7 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.7.1"
-import { generateWelcomeEmail, generateFeedbackEmail } from "./templates.ts" // Added Feedback Template
+import { generateWelcomeEmail, generateFeedbackEmail, generateEnrollmentEmail } from "./templates.ts" // Added Feedback & Enrollment Templates
 import { sendWhatsAppTrial } from "./whatsapp.ts"
 import { validateMobile, validateAnyPhone, MESSAGES } from "./utils.ts" 
 
@@ -83,6 +83,53 @@ serve(async (req) => {
         
         const emailData = await emailRes.json();
         return new Response(JSON.stringify({ message: "Notification Sent", data: emailData }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+    
+    // =========================================================
+    // SCENARIO A2: ENROLLMENT WELCOME EMAIL
+    // =========================================================
+    if (record.type === 'enrollment_notification') {
+        console.log(`Processing Enrollment Welcome Email for: ${record.child_name}`);
+        
+        // Parse metadata if it's a string
+        let metadata = {};
+        if (record.metadata && typeof record.metadata === 'string') {
+            try {
+                metadata = JSON.parse(record.metadata);
+            } catch (e) {
+                console.warn('Could not parse metadata:', e);
+            }
+        } else if (record.metadata) {
+            metadata = record.metadata;
+        }
+        
+        // Merge metadata into record for template
+        const enrollmentData = {
+            ...record,
+            metadata: metadata
+        };
+        
+        const emailHtml = generateEnrollmentEmail(enrollmentData);
+        
+        const emailRes = await fetch('https://api.resend.com/emails', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${RESEND_API_KEY}`,
+            },
+            body: JSON.stringify({
+                from: 'onboarding@resend.dev',
+                to: [record.email, 'tumblegymmysore@gmail.com'], // Send to parent AND admin
+                subject: `🎉 Welcome to Tumble Gym, ${record.child_name}! Your First Class Awaits! 🌟`,
+                html: emailHtml,
+            }),
+        });
+        
+        const emailData = await emailRes.json();
+        return new Response(JSON.stringify({ message: "Enrollment Email Sent", data: emailData }), {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 200,
         });
