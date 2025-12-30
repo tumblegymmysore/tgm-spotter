@@ -7,6 +7,7 @@ export const supabaseKey = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXB
 // 2. Constants
 export const REGISTRATION_FEE = 2000;
 export const ADULT_AGE_THRESHOLD = 15; // Universal Rule: 15+ is Adult
+export const MIN_ELIGIBLE_AGE = 2.5; // Minimum age in years to be eligible
 export const WHATSAPP_LINK = "https://wa.me/918618684685";
 
 // 3. Trial Rules

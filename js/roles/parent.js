@@ -1,5 +1,5 @@
 // js/roles/parent.js (v67 - Final Optimized & Fixed)
-import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
+import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, MIN_ELIGIBLE_AGE, WHATSAPP_LINK } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput, getFinalPrice, getPackageMetadata } from '../utils.js';
 
 let currentRegistrationId = null;
@@ -131,6 +131,91 @@ window.generateTrialSlots = () => {
     });
 };
 
+// Check age eligibility and show/hide form sections
+window.checkAgeEligibility = function() {
+    const dob = document.getElementById('dob').value;
+    if (!dob) {
+        document.getElementById('age-ineligible-message').classList.add('hidden');
+        enableFormSections(true);
+        return;
+    }
+    
+    const age = calculateAge(dob);
+    const ageInMonths = (Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    const isEligible = ageInMonths >= (MIN_ELIGIBLE_AGE * 12);
+    
+    if (!isEligible) {
+        // Show ineligible message
+        document.getElementById('age-ineligible-message').classList.remove('hidden');
+        // Disable form sections (hide rest of form)
+        enableFormSections(false);
+        // Clear any selected trial slot
+        document.getElementById('selected-trial-slot').value = '';
+        document.getElementById('slots-container').innerHTML = '<p class="text-sm text-slate-400 col-span-3 italic">Please wait until your child is at least 2.5 years old.</p>';
+    } else {
+        // Hide ineligible message
+        document.getElementById('age-ineligible-message').classList.add('hidden');
+        // Enable form sections
+        enableFormSections(true);
+    }
+};
+
+function enableFormSections(enable) {
+    const form = document.getElementById('intake-form');
+    if (!form) return;
+    
+    // Get all sections after child info (trial, parent info, medical, consent, submit)
+    const trialSection = document.getElementById('trial-section');
+    const parentSection = form.querySelector('.bg-gradient-to-br.from-slate-50');
+    const medicalSection = form.querySelector('.grid.md\\:grid-cols-2');
+    const consentSection = form.querySelector('.bg-gradient-to-br.from-yellow-50');
+    const submitBtn = document.getElementById('btn-submit');
+    const overlayEl = document.getElementById('form-ineligible-overlay');
+    
+    // Enable/disable all form fields except DOB and child name
+    const formFields = form.querySelectorAll('input:not(#dob):not(#k_name), select:not(#gender):not(#intent), textarea, button[type="submit"]');
+    formFields.forEach(field => {
+        if (enable) {
+            field.disabled = false;
+            field.style.opacity = '1';
+            field.style.pointerEvents = 'auto';
+        } else {
+            field.disabled = true;
+            field.style.opacity = '0.5';
+            field.style.pointerEvents = 'none';
+        }
+    });
+    
+    // Show/hide sections
+    const sectionsToToggle = [trialSection, parentSection, medicalSection, consentSection, submitBtn];
+    sectionsToToggle.forEach(el => {
+        if (el) {
+            if (enable) {
+                el.style.display = '';
+                el.style.visibility = 'visible';
+                el.style.opacity = '1';
+            } else {
+                el.style.display = 'none';
+            }
+        }
+    });
+    
+    // Show/hide overlay message
+    if (overlayEl) {
+        if (enable) {
+            overlayEl.classList.add('hidden');
+        } else {
+            overlayEl.classList.remove('hidden');
+        }
+    }
+    
+    // Also disable gender and intent if not eligible
+    const genderField = document.getElementById('gender');
+    const intentField = document.getElementById('intent');
+    if (genderField) genderField.disabled = !enable;
+    if (intentField) intentField.disabled = !enable;
+}
+
 // --- 2. INTAKE FORM ---
 export async function handleIntakeSubmit(e) {
     e.preventDefault();
@@ -138,6 +223,20 @@ export async function handleIntakeSubmit(e) {
     const originalText = btn.innerText;
     
     // A. Capture Data (with sanitization)
+    const dob = document.getElementById('dob').value;
+    if (!dob) {
+        return showErrorModal("Date of Birth Required", "Please enter your child's date of birth.");
+    }
+    
+    // Check age eligibility FIRST - before any other validation
+    const ageInMonths = (Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+    if (ageInMonths < (MIN_ELIGIBLE_AGE * 12)) {
+        return showErrorModal(
+            "Age Requirement Not Met 👶", 
+            `Your little one needs to be at least ${MIN_ELIGIBLE_AGE} years old to join our gymnastics classes. We'd love to welcome them when they're ready! Please reach out to us on WhatsApp if you have any questions: ${WHATSAPP_LINK}`
+        );
+    }
+    
     const email = document.getElementById('email').value.trim().toLowerCase();
     const phone = document.getElementById('phone').value.trim().replace(/\D/g, ''); 
     const altPhone = document.getElementById('alt_phone').value.trim().replace(/\D/g, ''); 

@@ -68,8 +68,24 @@
                             <div><label>Child Name *</label><input type="text" id="k_name" class="input-field" required></div>
                             <div>
                                 <label>Date of Birth *</label>
-                                <input type="date" id="dob" class="input-field" onchange="window.calculateAgeDisplay(); window.generateTrialSlots()" required>
+                                <input type="date" id="dob" class="input-field" onchange="window.calculateAgeDisplay(); window.checkAgeEligibility(); window.generateTrialSlots()" required>
                                 <p id="age-display" class="text-xs font-bold text-blue-600 mt-1 hidden">Age: <span id="age-value"></span> Years</p>
+                                <!-- Age Eligibility Message -->
+                                <div id="age-ineligible-message" class="hidden mt-4 p-5 bg-gradient-to-br from-orange-50 to-red-50 rounded-xl border-2 border-orange-300 shadow-lg">
+                                    <div class="text-center">
+                                        <div class="text-4xl mb-3">👶✨</div>
+                                        <h3 class="text-lg font-bold text-orange-900 mb-2">Too Young to Tumble Just Yet!</h3>
+                                        <p class="text-sm text-orange-800 mb-3 leading-relaxed">
+                                            Your little one needs to be at least <strong>2.5 years old</strong> to join our gymnastics classes. We'd love to welcome them when they're ready to flip and fly! 🎈
+                                        </p>
+                                        <p class="text-xs text-orange-700 mb-4">
+                                            In the meantime, feel free to reach out to us if you have any questions!
+                                        </p>
+                                        <a href="https://wa.me/918618684685" target="_blank" class="inline-block bg-green-500 text-white px-6 py-3 rounded-lg text-sm font-bold hover:bg-green-600 transition shadow-md transform hover:scale-105">
+                                            <i class="fab fa-whatsapp mr-2"></i> Chat with Us on WhatsApp!
+                                        </a>
+                                    </div>
+                                </div>
                             </div>
                             <div><label>Gender *</label><select id="gender" class="input-field" required><option value="">Select</option><option>Male</option><option>Female</option></select></div>
                             <div><label>Intent / Goal *</label><select id="intent" class="input-field" onchange="window.checkOther(this, 'intent_other')" required><option value="">Select</option><option>Fun & Fitness</option><option>Professional Training</option><option>Weight Loss</option><option value="Other">Other</option></select><input type="text" id="intent_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
@@ -118,6 +134,14 @@
                             <div class="md:col-span-2"><label>Address *</label><input type="text" id="address" class="input-field" required></div>
                         </div>
                     </div>
+                    
+                    <!-- Message shown when age is below 2.5 - replaces rest of form -->
+                    <div id="form-ineligible-overlay" class="hidden mt-6 p-6 bg-gradient-to-br from-slate-100 to-slate-200 rounded-xl border-2 border-slate-300">
+                        <p class="text-sm text-slate-600 text-center italic">
+                            Please wait until your child is at least 2.5 years old to complete the registration form.
+                        </p>
+                    </div>
+                    
                     <div class="grid md:grid-cols-2 gap-6">
                         <div class="md:col-span-2"><label>Medical Info *</label><textarea id="medical" class="input-field" rows="2" placeholder="List any medical conditions, injuries, allergies or 'None'" required></textarea></div>
                         <div class="md:col-span-2"><label>How did you hear about us? *</label><select id="source" class="input-field" onchange="window.checkOther(this, 'source_other')" required><option value="">Select</option><option>Google Search / Maps</option><option>Instagram / Facebook</option><option>Friend / Referral</option><option value="Other">Other</option></select><input type="text" id="source_other" class="input-field mt-2 hidden" placeholder="Specify..."></div>
