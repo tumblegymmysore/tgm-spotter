@@ -869,11 +869,15 @@ export function calculateTotal() {
         if (val) {
             const pkgParts = val.split('|');
             packageFee = parseInt(pkgParts[1] || '0');
-            // Get package name from the option text
+            // Get package name from the option text, removing the amount part
             const pkgSelect = document.getElementById('reg-package-select');
             const selectedOption = pkgSelect.querySelector(`option[value="${val}"]`);
             if (selectedOption) {
-                packageName = selectedOption.text.trim();
+                // Extract package name by removing " - ₹amount" part
+                const fullText = selectedOption.text.trim();
+                // Split by " - ₹" and take the first part (package name)
+                const parts = fullText.split(' - ₹');
+                packageName = parts[0].trim();
             }
         }
     }
@@ -1185,6 +1189,12 @@ export async function submitRegistration(actionType) {
     const paymentMode = document.getElementById('payment-mode').value;
     if (!paymentMode) return showErrorModal("Payment Mode Required", "Please select a payment mode (UPI or Cash).");
     
+    // Acknowledgement checkbox validation
+    const consentCheckbox = document.getElementById('reg-consent');
+    if (!consentCheckbox || !consentCheckbox.checked) {
+        return showErrorModal("Acknowledgement Required", "Please acknowledge the terms and conditions to proceed with registration.");
+    }
+    
     const fileInput = document.getElementById('payment-proof');
     let paymentProofUrl = null;
     
@@ -1205,22 +1215,55 @@ export async function submitRegistration(actionType) {
     const btn = document.getElementById('btn-submit-pay'); btn.innerText = "Submitting..."; btn.disabled = true;
 
     try {
+        // Get session days - only for limited packages
+        const sessionDaysSection = document.getElementById('session-days-section');
+        const limitedSelect = document.getElementById('limited-session-select');
+        let sessionDays = [];
+        
+        if (sessionDaysSection && !sessionDaysSection.classList.contains('hidden') && 
+            limitedSelect && !limitedSelect.classList.contains('hidden')) {
+            // Only get session days if limited package section is visible
+            sessionDays = Array.from(limitedSelect.querySelectorAll('.session-day-checkbox:checked')).map(cb => cb.value);
+        }
+        
         const updateData = {
             status: 'Registration Requested',
             selected_package: pkgLabel,
             package_price: total,
             start_date: document.getElementById('reg-date').value,
-            session_days: Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value),
             payment_status: 'Verification Pending',
             payment_mode: paymentMode
         };
+        
+        // Only add session_days if we have values (for limited packages)
+        if (sessionDays.length > 0) {
+            updateData.session_days = sessionDays;
+        }
         
         // Only add payment_proof_url if it exists (UPI payments)
         if (paymentProofUrl) {
             updateData.payment_proof_url = paymentProofUrl;
         }
 
-        await supabaseClient.from('leads').update(updateData).eq('id', currentRegistrationId);
+        const { data: updatedLead, error: updateError } = await supabaseClient
+            .from('leads')
+            .update(updateData)
+            .eq('id', currentRegistrationId)
+            .select()
+            .single();
+        
+        if (updateError) {
+            console.error('Update error:', updateError);
+            throw updateError;
+        }
+        
+        // Verify the update was successful
+        if (!updatedLead || updatedLead.status !== 'Registration Requested') {
+            console.error('Status update verification failed. Updated lead:', updatedLead);
+            throw new Error('Failed to update registration status. Please try again.');
+        }
+        
+        console.log('Registration status updated successfully:', updatedLead.status);
         
         // Send notification to admin about new registration
         try {
@@ -1250,7 +1293,10 @@ export async function submitRegistration(actionType) {
         }
 
         document.getElementById('reg-modal').classList.add('hidden');
-        showSuccessModal("Submitted!", "Registration & Payment info sent to Admin.", () => window.location.reload());
+        showSuccessModal("Submitted!", "Registration & Payment info sent to Admin.", () => {
+            // Force a hard reload to ensure fresh data
+            window.location.href = window.location.href;
+        });
     } catch (e) { showErrorModal("Upload Error", e.message); btn.disabled = false; btn.innerText = "Pay & Enroll"; }
 }
 
