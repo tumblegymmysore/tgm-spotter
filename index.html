@@ -323,7 +323,7 @@
                 </div>
             </div>
 
-            <div class="bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
+            <div id="session-days-section" class="bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
                 <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Session Days</h3>
                 <p class="text-xs text-slate-500 mb-4">Select preferred days (Classes not available Mondays).</p>
                 
@@ -380,7 +380,8 @@
                             </select>
                     </div>
 
-                    <div id="group-pt-options" class="hidden md:col-span-2 grid grid-cols-2 gap-6">
+                    <!-- Kids PT Options (for non-adults) -->
+                    <div id="group-pt-options-kids" class="hidden md:col-span-2 grid grid-cols-2 gap-6">
                         <div>
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-2">PT Level</label>
                             <select id="reg-pt-level" onchange="window.calculateTotal()" class="input-field w-full bg-white">
@@ -393,6 +394,41 @@
                             <label class="block text-xs font-bold text-slate-500 uppercase mb-2">No. of Classes</label>
                             <input type="number" id="reg-pt-sessions" value="10" class="input-field w-full bg-white">
                         </div>
+                    </div>
+                    
+                    <!-- Adult PT Options -->
+                    <div id="group-pt-options" class="hidden md:col-span-2 space-y-4">
+                        <div class="bg-amber-50 p-4 rounded-xl border border-amber-200">
+                            <p class="text-xs text-amber-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> Personal Training Details</p>
+                            <p class="text-xs text-amber-700">Admin will set the rate per session, number of sessions, and validity period after reviewing your request.</p>
+                        </div>
+                        
+                        <div class="grid grid-cols-2 gap-6">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Preferred Start Date *</label>
+                                <input type="date" id="reg-pt-start-date" class="input-field w-full bg-white" min="">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Preferred Time (Optional)</label>
+                                <input type="time" id="reg-pt-preferred-time" class="input-field w-full bg-white">
+                            </div>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Additional Notes (Optional)</label>
+                            <textarea id="reg-pt-notes" rows="3" class="input-field w-full bg-white" placeholder="Any specific requirements or preferences..."></textarea>
+                        </div>
+                    </div>
+                    
+                    <!-- Adult Morning Batch Info -->
+                    <div id="adult-morning-info" class="hidden md:col-span-2 bg-green-50 p-4 rounded-xl border border-green-200">
+                        <p class="text-xs text-green-800 font-bold mb-2"><i class="fas fa-info-circle mr-1"></i> Morning Batch Details</p>
+                        <ul class="text-xs text-green-700 space-y-1 list-disc list-inside">
+                            <li>Unlimited classes - Attend as many sessions as you want</li>
+                            <li>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM</li>
+                            <li>No weekend classes available</li>
+                            <li>No day preference selection needed</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -507,18 +543,39 @@
                         </select>
                     </div>
 
-                    <div id="admin-pkg-pt-options" class="hidden grid grid-cols-2 gap-4">
-                        <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">PT Level</label>
-                            <select id="admin-pkg-pt-level" class="input-field w-full">
-                                <option value="Beginner">Beginner (₹700/class)</option>
-                                <option value="Intermediate">Intermediate (₹850/class)</option>
-                                <option value="Advanced">Advanced (₹1000/class)</option>
-                            </select>
+                    <!-- PT Request Info (if adult PT request exists) -->
+                    <div id="admin-pt-request-info" class="hidden bg-amber-50 p-4 rounded-xl border border-amber-200 mb-4">
+                        <h5 class="font-bold text-amber-900 mb-2 text-sm"><i class="fas fa-info-circle mr-1"></i> Personal Training Request</h5>
+                        <div id="admin-pt-request-details" class="text-xs text-amber-800 space-y-1"></div>
+                    </div>
+                    
+                    <div id="admin-pkg-pt-options" class="hidden space-y-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Rate Per Session (₹)</label>
+                                <input type="number" id="admin-pkg-pt-rate" min="0" placeholder="e.g., 700" class="input-field w-full">
+                            </div>
+                            <div>
+                                <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Number of Sessions</label>
+                                <input type="number" id="admin-pkg-pt-sessions" value="10" min="1" class="input-field w-full">
+                            </div>
                         </div>
+                        
                         <div>
-                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Number of Classes</label>
-                            <input type="number" id="admin-pkg-pt-sessions" value="10" min="1" class="input-field w-full">
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Validity Period</label>
+                            <select id="admin-pkg-pt-validity-type" onchange="window.togglePTValidityInput()" class="input-field w-full mb-2">
+                                <option value="month">1 Month</option>
+                                <option value="quarter">3 Months (Quarter)</option>
+                                <option value="halfyearly">6 Months (Half Yearly)</option>
+                                <option value="yearly">12 Months (Yearly)</option>
+                                <option value="specific">Specific Date</option>
+                            </select>
+                            <input type="date" id="admin-pkg-pt-validity-date" class="input-field w-full hidden" placeholder="Select end date">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Start Date</label>
+                            <input type="date" id="admin-pkg-pt-start-date" class="input-field w-full">
                         </div>
                     </div>
 

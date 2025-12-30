@@ -90,6 +90,17 @@ window.saveAdminFormEdit = Admin.saveAdminFormEdit;
 window.openAdminFilters = Admin.openAdminFilters;
 window.openAdminEmailTemplates = Admin.openAdminEmailTemplates;
 window.openAdminSettings = Admin.openAdminSettings;
+window.togglePTValidityInput = function() {
+    const validityType = document.getElementById('admin-pkg-pt-validity-type').value;
+    const validityDateInput = document.getElementById('admin-pkg-pt-validity-date');
+    if (validityType === 'specific') {
+        validityDateInput.classList.remove('hidden');
+        validityDateInput.required = true;
+    } else {
+        validityDateInput.classList.add('hidden');
+        validityDateInput.required = false;
+    }
+};
 
 // Add/Ensure these are in js/main.js
 window.updatePackageOptions = Parent.updatePackageOptions;

@@ -456,6 +456,15 @@ function createVerificationCard(lead) {
                 <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
             `}
             ${lead.start_date ? `<p><strong>Start Date:</strong> ${lead.start_date}</p>` : ''}
+            ${meta?.pt_request ? `
+                <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
+                    <p class="font-bold text-amber-900 mb-1"><i class="fas fa-dumbbell mr-1"></i> Personal Training Request</p>
+                    <p><strong>Preferred Start:</strong> ${new Date(meta.pt_request.preferred_start_date).toLocaleDateString('en-IN')}</p>
+                    ${meta.pt_request.preferred_time ? `<p><strong>Preferred Time:</strong> ${meta.pt_request.preferred_time}</p>` : ''}
+                    ${meta.pt_request.notes ? `<p><strong>Notes:</strong> ${meta.pt_request.notes}</p>` : ''}
+                    <p class="text-xs text-amber-700 mt-1">Admin to set: Rate per session, Number of sessions, Validity period</p>
+                </div>
+            ` : ''}
             ${lead.payment_proof_url ? `
                 <div class="mt-2">
                     <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
@@ -618,23 +627,32 @@ export async function modifyAdminPackage(leadId) {
 
         // Reset form
         document.getElementById('admin-pkg-type').value = '';
+        
+        // Check if this is an adult PT request
+        const ptRequestInfo = document.getElementById('admin-pt-request-info');
+        const ptRequestDetails = document.getElementById('admin-pt-request-details');
+        if (meta?.pt_request && meta.pt_request.type === 'adult_pt_request') {
+            ptRequestInfo.classList.remove('hidden');
+            ptRequestDetails.innerHTML = `
+                <p><strong>Preferred Start Date:</strong> ${new Date(meta.pt_request.preferred_start_date).toLocaleDateString('en-IN')}</p>
+                ${meta.pt_request.preferred_time ? `<p><strong>Preferred Time:</strong> ${meta.pt_request.preferred_time}</p>` : ''}
+                ${meta.pt_request.notes ? `<p><strong>Notes:</strong> ${meta.pt_request.notes}</p>` : ''}
+            `;
+            // Pre-fill start date
+            document.getElementById('admin-pkg-pt-start-date').value = meta.pt_request.preferred_start_date;
+            // Auto-select PT type
+            document.getElementById('admin-pkg-type').value = 'pt';
+            window.updateAdminPackageOptions();
+        } else {
+            ptRequestInfo.classList.add('hidden');
+        }
+        
         // Get lock status from metadata or direct field
-        const meta = getPackageMetadata(lead);
         const isLocked = meta?.package_locked || lead.package_locked || false;
         document.getElementById('admin-pkg-lock').checked = isLocked;
-        // Get package_lock_type from parent_note metadata if stored there
-        let lockType = 'one-time';
-        if (lead.parent_note) {
-            const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
-            if (metaMatch) {
-                try {
-                    const meta = JSON.parse(metaMatch[1]);
-                    lockType = meta.package_lock_type || 'one-time';
-                } catch (e) {
-                    console.warn('Could not parse package metadata', e);
-                }
-            }
-        }
+        
+        // Get package_lock_type from metadata
+        let lockType = meta?.package_lock_type || 'one-time';
         document.getElementById('admin-pkg-lock-type').value = lockType;
         
         // Hide all option sections
@@ -703,6 +721,11 @@ export function updateAdminPackageOptions() {
         document.getElementById('admin-pkg-morning-options').classList.remove('hidden');
     } else if (pkgType === 'pt') {
         document.getElementById('admin-pkg-pt-options').classList.remove('hidden');
+        // Set minimum date for start date (today)
+        const startDateEl = document.getElementById('admin-pkg-pt-start-date');
+        if (startDateEl) {
+            startDateEl.min = new Date().toISOString().split('T')[0];
+        }
     } else if (pkgType === 'custom') {
         document.getElementById('admin-pkg-custom-options').classList.remove('hidden');
     }
@@ -863,22 +886,55 @@ export async function saveAdminPackage() {
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'pt') {
-        const level = document.getElementById('admin-pkg-pt-level').value;
+        const rate = parseInt(document.getElementById('admin-pkg-pt-rate').value) || 0;
         const sessions = parseInt(document.getElementById('admin-pkg-pt-sessions').value) || 0;
-        if (!sessions) {
-            showErrorModal("Input Required", "Please enter number of PT sessions.");
+        const startDate = document.getElementById('admin-pkg-pt-start-date').value;
+        const validityType = document.getElementById('admin-pkg-pt-validity-type').value;
+        const validityDate = document.getElementById('admin-pkg-pt-validity-date').value;
+        
+        if (!rate || !sessions) {
+            showErrorModal("Input Required", "Please enter rate per session and number of sessions.");
             return;
         }
-        const basePrice = PT_RATES[level] * sessions;
+        
+        if (!startDate) {
+            showErrorModal("Date Required", "Please select a start date for Personal Training.");
+            return;
+        }
+        
+        // Calculate validity end date
+        let validityEndDate = null;
+        if (validityType === 'specific') {
+            if (!validityDate) {
+                showErrorModal("Date Required", "Please select an end date for validity.");
+                return;
+            }
+            validityEndDate = validityDate;
+        } else {
+            const start = new Date(startDate);
+            const months = validityType === 'month' ? 1 : validityType === 'quarter' ? 3 : validityType === 'halfyearly' ? 6 : 12;
+            validityEndDate = new Date(start);
+            validityEndDate.setMonth(validityEndDate.getMonth() + months);
+            validityEndDate = validityEndDate.toISOString().split('T')[0];
+        }
+        
+        const basePrice = rate * sessions;
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageMetadata.selected_package = `PT (${level}) - ${sessions} Classes`;
+        packageMetadata.selected_package = `PT - ${sessions} Classes @ ₹${rate}/session`;
         packageMetadata.package_price = finalPackagePrice;
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = sessions;
-        packageMetadata.package_months = 1; // PT is typically monthly
+        packageMetadata.package_months = null; // PT uses specific dates
+        packageMetadata.pt_details = {
+            rate_per_session: rate,
+            sessions: sessions,
+            start_date: startDate,
+            validity_type: validityType,
+            validity_end_date: validityEndDate
+        };
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'custom') {

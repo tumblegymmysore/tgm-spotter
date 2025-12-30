@@ -324,8 +324,16 @@ export function openRegistrationModal(leadString, isRenewal) {
     batchEl.innerHTML = ''; 
 
     if (age >= ADULT_AGE_THRESHOLD) {
-        timeEl.value = "Morning"; timeEl.disabled = true; 
-        batchEl.innerHTML = `<option value="Adults">Adults (15+)</option>`;
+        // Adults: Morning Batch or Personal Training
+        timeEl.value = "Morning"; 
+        timeEl.disabled = true; 
+        batchEl.innerHTML = `
+            <option value="">Select Option...</option>
+            <option value="Morning Batch">Morning Batch (Unlimited - Tue-Fri)</option>
+            <option value="Personal Training">Personal Training</option>
+        `;
+        // Hide day selection for adults (not needed for morning batch)
+        document.getElementById('session-days-section')?.classList.add('hidden');
     } else {
         timeEl.disabled = false; timeEl.value = "Evening"; 
         if(age <= 5) batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
@@ -390,11 +398,25 @@ export function openRegistrationModal(leadString, isRenewal) {
 
 export function updatePackageOptions() {
     const timeSlot = document.getElementById('reg-time-slot').value;
+    const batchCat = document.getElementById('reg-batch-category').value;
     const pkgSelect = document.getElementById('reg-package-select');
     const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const isAdult = age >= ADULT_AGE_THRESHOLD;
+    
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
-    const pkgs = (timeSlot === 'Morning') ? [(age >= ADULT_AGE_THRESHOLD ? MORNING_PACKAGES.ADULT : MORNING_PACKAGES.CHILD)] : STANDARD_PACKAGES;
-    pkgs.forEach(p => pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label} - ₹${p.price}</option>`);
+    
+    // For adults with morning batch, show unlimited package
+    if (isAdult && batchCat === 'Morning Batch') {
+        const morningPkg = MORNING_PACKAGES.ADULT;
+        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">${morningPkg.label} - ₹${morningPkg.price}</option>`;
+    } else if (timeSlot === 'Morning') {
+        // Kids morning
+        const morningPkg = MORNING_PACKAGES.CHILD;
+        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">${morningPkg.label} - ₹${morningPkg.price}</option>`;
+    } else {
+        // Evening/Weekend packages
+        STANDARD_PACKAGES.forEach(p => pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label} - ₹${p.price}</option>`);
+    }
     window.calculateTotal();
 }
 
@@ -402,18 +424,50 @@ export function checkApprovalRequirement() {
     const age = parseInt(document.getElementById('reg-child-age').innerText);
     const batchCat = document.getElementById('reg-batch-category').value;
     const timeSlot = document.getElementById('reg-time-slot').value;
+    const isAdult = age >= ADULT_AGE_THRESHOLD;
     
     // UI Toggle
     const isPT = batchCat === 'Personal Training';
-    document.getElementById('reg-package-select').parentElement.classList.toggle('hidden', isPT);
-    document.getElementById('group-pt-options').classList.toggle('hidden', !isPT);
-    document.getElementById('group-pt-options').classList.toggle('grid', isPT);
-    if(!isPT) window.updatePackageOptions();
+    const isAdultMorning = isAdult && batchCat === 'Morning Batch';
+    
+    // Show/hide PT options (different for adults vs kids)
+    document.getElementById('reg-package-select').parentElement.classList.toggle('hidden', isPT || isAdultMorning);
+    document.getElementById('group-pt-options').classList.toggle('hidden', !isPT || !isAdult); // Adult PT only
+    const kidsPTOptions = document.getElementById('group-pt-options-kids');
+    if (kidsPTOptions) {
+        kidsPTOptions.classList.toggle('hidden', !isPT || isAdult); // Kids PT only
+    }
+    document.getElementById('adult-morning-info').classList.toggle('hidden', !isAdultMorning);
+    
+    // Set minimum date for PT start date (tomorrow) - only for adults
+    if (isPT && isAdult) {
+        const ptStartDateEl = document.getElementById('reg-pt-start-date');
+        if (ptStartDateEl) {
+            const tomorrow = new Date();
+            tomorrow.setDate(tomorrow.getDate() + 1);
+            ptStartDateEl.min = tomorrow.toISOString().split('T')[0];
+        }
+    }
+    
+    if(!isPT && !isAdultMorning) window.updatePackageOptions();
 
-    // Logic
-    let needsApproval = (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning'));
-    if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch) needsApproval = true;
-    if (isPT && !currentLeadData.skills_rating?.personal_training) needsApproval = true;
+    // Logic for approval requirement
+    let needsApproval = false;
+    
+    if (isAdult) {
+        // Adults always need approval for PT
+        if (isPT) {
+            needsApproval = true;
+        } else if (isAdultMorning) {
+            // Morning batch for adults - can proceed directly (unlimited, fixed schedule)
+            needsApproval = false;
+        }
+    } else {
+        // Kids logic (existing)
+        needsApproval = (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning'));
+        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch) needsApproval = true;
+        if (isPT && !currentLeadData.skills_rating?.personal_training) needsApproval = true;
+    }
 
     document.getElementById('approval-notice').classList.toggle('hidden', !needsApproval);
     document.getElementById('btn-submit-pay').classList.toggle('hidden', needsApproval);
@@ -425,26 +479,56 @@ export function checkApprovalRequirement() {
 export function calculateTotal() {
     const isRenewal = document.getElementById('is-renewal').value === 'true';
     const batchCat = document.getElementById('reg-batch-category').value;
+    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const isAdult = age >= ADULT_AGE_THRESHOLD;
     let total = 0;
+    
     if (batchCat === 'Personal Training') {
-        const lvl = document.getElementById('reg-pt-level').value;
-        const sess = parseInt(document.getElementById('reg-pt-sessions').value) || 0;
-        if (PT_RATES[lvl]) total = PT_RATES[lvl] * sess;
+        // PT pricing - admin will set, show 0 for now or estimate
+        // For adults, this goes to admin for approval anyway
+        total = 0; // Will be set by admin
+    } else if (isAdult && batchCat === 'Morning Batch') {
+        // Adult morning batch - unlimited package
+        const morningPkg = MORNING_PACKAGES.ADULT;
+        total = morningPkg.price;
     } else {
         const val = document.getElementById('reg-package-select').value;
         if (val) total = parseInt(val.split('|')[1]);
     }
+    
     if (!isRenewal && total > 0) total += REGISTRATION_FEE;
     document.getElementById('total-price').innerText = total;
 }
 
 export async function submitRegistration(actionType) {
     const batchCat = document.getElementById('reg-batch-category').value;
+    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const isAdult = age >= ADULT_AGE_THRESHOLD;
     const total = document.getElementById('total-price').innerText;
     let pkgLabel = "";
+    let ptDetails = null;
 
     if (batchCat === 'Personal Training') {
-        pkgLabel = `PT (${document.getElementById('reg-pt-level').value}) - ${document.getElementById('reg-pt-sessions').value} Classes`;
+        // For adults, collect PT details for admin approval
+        if (isAdult) {
+            const startDate = document.getElementById('reg-pt-start-date').value;
+            if (!startDate) {
+                return showErrorModal("Date Required", "Please select a preferred start date for Personal Training.");
+            }
+            ptDetails = {
+                preferred_start_date: startDate,
+                preferred_time: document.getElementById('reg-pt-preferred-time').value || null,
+                notes: document.getElementById('reg-pt-notes').value.trim() || null,
+                type: 'adult_pt_request'
+            };
+            pkgLabel = `Personal Training - Start: ${new Date(startDate).toLocaleDateString('en-IN')}`;
+        } else {
+            // Kids PT (existing logic)
+            pkgLabel = `PT (${document.getElementById('reg-pt-level').value}) - ${document.getElementById('reg-pt-sessions').value} Classes`;
+        }
+    } else if (isAdult && batchCat === 'Morning Batch') {
+        // Adult morning batch - unlimited
+        pkgLabel = `Morning Batch (Unlimited) - Tue-Fri`;
     } else {
         const val = document.getElementById('reg-package-select').value;
         if (!val) return showErrorModal("Selection Missing", "Please select a package.");
@@ -452,16 +536,33 @@ export async function submitRegistration(actionType) {
     }
 
     if (actionType === 'REQUEST') {
-        const note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
-        // Store final_price in parent_note metadata (column doesn't exist)
+        let note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
+        if (ptDetails) {
+            note += `\nPT Details: Start Date: ${ptDetails.preferred_start_date}`;
+            if (ptDetails.preferred_time) note += `, Preferred Time: ${ptDetails.preferred_time}`;
+            if (ptDetails.notes) note += `\nNotes: ${ptDetails.notes}`;
+        }
+        
+        // Store final_price and PT details in parent_note metadata
         const existingNote = currentLeadData?.parent_note || '';
-        const metaNote = `[PACKAGE_META]${JSON.stringify({ final_price: total })}[/PACKAGE_META]`;
+        const metadata = { final_price: total };
+        if (ptDetails) {
+            metadata.pt_request = ptDetails;
+        }
+        const metaNote = `[PACKAGE_META]${JSON.stringify(metadata)}[/PACKAGE_META]`;
         const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
         const updatedNote = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
         
-        await supabaseClient.from('leads').update({ status: 'Enrollment Requested', parent_note: updatedNote }).eq('id', currentRegistrationId);
+        await supabaseClient.from('leads').update({ 
+            status: 'Enrollment Requested', 
+            parent_note: `${note}\n${updatedNote}` 
+        }).eq('id', currentRegistrationId);
+        
         document.getElementById('reg-modal').classList.add('hidden');
-        showSuccessModal("Request Sent!", "Admin will review your custom plan request.", () => window.location.reload());
+        const message = isAdult && batchCat === 'Personal Training' 
+            ? "Your Personal Training request has been sent! Admin will review and confirm the rate, sessions, and validity period."
+            : "Admin will review your custom plan request.";
+        showSuccessModal("Request Sent!", message, () => window.location.reload());
         return;
     }
 
