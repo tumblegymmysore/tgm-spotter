@@ -615,6 +615,14 @@
                 </div>
             </div>
 
+            <!-- Start Date Field (moved above registration fee box) -->
+            <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100 mb-4">
+                <div>
+                    <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Start Date *</label>
+                    <input type="date" id="reg-date" class="input-field w-full bg-white" required>
+                </div>
+            </div>
+
             <div class="bg-slate-50 rounded-2xl p-6 border border-slate-100">
                 
                 <div id="approval-notice" class="hidden mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
@@ -628,17 +636,19 @@
                     <span class="text-sm font-bold text-slate-500">Registration Fee</span>
                     <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
                 </div>
+                <div class="flex justify-between items-center mb-4">
+                    <span class="text-sm font-bold text-slate-500">Package Fee</span>
+                    <span class="text-sm font-bold text-slate-800">
+                        <span id="package-name-display" class="text-xs text-slate-600 mr-2">-</span>
+                        ₹<span id="package-fee-display">0</span>
+                    </span>
+                </div>
                 <div class="flex justify-between items-center mb-6 pt-4 border-t border-slate-200">
                     <span class="text-lg font-bold text-slate-800">Total Payable</span>
                     <span class="text-3xl font-black text-blue-600 tracking-tight">₹<span id="total-price">0</span></span>
                 </div>
 
                 <div id="payment-section" class="space-y-4 transition-all duration-300">
-                    <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Start Date</label>
-                        <input type="date" id="reg-date" class="input-field w-full bg-white">
-                    </div>
-                    
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment Mode *</label>
                         <select id="payment-mode" onchange="window.togglePaymentMode()" class="input-field w-full bg-white" required>

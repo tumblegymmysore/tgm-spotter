@@ -483,6 +483,13 @@ export function openRegistrationModal(leadString, isRenewal) {
     document.getElementById('reg-child-name').innerText = child.child_name;
     document.getElementById('reg-child-age').innerText = age;
     document.getElementById('is-renewal').value = isRenewal;
+    
+    // Reset package fee display
+    const packageFeeDisplay = document.getElementById('package-fee-display');
+    const packageNameDisplay = document.getElementById('package-name-display');
+    if (packageFeeDisplay) packageFeeDisplay.innerText = '0';
+    if (packageNameDisplay) packageNameDisplay.innerText = '-';
+    
     document.getElementById('reg-modal').classList.remove('hidden');
 
     const timeEl = document.getElementById('reg-time-slot');
@@ -844,22 +851,47 @@ export function calculateTotal() {
     const batchCat = document.getElementById('reg-batch-category').value;
     const age = parseInt(document.getElementById('reg-child-age').innerText);
     const isAdult = age >= ADULT_AGE_THRESHOLD;
-    let total = 0;
+    let packageFee = 0;
+    let packageName = '-';
     
     if (batchCat === 'Personal Training') {
         // PT pricing - admin will set, show 0 for now or estimate
         // For adults, this goes to admin for approval anyway
-        total = 0; // Will be set by admin
+        packageFee = 0; // Will be set by admin
+        packageName = 'Personal Training (To be confirmed)';
     } else if (isAdult && batchCat === 'Morning Batch') {
         // Adult morning batch - unlimited package (₹5500)
         const morningPkg = MORNING_PACKAGES.CHILD; // Same rate for all
-        total = morningPkg.price;
+        packageFee = morningPkg.price;
+        packageName = 'Morning Batch (Unlimited)';
     } else {
         const val = document.getElementById('reg-package-select').value;
-        if (val) total = parseInt(val.split('|')[1]);
+        if (val) {
+            const pkgParts = val.split('|');
+            packageFee = parseInt(pkgParts[1] || '0');
+            // Get package name from the option text
+            const pkgSelect = document.getElementById('reg-package-select');
+            const selectedOption = pkgSelect.querySelector(`option[value="${val}"]`);
+            if (selectedOption) {
+                packageName = selectedOption.text.trim();
+            }
+        }
     }
     
-    if (!isRenewal && total > 0) total += REGISTRATION_FEE;
+    // Update package fee display
+    const packageFeeDisplay = document.getElementById('package-fee-display');
+    const packageNameDisplay = document.getElementById('package-name-display');
+    if (packageFeeDisplay) packageFeeDisplay.innerText = packageFee;
+    if (packageNameDisplay) packageNameDisplay.innerText = packageName;
+    
+    // Calculate total (registration fee + package fee)
+    let total = 0;
+    if (!isRenewal && packageFee > 0) {
+        total = REGISTRATION_FEE + packageFee;
+    } else {
+        total = packageFee;
+    }
+    
     document.getElementById('total-price').innerText = total;
     
     // Update session days section when package changes
