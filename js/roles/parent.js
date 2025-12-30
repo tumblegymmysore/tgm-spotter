@@ -977,7 +977,11 @@ export function updateSessionDaysSection() {
 
 // Limit session days selection to 2
 export function limitSessionDays() {
-    const checkboxes = document.querySelectorAll('.session-day-checkbox:checked');
+    // Only look for checkboxes within the limited-session-select container
+    const limitedSelect = document.getElementById('limited-session-select');
+    if (!limitedSelect) return;
+    
+    const checkboxes = limitedSelect.querySelectorAll('.session-day-checkbox:checked');
     const errorEl = document.getElementById('session-days-error');
     
     if (checkboxes.length > 2) {
@@ -1085,10 +1089,17 @@ export async function submitRegistration(actionType) {
             const sessionDaysSection = document.getElementById('session-days-section');
             const limitedSelect = document.getElementById('limited-session-select');
             
+            // Check if the limited session select section is visible (not hidden)
+            const isSectionVisible = sessionDaysSection && 
+                !sessionDaysSection.classList.contains('hidden') && 
+                limitedSelect && 
+                !limitedSelect.classList.contains('hidden') &&
+                window.getComputedStyle(limitedSelect).display !== 'none';
+            
             // Only validate if the limited session select section is visible
-            if (sessionDaysSection && !sessionDaysSection.classList.contains('hidden') && 
-                limitedSelect && !limitedSelect.classList.contains('hidden')) {
-                const selectedDays = Array.from(document.querySelectorAll('.session-day-checkbox:checked'));
+            if (isSectionVisible && limitedSelect) {
+                // Only look for checkboxes within the limited-session-select container
+                const selectedDays = Array.from(limitedSelect.querySelectorAll('.session-day-checkbox:checked'));
                 if (selectedDays.length !== 2) {
                     return showErrorModal("Session Days Required", "Please select exactly 2 preferred days for planning purposes.");
                 }
