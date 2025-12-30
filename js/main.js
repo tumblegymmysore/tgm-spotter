@@ -1,6 +1,6 @@
 // js/main.js (v50 - Fixed Utils + Admin Support)
 import { supabaseClient } from './config.js';
-import { showView, calculateAgeDisplay, checkOther, scrollToSection } from './utils.js';
+import { showView, calculateAgeDisplay, checkOther, scrollToSection, showErrorModal } from './utils.js';
 import * as Auth from './auth.js';
 
 // ROLES IMPORTS
@@ -19,16 +19,37 @@ window.checkOther = checkOther;
 window.scrollToSection = scrollToSection;
 
 // Auth - Ensure functions are available immediately
-window.handleLogin = Auth.handleLogin;
-window.handleLogout = Auth.handleLogout;
-window.handleMagicLink = Auth.handleMagicLink;
-
-// Debug: Verify functions are bound
-console.log("Auth functions bound:", {
-    handleLogin: typeof window.handleLogin,
-    handleLogout: typeof window.handleLogout,
-    handleMagicLink: typeof window.handleMagicLink
-});
+// Use try-catch to handle any import errors gracefully
+try {
+    window.handleLogin = Auth.handleLogin;
+    window.handleLogout = Auth.handleLogout;
+    window.handleMagicLink = Auth.handleMagicLink;
+    
+    // Debug: Verify functions are bound
+    console.log("Auth functions bound:", {
+        handleLogin: typeof window.handleLogin,
+        handleLogout: typeof window.handleLogout,
+        handleMagicLink: typeof window.handleMagicLink
+    });
+    
+    // Ensure functions are available even if module loading is delayed
+    if (typeof window.handleLogin !== 'function') {
+        console.error("handleLogin not properly bound!");
+    }
+} catch (err) {
+    console.error("Error binding auth functions:", err);
+    // Fallback: define stub functions
+    window.handleLogin = function() {
+        alert("Login function not loaded. Please refresh the page.");
+        console.error("handleLogin not available");
+    };
+    window.handleLogout = function() {
+        alert("Logout function not loaded. Please refresh the page.");
+    };
+    window.handleMagicLink = function() {
+        alert("Magic link function not loaded. Please refresh the page.");
+    };
+}
 
 // Parent
 window.openRegistrationModal = Parent.openRegistrationModal;
@@ -169,40 +190,57 @@ window.sendChatMessage = async () => {
 document.addEventListener('keydown', (e) => { if (e.key === 'Escape') document.querySelectorAll('.modal-overlay').forEach(el => el.classList.add('hidden')); });
 document.getElementById('chat-input')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') window.sendChatMessage(); });
 
-// Ensure login functions are always available - add fallback after DOM loads
-setTimeout(() => {
-    // Add event listeners as backup (in addition to onclick)
+// Ensure login functions are always available - add event listeners immediately
+function setupLoginButtons() {
     const loginBtn = document.getElementById('btn-login-password');
     if (loginBtn) {
-        // Keep onclick, but also add event listener as backup
-        loginBtn.addEventListener('click', (e) => {
+        // Remove any existing listeners and add new one
+        const newLoginBtn = loginBtn.cloneNode(true);
+        loginBtn.parentNode.replaceChild(newLoginBtn, loginBtn);
+        
+        newLoginBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
-            console.log("Login button clicked via event listener");
+            console.log("Login button clicked");
+            
             if (typeof window.handleLogin === 'function') {
-                window.handleLogin();
+                await window.handleLogin();
             } else {
                 console.error("window.handleLogin is not a function:", typeof window.handleLogin);
-                alert("Login function not available. Please refresh the page.");
+                showErrorModal("Login Error", "Login function not available. Please refresh the page.");
             }
             return false;
-        }, { once: false });
-    } else {
-        console.warn("Login button not found");
+        });
     }
     
     const magicLinkBtn = document.getElementById('btn-login-magic');
-    if (magicLinkBtn && window.handleMagicLink) {
-        magicLinkBtn.addEventListener('click', (e) => {
+    if (magicLinkBtn) {
+        const newMagicBtn = magicLinkBtn.cloneNode(true);
+        magicLinkBtn.parentNode.replaceChild(newMagicBtn, magicLinkBtn);
+        
+        newMagicBtn.addEventListener('click', async (e) => {
             e.preventDefault();
             e.stopPropagation();
             if (typeof window.handleMagicLink === 'function') {
-                window.handleMagicLink();
+                await window.handleMagicLink();
+            } else {
+                console.error("window.handleMagicLink is not a function");
+                showErrorModal("Error", "Magic link function not available. Please refresh the page.");
             }
             return false;
-        }, { once: false });
+        });
     }
-}, 100);
+}
+
+// Setup buttons when DOM is ready
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupLoginButtons);
+} else {
+    setupLoginButtons();
+}
+
+// Also setup after a short delay to catch dynamically loaded modals
+setTimeout(setupLoginButtons, 500);
 
 // --- INITIALIZATION ---
 async function initSession() {

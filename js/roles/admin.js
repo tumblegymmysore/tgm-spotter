@@ -812,9 +812,6 @@ export async function saveAdminPackage() {
             return;
         }
         const basePrice = PT_RATES[level] * sessions;
-        const finalPackagePrice = packageData.package_fee_override || basePrice;
-        
-        const basePrice = PT_RATES[level] * sessions;
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
         packageData.selected_package = `PT (${level}) - ${sessions} Classes`;

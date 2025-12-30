@@ -250,8 +250,8 @@
             <h3 class="text-2xl font-bold text-slate-800 mb-2">Welcome Back</h3>
             <input type="email" id="login-email" class="input-field mb-3" placeholder="Email Address">
             <input type="password" id="login-password" class="input-field mb-4" placeholder="Password">
-            <button type="button" onclick="window.handleLogin()" id="btn-login-password" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg mb-3 hover:bg-blue-700 transition cursor-pointer">Login with Password</button>
-            <button type="button" onclick="window.handleMagicLink()" id="btn-login-magic" class="w-full bg-white text-slate-700 font-bold py-3 rounded-lg border hover:bg-slate-50 transition cursor-pointer">Email Login Link</button>
+            <button type="button" id="btn-login-password" class="w-full bg-blue-600 text-white font-bold py-3 rounded-lg mb-3 hover:bg-blue-700 transition cursor-pointer">Login with Password</button>
+            <button type="button" id="btn-login-magic" class="w-full bg-white text-slate-700 font-bold py-3 rounded-lg border hover:bg-slate-50 transition cursor-pointer">Email Login Link</button>
             <button type="button" onclick="document.getElementById('login-modal').classList.add('hidden')" class="text-slate-400 text-xs mt-6 underline hover:text-slate-600 cursor-pointer">Cancel</button>
         </div>
     </div>
@@ -798,6 +798,16 @@
         </div>
     </div>
     
-    <script type="module" src="js/main.js?v=48"></script>
+    <script type="module" src="js/main.js?v=49"></script>
+    <!-- Fallback: Ensure handleLogin is available even if module fails -->
+    <script>
+        // Fallback handler in case module doesn't load
+        if (typeof window.handleLogin === 'undefined') {
+            window.handleLogin = function() {
+                console.error("handleLogin not loaded - module may have failed");
+                alert("Login function not available. Please check console for errors and refresh the page.");
+            };
+        }
+    </script>
 </body>
 </html>
