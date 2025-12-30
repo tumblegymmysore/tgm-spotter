@@ -403,16 +403,29 @@ const STATUS_STRATEGIES = {
     'Trial Completed': (child, str) => {
         let txt = `Trainer recommends: <strong>${child.recommended_batch || 'Standard'}</strong>`;
         if (child.skills_rating?.personal_training) txt += ` <br>(Personal Training Advised)`;
-        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
+        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
     },
-    'Enrollment Requested': () => ({ badge: 'Pending Approval', color: 'bg-orange-100 text-orange-700', action: `<div class="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-100 flex items-start gap-3"><div class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-clock text-xs"></i></div><div><h4 class="font-bold text-orange-900 text-sm">Request Sent</h4><p class="text-xs text-orange-800 mt-1">Admin is verifying batch availability.</p></div></div><button disabled class="w-full bg-orange-100 text-orange-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Admin...</button>` }),
+    'Enrollment Requested': (child, str) => {
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
+        return { badge: 'Pending Approval', color: 'bg-orange-100 text-orange-700', action: `<div class="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-100 flex items-start gap-3"><div class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-clock text-xs"></i></div><div><h4 class="font-bold text-orange-900 text-sm">Request Sent</h4><p class="text-xs text-orange-800 mt-1">Admin is verifying batch availability.</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="w-full bg-orange-100 text-orange-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Admin...</button>` };
+    },
     'Ready to Pay': (child, str) => {
         const finalPrice = getFinalPrice(child);
-        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong><br>Fee: ₹${finalPrice || child.package_price || '0'}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse">Pay Now & Enroll</button>` };
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
+        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong><br>Fee: ₹${finalPrice || child.package_price || '0'}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse">Pay Now & Enroll</button>` };
     },
-    'Registration Requested': () => ({ badge: 'Verifying Payment', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">Payment Receipt Uploaded</p><button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` }),
-    'Enrolled': (child, str) => ({ badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div><button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">Renew Membership</button>` }),
-    'Follow Up': (child, str) => ({ badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` })
+    'Registration Requested': (child, str) => {
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
+        return { badge: 'Verifying Payment', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">Payment Receipt Uploaded</p>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
+    },
+    'Enrolled': (child, str) => {
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
+        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">Renew Membership</button>` };
+    },
+    'Follow Up': (child, str) => {
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
+        return { badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` };
+    }
 };
 
 function generateStudentCard(child, count) {
@@ -495,11 +508,23 @@ export function openRegistrationModal(leadString, isRenewal) {
         timeEl.disabled = false; 
         timeEl.value = "Evening"; 
         
-        // For 3-5 years: Morning batch is NOT applicable initially
-        // Morning option will only be shown if batch is changed to 5-8
-        if(age <= 5) {
+        // Show trainer badges if Special Needs or Personal Training recommended
+        const badgesEl = document.getElementById('trainer-badges');
+        if (badgesEl) {
+            badgesEl.innerHTML = '';
+            if (child.skills_rating?.special_needs) {
+                badgesEl.innerHTML += `<span class="inline-flex items-center gap-1 bg-purple-100 text-purple-700 text-xs font-bold px-3 py-1 rounded-full border border-purple-300"><i class="fas fa-heart"></i> Special Needs Recommended</span>`;
+            }
+            if (child.skills_rating?.personal_training) {
+                badgesEl.innerHTML += `<span class="inline-flex items-center gap-1 bg-amber-100 text-amber-700 text-xs font-bold px-3 py-1 rounded-full border border-amber-300"><i class="fas fa-dumbbell"></i> Personal Training Recommended</span>`;
+            }
+        }
+        
+        // Batch dropdown: Only show 3-5, 5-8, 8+ (and Adult if applicable)
+        // Special Needs and Personal Training are NOT selectable - shown as badges only
+        if(age >= 3 && age <= 5) {
             batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
-            // Remove morning option from time slot for 3-5 years
+            // Hide morning option for 3-5 years initially
             const morningOption = timeEl.querySelector('option[value="Morning"]');
             if (morningOption) morningOption.style.display = 'none';
         }
@@ -509,29 +534,60 @@ export function openRegistrationModal(leadString, isRenewal) {
         if(age >= 8 && age < 15) {
             batchEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
         }
-        batchEl.innerHTML += `<option value="Special Needs">Special Needs</option><option value="Personal Training">Personal Training</option><option value="Other">Other</option>`;
         
-        if (child.skills_rating?.personal_training) batchEl.value = "Personal Training";
-        else if (child.special_needs) batchEl.value = "Special Needs";
-        else if (child.recommended_batch && Array.from(batchEl.options).map(o=>o.value).includes(child.recommended_batch)) batchEl.value = child.recommended_batch;
+        // Pre-select recommended batch if it's one of the standard options
+        if (child.recommended_batch && Array.from(batchEl.options).map(o=>o.value).includes(child.recommended_batch)) {
+            batchEl.value = child.recommended_batch;
+        } else if (age >= 3 && age <= 5) {
+            batchEl.value = "Toddler (3-5 Yrs)";
+        } else if (age >= 5 && age <= 8) {
+            batchEl.value = "Beginner (5-8 Yrs)";
+        } else if (age >= 8 && age < 15) {
+            batchEl.value = "Intermediate (8+ Yrs)";
+        }
         
-        // Add event listener to batch category to show/hide morning option
+        // Add event listener to batch category to show/hide morning option and reason field
         batchEl.addEventListener('change', function() {
             const currentAge = parseInt(document.getElementById('reg-child-age').innerText);
             const selectedBatch = this.value;
+            const recommendedBatch = child.recommended_batch;
             const morningOption = timeEl.querySelector('option[value="Morning"]');
+            const reasonSection = document.getElementById('batch-change-reason-section');
+            const reasonField = document.getElementById('batch-change-reason-text');
             
-            // If 3-5 years and changing to 5-8 batch, show morning option
-            if (currentAge <= 5 && selectedBatch === 'Beginner (5-8 Yrs)') {
-                if (morningOption) morningOption.style.display = '';
-            } else if (currentAge <= 5) {
-                // If still 3-5 batch, hide morning and reset to Evening
-                if (morningOption) morningOption.style.display = 'none';
-                if (timeEl.value === 'Morning') {
-                    timeEl.value = 'Evening';
-                    showErrorModal("Morning Not Available", "Morning batch is not available for 3-5 years age group. Please select Evening/Weekend time slot.");
+            // Reset reason field
+            if (reasonSection) reasonSection.classList.add('hidden');
+            if (reasonField) {
+                reasonField.value = '';
+                reasonField.required = false;
+            }
+            
+            // For 3-5 years: Morning batch is NOT applicable unless batch is changed to 5-8
+            if (currentAge >= 3 && currentAge <= 5) {
+                if (selectedBatch === 'Beginner (5-8 Yrs)') {
+                    // If changing to 5-8 batch, show morning option
+                    if (morningOption) morningOption.style.display = '';
+                    
+                    // If this is different from recommended, show reason field
+                    if (recommendedBatch && recommendedBatch !== selectedBatch) {
+                        if (reasonSection) reasonSection.classList.remove('hidden');
+                        if (reasonField) reasonField.required = true;
+                    }
+                } else {
+                    // If still 3-5 batch, hide morning and reset to Evening
+                    if (morningOption) morningOption.style.display = 'none';
+                    if (timeEl.value === 'Morning') {
+                        timeEl.value = 'Evening';
+                    }
+                    
+                    // If changing from recommended batch, show reason field
+                    if (recommendedBatch && recommendedBatch !== selectedBatch && selectedBatch === 'Toddler (3-5 Yrs)') {
+                        if (reasonSection) reasonSection.classList.remove('hidden');
+                        if (reasonField) reasonField.required = true;
+                    }
                 }
             }
+            
             window.checkApprovalRequirement();
         });
     }
@@ -665,36 +721,34 @@ export function checkApprovalRequirement() {
         // Kids logic
         // For 3-5 years: Morning batch is NOT applicable unless batch is changed to 5-8
         const is3to5 = age >= 3 && age <= 5;
-        const isChangingTo5to8 = batchCat === 'Beginner (5-8 Yrs)' && currentLeadData.recommended_batch === 'Toddler (3-5 Yrs)';
+        const isChangingFromRecommended = currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch;
         
-        // If 3-5 years and trying to select morning, show error
-        if (is3to5 && timeSlot === 'Morning' && !isChangingTo5to8) {
+        // If 3-5 years and trying to select morning without changing to 5-8 batch, show error
+        if (is3to5 && timeSlot === 'Morning' && batchCat !== 'Beginner (5-8 Yrs)') {
             needsApproval = true;
-            approvalMessage = 'Morning batch is not available for 3-5 years age group. Please select Evening/Weekend time slot.';
+            approvalMessage = 'Morning batch is not available for 3-5 years age group. Please select Evening/Weekend time slot or change batch to 5-8 Yrs.';
             // Reset to Evening
             document.getElementById('reg-time-slot').value = 'Evening';
             window.checkApprovalRequirement();
             return;
         }
         
-        // If changing from 3-5 to 5-8 and selecting morning, need approval with reason
-        if (isChangingTo5to8 && timeSlot === 'Morning') {
+        // If changing batch from recommended, need approval with reason
+        if (isChangingFromRecommended) {
             needsApproval = true;
-            // Show reason field for batch change
-            const reasonField = document.getElementById('batch-change-reason');
+            const reasonField = document.getElementById('batch-change-reason-text');
+            const reasonSection = document.getElementById('batch-change-reason-section');
+            if (reasonSection) reasonSection.classList.remove('hidden');
             if (reasonField) {
-                reasonField.classList.remove('hidden');
                 reasonField.required = true;
+                if (!reasonField.value.trim()) {
+                    approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                } else {
+                    approvalMessage = `Batch change request submitted. Admin will review your reason and confirm.`;
+                }
+            } else {
+                approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
             }
-            approvalMessage = 'You\'ve selected a different batch (5-8 Yrs) and morning time slot. Please provide a reason for this change. Admin will review and confirm.';
-        }
-        
-        needsApproval = needsApproval || (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning' && !isChangingTo5to8));
-        
-        // If changing batch (e.g., 3-5 to 5-8), need approval
-        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch && !isChangingTo5to8) {
-            needsApproval = true;
-            approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please reach out to admin to confirm before proceeding with payment.`;
         }
         
         // If changing to PT from group, need approval
@@ -788,7 +842,8 @@ export async function submitRegistration(actionType) {
         
         // Add batch change reason if provided
         const reasonField = document.getElementById('batch-change-reason-text');
-        if (reasonField && !reasonField.classList.contains('hidden') && reasonField.value.trim()) {
+        const reasonSection = document.getElementById('batch-change-reason-section');
+        if (reasonSection && !reasonSection.classList.contains('hidden') && reasonField && reasonField.value.trim()) {
             note += `\nBatch Change Reason: ${reasonField.value.trim()}`;
         }
         
@@ -949,24 +1004,121 @@ export async function saveChildInfo() {
         btn.innerText = originalText;
     }
 }
-// View assessment details
-window.viewAssessment = function(leadString) {
+// View assessment details - Enhanced with Tumble Gym theme
+window.viewAssessmentDetails = function(leadString) {
     const child = JSON.parse(decodeURIComponent(leadString));
-    const feedback = child.feedback || 'No feedback provided.';
+    const feedback = child.feedback || 'No detailed feedback provided yet.';
     const skills = child.skills_rating || {};
     const activeSkills = [];
-    if (skills.listening) activeSkills.push('Listening');
-    if (skills.flexibility) activeSkills.push('Flexibility');
-    if (skills.strength) activeSkills.push('Strength');
-    if (skills.balance) activeSkills.push('Balance');
+    const skillIcons = {
+        listening: '👂',
+        flexibility: '🤸',
+        strength: '💪',
+        balance: '⚖️'
+    };
     
-    const skillsText = activeSkills.length > 0 ? activeSkills.join(', ') : 'None noted';
+    if (skills.listening) activeSkills.push({ name: 'Listening', icon: skillIcons.listening });
+    if (skills.flexibility) activeSkills.push({ name: 'Flexibility', icon: skillIcons.flexibility });
+    if (skills.strength) activeSkills.push({ name: 'Strength', icon: skillIcons.strength });
+    if (skills.balance) activeSkills.push({ name: 'Balance', icon: skillIcons.balance });
     
-    showSuccessModal(
-        `Assessment for ${child.child_name} 📝`,
-        `Trainer Feedback:\n${feedback}\n\nStrengths Observed: ${skillsText}\n\nRecommended Batch: ${child.recommended_batch || 'Standard'}`,
-        null
-    );
+    const recommendedBatch = child.recommended_batch || 'Standard Batch';
+    const isPTRecommended = skills.personal_training || false;
+    const isSpecialNeeds = skills.special_needs || false;
+    
+    // Create assessment modal HTML
+    const modal = document.createElement('div');
+    modal.id = 'parent-assessment-modal';
+    modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+    modal.innerHTML = `
+        <div class="bg-white rounded-2xl shadow-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto relative">
+            <div class="sticky top-0 bg-gradient-to-r from-purple-500 via-pink-500 to-blue-500 p-6 rounded-t-2xl text-white">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <h2 class="text-2xl font-extrabold flex items-center gap-2">
+                            <span class="text-3xl">📊</span>
+                            <span>Assessment Report</span>
+                        </h2>
+                        <p class="text-purple-100 text-sm mt-1">${child.child_name}'s Trial Assessment</p>
+                    </div>
+                    <button onclick="document.getElementById('parent-assessment-modal').remove()" class="text-white hover:text-purple-200 transition text-2xl font-bold w-8 h-8 flex items-center justify-center rounded-full hover:bg-white hover:bg-opacity-20">
+                        ×
+                    </button>
+                </div>
+            </div>
+            
+            <div class="p-6 space-y-6">
+                <!-- Recommended Program -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200">
+                    <h3 class="text-lg font-bold text-blue-900 mb-3 flex items-center gap-2">
+                        <span class="text-2xl">🌟</span>
+                        <span>Recommended Program</span>
+                    </h3>
+                    <div class="bg-white p-4 rounded-lg border border-blue-100">
+                        <p class="text-2xl font-extrabold text-blue-700 mb-2">${recommendedBatch}</p>
+                        ${isPTRecommended ? `<p class="text-sm text-purple-700 font-bold mt-2 flex items-center gap-2"><i class="fas fa-dumbbell"></i> Personal Training Recommended</p>` : ''}
+                        ${isSpecialNeeds ? `<p class="text-sm text-amber-700 font-bold mt-2 flex items-center gap-2"><i class="fas fa-heart"></i> Special Needs Support Available</p>` : ''}
+                    </div>
+                </div>
+                
+                <!-- Trainer Feedback -->
+                <div class="bg-gradient-to-br from-yellow-50 to-amber-50 p-5 rounded-xl border-2 border-yellow-200">
+                    <h3 class="text-lg font-bold text-yellow-900 mb-3 flex items-center gap-2">
+                        <span class="text-2xl">💬</span>
+                        <span>Trainer's Feedback</span>
+                    </h3>
+                    <div class="bg-white p-4 rounded-lg border border-yellow-100">
+                        <p class="text-slate-700 leading-relaxed whitespace-pre-wrap">${sanitizeInput(feedback)}</p>
+                    </div>
+                </div>
+                
+                <!-- Strengths Observed -->
+                ${activeSkills.length > 0 ? `
+                <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-200">
+                    <h3 class="text-lg font-bold text-green-900 mb-3 flex items-center gap-2">
+                        <span class="text-2xl">✨</span>
+                        <span>Strengths Observed</span>
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        ${activeSkills.map(skill => `
+                            <div class="bg-white p-3 rounded-lg border border-green-100 text-center">
+                                <div class="text-3xl mb-2">${skill.icon}</div>
+                                <p class="text-xs font-bold text-green-800">${skill.name}</p>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+                ` : `
+                <div class="bg-slate-50 p-5 rounded-xl border-2 border-slate-200 text-center">
+                    <p class="text-slate-500 text-sm">No specific strengths noted yet.</p>
+                </div>
+                `}
+                
+                <!-- Next Steps -->
+                <div class="bg-gradient-to-br from-purple-50 to-pink-50 p-5 rounded-xl border-2 border-purple-200">
+                    <h3 class="text-lg font-bold text-purple-900 mb-3 flex items-center gap-2">
+                        <span class="text-2xl">🚀</span>
+                        <span>Next Steps</span>
+                    </h3>
+                    <div class="bg-white p-4 rounded-lg border border-purple-100">
+                        <p class="text-sm text-purple-800 mb-3">Ready to continue your gymnastics journey? Click below to proceed with registration!</p>
+                        <button onclick="window.openRegistrationModal('${leadString}', false); document.getElementById('parent-assessment-modal').remove();" class="w-full bg-gradient-to-r from-purple-600 to-pink-600 text-white font-bold py-3 rounded-xl shadow-lg hover:shadow-xl transition transform hover:scale-105">
+                            Proceed to Registration 🎯
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    `;
+    
+    document.body.appendChild(modal);
+    
+    // Close on backdrop click
+    modal.addEventListener('click', (e) => {
+        if (e.target === modal) {
+            modal.remove();
+        }
+    });
 };
 
 export function openFeedbackModal(id) { document.getElementById('feedback-lead-id').value = id; document.getElementById('feedback-modal').classList.remove('hidden'); }
