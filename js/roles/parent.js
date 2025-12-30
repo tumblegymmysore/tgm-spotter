@@ -487,7 +487,11 @@ export function openRegistrationModal(leadString, isRenewal) {
 
     const timeEl = document.getElementById('reg-time-slot');
     const batchEl = document.getElementById('reg-batch-category');
-    batchEl.innerHTML = ''; 
+    if (!batchEl) {
+        console.error('Batch category element not found');
+        return;
+    }
+    batchEl.innerHTML = '<option value="">Select Batch...</option>'; 
 
     if (age >= ADULT_AGE_THRESHOLD) {
         // Adults: Personal Training is primary, Morning Batch is secondary option
@@ -522,6 +526,9 @@ export function openRegistrationModal(leadString, isRenewal) {
         
         // Batch dropdown: Only show 3-5, 5-8, 8+ (and Adult if applicable)
         // Special Needs and Personal Training are NOT selectable - shown as badges only
+        // Clear and rebuild options
+        batchEl.innerHTML = '<option value="">Select Batch...</option>';
+        
         if(age >= 3 && age <= 5) {
             batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
             // Hide morning option for 3-5 years initially
@@ -547,7 +554,10 @@ export function openRegistrationModal(leadString, isRenewal) {
         }
         
         // Add event listener to batch category to show/hide morning option and reason field
-        batchEl.addEventListener('change', function() {
+        // Use a named function to avoid duplicate listeners
+        if (!batchEl.dataset.listenerAdded) {
+            batchEl.dataset.listenerAdded = 'true';
+            batchEl.addEventListener('change', function() {
             const currentAge = parseInt(document.getElementById('reg-child-age').innerText);
             const selectedBatch = this.value;
             const recommendedBatch = child.recommended_batch;
@@ -589,7 +599,8 @@ export function openRegistrationModal(leadString, isRenewal) {
             }
             
             window.checkApprovalRequirement();
-        });
+            });
+        }
     }
     
     window.checkApprovalRequirement();
@@ -848,36 +859,55 @@ export function updateSessionDaysSection() {
         if (detailsEl) {
             let details = '';
             
+            // Use CLASS_SCHEDULE to show accurate schedule based on age and time preference
             if (isAdult && batchCat === 'Morning Batch') {
+                // Adults: Morning batch only (Tue-Fri, 6:15-7:15 AM)
                 details = '<ul class="space-y-2 list-none"><li class="flex items-start"><span class="mr-2">📅</span><span><strong>Tuesday to Friday:</strong> 6:15 AM - 7:15 AM</span></li></ul>';
             } else if (timeSlot === 'Morning') {
+                // Kids: Morning batch (5+ years) - Tue-Fri + Weekends
                 details = '<ul class="space-y-2 list-none">';
                 details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Tuesday to Friday:</strong> 6:15 AM - 7:15 AM</span></li>';
+                // Add weekend slots based on age from CLASS_SCHEDULE
                 if (age >= 3 && age <= 5) {
+                    // Saturday: 11am-12pm for 3-5 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                    // Sunday: 11am-12pm for 3-5 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 11:00 AM - 12:00 PM</span></li>';
                 } else if (age >= 6 && age <= 8) {
+                    // Saturday: 3pm-4pm for 6-8 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 3:00 PM - 4:00 PM</span></li>';
+                    // Sunday: 10am-11am for 6-8 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 10:00 AM - 11:00 AM</span></li>';
                 } else if (age >= 8 && age < 15) {
+                    // Saturday: 4pm-5pm for 8-14 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    // Sunday: 12pm-1pm for 8-14 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 12:00 PM - 1:00 PM</span></li>';
                 }
                 details += '</ul>';
             } else {
-                // Evening/Weekend
+                // Evening/Weekend schedule from CLASS_SCHEDULE
                 details = '<ul class="space-y-2 list-none">';
                 if (age >= 3 && age <= 5) {
+                    // Evening: Wed-Fri, 4-5 PM for 3-5 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    // Saturday: 11am-12pm for 3-5 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                    // Sunday: 11am-12pm for 3-5 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 11:00 AM - 12:00 PM</span></li>';
                 } else if (age >= 5 && age <= 8) {
+                    // Evening: Wed-Fri, 5-6 PM for 5-8 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 5:00 PM - 6:00 PM</span></li>';
+                    // Saturday: 3pm-4pm for 6-8 yrs (note: 5-8 includes 6-8)
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 3:00 PM - 4:00 PM</span></li>';
+                    // Sunday: 10am-11am for 6-8 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 10:00 AM - 11:00 AM</span></li>';
                 } else if (age >= 8 && age < 15) {
+                    // Evening: Wed-Fri, 6-7 PM for 8-14 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 6:00 PM - 7:00 PM</span></li>';
+                    // Saturday: 4pm-5pm for 8-14 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    // Sunday: 12pm-1pm for 8-14 yrs
                     details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 12:00 PM - 1:00 PM</span></li>';
                 }
                 details += '</ul>';
