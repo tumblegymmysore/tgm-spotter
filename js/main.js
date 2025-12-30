@@ -171,25 +171,36 @@ document.getElementById('chat-input')?.addEventListener('keydown', (e) => { if (
 
 // Ensure login functions are always available - add fallback after DOM loads
 setTimeout(() => {
-    // Replace onclick handlers with direct event listeners for better reliability
-    const loginBtn = document.querySelector('button[onclick*="handleLogin"]');
-    if (loginBtn && window.handleLogin) {
-        loginBtn.onclick = (e) => {
+    // Add event listeners as backup (in addition to onclick)
+    const loginBtn = document.getElementById('btn-login-password');
+    if (loginBtn) {
+        // Keep onclick, but also add event listener as backup
+        loginBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.handleLogin();
+            console.log("Login button clicked via event listener");
+            if (typeof window.handleLogin === 'function') {
+                window.handleLogin();
+            } else {
+                console.error("window.handleLogin is not a function:", typeof window.handleLogin);
+                alert("Login function not available. Please refresh the page.");
+            }
             return false;
-        };
+        }, { once: false });
+    } else {
+        console.warn("Login button not found");
     }
     
-    const magicLinkBtn = document.querySelector('button[onclick*="handleMagicLink"]');
+    const magicLinkBtn = document.getElementById('btn-login-magic');
     if (magicLinkBtn && window.handleMagicLink) {
-        magicLinkBtn.onclick = (e) => {
+        magicLinkBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
-            window.handleMagicLink();
+            if (typeof window.handleMagicLink === 'function') {
+                window.handleMagicLink();
+            }
             return false;
-        };
+        }, { once: false });
     }
 }, 100);
 

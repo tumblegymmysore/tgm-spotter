@@ -3,13 +3,25 @@ import { showErrorModal, showSuccessModal } from './utils.js';
 
 export async function handleLogin() {
     console.log("handleLogin called"); // Debug log
+    
+    // Prevent multiple clicks
+    const loginBtn = document.getElementById('btn-login-password');
+    if (loginBtn) {
+        loginBtn.disabled = true;
+        loginBtn.innerText = "Logging in...";
+    }
+    
     try {
         const emailEl = document.getElementById('login-email');
         const passwordEl = document.getElementById('login-password');
         
         if (!emailEl || !passwordEl) {
             console.error("Login form elements not found");
-            alert("Login form not found. Please refresh the page.");
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerText = "Login with Password";
+            }
+            showErrorModal("Form Error", "Login form not found. Please refresh the page.");
             return;
         }
         
@@ -29,6 +41,10 @@ export async function handleLogin() {
 
         if (error) {
             console.error("Login Error:", error);
+            if (loginBtn) {
+                loginBtn.disabled = false;
+                loginBtn.innerText = "Login with Password";
+            }
             showErrorModal("Login Failed", error.message || "Invalid email or password.");
         } else {
             console.log("Login successful");
@@ -38,6 +54,10 @@ export async function handleLogin() {
         }
     } catch (err) {
         console.error("Login function error:", err);
+        if (loginBtn) {
+            loginBtn.disabled = false;
+            loginBtn.innerText = "Login with Password";
+        }
         showErrorModal("Login Error", "An unexpected error occurred. Please try again.");
     }
 }
