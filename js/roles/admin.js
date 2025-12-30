@@ -442,8 +442,10 @@ function createVerificationCard(lead, isNew = false) {
     const meta = getPackageMetadata(lead);
     const selectedPkg = meta?.selected_package || lead.selected_package;
     const hasPackage = selectedPkg || finalPrice;
+    // Get payment_mode from metadata (stored in parent_note)
+    const paymentMode = meta?.payment_mode || lead.payment_mode || null;
     // Show payment actions for Registration Requested status (both UPI and Cash)
-    const showPaymentActions = lead.status === 'Registration Requested' && (lead.payment_proof_url || lead.payment_mode === 'Cash');
+    const showPaymentActions = lead.status === 'Registration Requested' && (lead.payment_proof_url || paymentMode === 'Cash');
     
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition ${isNew ? 'animate-pulse' : ''}">
@@ -466,7 +468,7 @@ function createVerificationCard(lead, isNew = false) {
                 <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
             `}
             ${lead.start_date ? `<p><strong>Start Date:</strong> ${lead.start_date}</p>` : ''}
-            ${lead.payment_mode ? `<p><strong>Payment Mode:</strong> ${lead.payment_mode}</p>` : ''}
+            ${paymentMode ? `<p><strong>Payment Mode:</strong> ${paymentMode}</p>` : ''}
             ${meta?.pt_request ? `
                 <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                     <p class="font-bold text-amber-900 mb-1"><i class="fas fa-dumbbell mr-1"></i> Personal Training Request</p>
@@ -481,7 +483,7 @@ function createVerificationCard(lead, isNew = false) {
                         <i class="fas fa-paperclip mr-1"></i> View Payment Screenshot
                     </a>
                 </div>
-            ` : lead.payment_mode === 'Cash' ? `
+            ` : paymentMode === 'Cash' ? `
                 <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                     <p class="text-xs text-green-800 font-semibold"><i class="fas fa-money-bill-wave mr-1"></i> Cash Payment - Verify on first day</p>
                 </div>

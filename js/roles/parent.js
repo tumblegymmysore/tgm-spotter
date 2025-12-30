@@ -1226,19 +1226,30 @@ export async function submitRegistration(actionType) {
             sessionDays = Array.from(limitedSelect.querySelectorAll('.session-day-checkbox:checked')).map(cb => cb.value);
         }
         
+        // Store payment_mode and other details in metadata (parent_note)
+        const existingNote = currentLeadData?.parent_note || '';
+        const metadata = {
+            final_price: total,
+            payment_mode: paymentMode
+        };
+        
+        // Only add session_days if we have values (for limited packages)
+        if (sessionDays.length > 0) {
+            metadata.session_days = sessionDays;
+        }
+        
+        const metaNote = `[PACKAGE_META]${JSON.stringify(metadata)}[/PACKAGE_META]`;
+        const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
+        const updatedNote = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
+        
         const updateData = {
             status: 'Registration Requested',
             selected_package: pkgLabel,
             package_price: total,
             start_date: document.getElementById('reg-date').value,
             payment_status: 'Verification Pending',
-            payment_mode: paymentMode
+            parent_note: updatedNote
         };
-        
-        // Only add session_days if we have values (for limited packages)
-        if (sessionDays.length > 0) {
-            updateData.session_days = sessionDays;
-        }
         
         // Only add payment_proof_url if it exists (UPI payments)
         if (paymentProofUrl) {
