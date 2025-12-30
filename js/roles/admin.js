@@ -44,8 +44,10 @@ export async function loadAdminDashboard(adminName) {
         }
     };
     
-    // Load Data - Start with pending trials
-    await fetchAdminTrials();
+    // Load Data - Start with pending registrations (inbox tab) to show what needs immediate attention
+    // Switch to inbox tab and load pending registrations
+    window.switchTab('inbox');
+    await fetchPendingRegistrations();
 }
 
 // --- 2. ADMIN TABS UPDATE ---
@@ -372,9 +374,10 @@ export async function fetchPendingRegistrations() {
             .select('*')
             .in('status', ['Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Enrolled', 'Trial Completed'])
             .order('created_at', { ascending: false })
-            .limit(50);
+            .limit(100); // Increased limit to ensure we get all pending registrations
         
         console.log('Filtered leads:', data?.length, 'Statuses found:', [...new Set(data?.map(l => l.status))]);
+        console.log('Registration Requested count:', data?.filter(l => l.status === 'Registration Requested').length);
 
         if (error) {
             console.error('Database error:', error);
@@ -493,6 +496,9 @@ function createVerificationCard(lead, isNew = false) {
         <div class="flex gap-2 mb-2">
             <button onclick="window.modifyAdminPackage('${lead.id}')" class="flex-1 bg-purple-600 text-white text-xs font-bold py-2 rounded hover:bg-purple-700 transition">
                 <i class="fas fa-cog mr-1"></i> ${hasPackage ? 'Modify Package' : 'Set Package'}
+            </button>
+            <button onclick="window.openChat('${encodeURIComponent(JSON.stringify(lead))}')" class="flex-1 bg-slate-600 text-white text-xs font-bold py-2 rounded hover:bg-slate-700 transition">
+                <i class="fas fa-comment mr-1"></i> Message
             </button>
         </div>
         ${showPaymentActions ? `
