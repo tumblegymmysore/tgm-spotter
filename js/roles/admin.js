@@ -156,11 +156,28 @@ export async function fetchAdminTrials() {
         // Expiry date filter (for enrolled students)
         if (adminFilters.expiryDateFrom || adminFilters.expiryDateTo) {
             filteredData = filteredData.filter(lead => {
-                if (lead.status !== 'Enrolled' || !lead.package_months) return false;
-                // Calculate expiry date
-                const startDate = lead.enrollment_date ? new Date(lead.enrollment_date) : new Date(lead.created_at);
+                if (lead.status !== 'Enrolled') return false;
+                
+                // Get package_months from metadata if stored in parent_note
+                let packageMonths = lead.package_months;
+                if (!packageMonths && lead.parent_note) {
+                    const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
+                    if (metaMatch) {
+                        try {
+                            const meta = JSON.parse(metaMatch[1]);
+                            packageMonths = meta.package_months;
+                        } catch (e) {
+                            console.warn('Could not parse package metadata for expiry', e);
+                        }
+                    }
+                }
+                
+                if (!packageMonths) return false;
+                
+                // Calculate expiry date (enrollment_date may not exist, use created_at)
+                const startDate = new Date(lead.created_at);
                 const expiryDate = new Date(startDate);
-                expiryDate.setMonth(expiryDate.getMonth() + (lead.package_months || 0));
+                expiryDate.setMonth(expiryDate.getMonth() + (packageMonths || 0));
                 
                 if (adminFilters.expiryDateFrom && expiryDate < new Date(adminFilters.expiryDateFrom)) return false;
                 if (adminFilters.expiryDateTo && expiryDate > new Date(adminFilters.expiryDateTo)) return false;
@@ -499,12 +516,13 @@ export async function approvePayment(leadId) {
     if (!confirmed) return;
 
     try {
+        // Only update fields that exist - enrollment_date may not exist in schema
         const { error } = await supabaseClient
             .from('leads')
             .update({ 
                 status: 'Enrolled', 
-                payment_status: 'Paid',
-                enrollment_date: new Date()
+                payment_status: 'Paid'
+                // enrollment_date removed - may not exist in schema
             })
             .eq('id', leadId);
 
@@ -581,7 +599,7 @@ export async function modifyAdminPackage(leadId) {
         document.getElementById('admin-pkg-lead-id').value = leadId;
         document.getElementById('admin-pkg-child-name').innerText = lead.child_name;
         document.getElementById('admin-pkg-status').innerText = lead.status || 'N/A';
-        document.getElementById('admin-pkg-current-batch').innerText = lead.final_batch || lead.recommended_batch || 'Not Set';
+        document.getElementById('admin-pkg-current-batch').innerText = lead.recommended_batch || 'Not Set';
         document.getElementById('admin-pkg-current-package').innerText = lead.selected_package || 'Not Set';
         document.getElementById('admin-pkg-current-price').innerText = lead.final_price || lead.package_price || '₹0';
         document.getElementById('admin-pkg-current-locked').innerText = lead.package_locked ? 'Yes' : 'No';
@@ -589,7 +607,20 @@ export async function modifyAdminPackage(leadId) {
         // Reset form
         document.getElementById('admin-pkg-type').value = '';
         document.getElementById('admin-pkg-lock').checked = lead.package_locked || false;
-        document.getElementById('admin-pkg-lock-type').value = lead.package_lock_type || 'one-time';
+        // Get package_lock_type from parent_note metadata if stored there
+        let lockType = 'one-time';
+        if (lead.parent_note) {
+            const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
+            if (metaMatch) {
+                try {
+                    const meta = JSON.parse(metaMatch[1]);
+                    lockType = meta.package_lock_type || 'one-time';
+                } catch (e) {
+                    console.warn('Could not parse package metadata', e);
+                }
+            }
+        }
+        document.getElementById('admin-pkg-lock-type').value = lockType;
         
         // Hide all option sections
         ['standard', 'morning', 'pt', 'custom'].forEach(type => {
@@ -741,19 +772,26 @@ export async function saveAdminPackage() {
         regFee = parseInt(regFeeOverride.value) || REGISTRATION_FEE;
     }
     
-    // Build package data - only include fields that exist in database
-    // Store custom fees in parent_note or use existing fields
+    // Build package data - only include fields that definitely exist in database
+    // Store additional metadata in parent_note as JSON
     let packageData = {
-        package_locked: isLocked,
-        package_lock_type: isLocked ? lockType : null
+        // Core fields that should exist
+        package_locked: isLocked
     };
     
-    // Store custom fee overrides in parent_note as JSON (until database schema is updated)
+    // Store custom fee overrides and additional metadata in parent_note as JSON
     const customFees = {
         reg_fee_override: regFeeOverrideFlag?.checked ? regFee : null,
         reg_fee_override_flag: regFeeOverrideFlag?.checked || false,
         package_fee_override: feeOverrideFlag?.checked && feeOverride?.value ? parseInt(feeOverride.value) : null,
         package_fee_override_flag: feeOverrideFlag?.checked || false
+    };
+    
+    // Additional package metadata to store
+    const packageMetadata = {
+        package_lock_type: isLocked ? lockType : null,
+        package_classes: null, // Will be set below
+        package_months: null    // Will be set below
     };
     
     // Fetch current lead to get existing parent_note
@@ -763,13 +801,10 @@ export async function saveAdminPackage() {
         .eq('id', leadId)
         .single();
     
-    // If any custom fees are set, store in parent_note
+    // Build metadata string to store in parent_note
+    let metadataNote = '';
     if (customFees.reg_fee_override_flag || customFees.package_fee_override_flag) {
-        const existingNote = currentLead?.parent_note || '';
-        const feeNote = `[ADMIN_FEES]${JSON.stringify(customFees)}[/ADMIN_FEES]`;
-        // Remove old fee note if exists
-        const cleanedNote = existingNote.replace(/\[ADMIN_FEES\].*?\[\/ADMIN_FEES\]/g, '').trim();
-        packageData.parent_note = cleanedNote ? `${cleanedNote}\n${feeNote}` : feeNote;
+        metadataNote += `[ADMIN_FEES]${JSON.stringify(customFees)}[/ADMIN_FEES]`;
     }
 
     if (pkgType === 'standard') {
@@ -802,8 +837,9 @@ export async function saveAdminPackage() {
         packageData.selected_package = pkg.label;
         packageData.package_price = finalPackagePrice;
         packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageData.package_classes = parseInt(classes);
-        packageData.package_months = parseInt(months);
+        // Store classes and months in metadata
+        packageMetadata.package_classes = parseInt(classes);
+        packageMetadata.package_months = parseInt(months);
     } else if (pkgType === 'pt') {
         const level = document.getElementById('admin-pkg-pt-level').value;
         const sessions = parseInt(document.getElementById('admin-pkg-pt-sessions').value) || 0;
@@ -817,8 +853,9 @@ export async function saveAdminPackage() {
         packageData.selected_package = `PT (${level}) - ${sessions} Classes`;
         packageData.package_price = finalPackagePrice;
         packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageData.package_classes = sessions;
-        packageData.package_months = 1; // PT is typically monthly
+        // Store classes and months in metadata
+        packageMetadata.package_classes = sessions;
+        packageMetadata.package_months = 1; // PT is typically monthly
     } else if (pkgType === 'custom') {
         const name = document.getElementById('admin-pkg-custom-name').value.trim();
         const price = parseInt(document.getElementById('admin-pkg-custom-price').value) || 0;
@@ -834,15 +871,37 @@ export async function saveAdminPackage() {
         packageData.selected_package = name;
         packageData.package_price = finalPackagePrice;
         packageData.final_price = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageData.package_classes = classes;
-        packageData.package_months = months;
+        // Store classes and months in metadata
+        packageMetadata.package_classes = classes;
+        packageMetadata.package_months = months;
     }
 
     // Update status to "Ready to Pay" if it was "Enrollment Requested"
     const currentStatus = document.getElementById('admin-pkg-status').innerText;
     if (currentStatus === 'Enrollment Requested' || currentStatus === 'Trial Completed') {
         packageData.status = 'Ready to Pay';
-        packageData.final_batch = document.getElementById('admin-pkg-current-batch').innerText;
+        // Use recommended_batch instead of final_batch (which doesn't exist in DB)
+        const currentBatch = document.getElementById('admin-pkg-current-batch').innerText;
+        if (currentBatch && currentBatch !== 'Not Set') {
+            packageData.recommended_batch = currentBatch;
+        }
+    }
+
+    // Store package metadata in parent_note
+    if (packageMetadata.package_classes || packageMetadata.package_months || packageMetadata.package_lock_type) {
+        const existingNote = currentLead?.parent_note || '';
+        const metaNote = `[PACKAGE_META]${JSON.stringify(packageMetadata)}[/PACKAGE_META]`;
+        // Remove old metadata note if exists
+        const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
+        if (metadataNote) {
+            packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metadataNote}\n${metaNote}` : `${metadataNote}\n${metaNote}`;
+        } else {
+            packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
+        }
+    } else if (metadataNote) {
+        const existingNote = currentLead?.parent_note || '';
+        const cleanedNote = existingNote.replace(/\[ADMIN_FEES\].*?\[\/ADMIN_FEES\]/g, '').trim();
+        packageData.parent_note = cleanedNote ? `${cleanedNote}\n${metadataNote}` : metadataNote;
     }
 
     try {
