@@ -527,9 +527,55 @@
 
                     <div class="md:col-span-2">
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Select Package</label>
-                        <select id="reg-package-select" onchange="window.calculateTotal()" class="input-field w-full bg-white border-2 border-slate-200 focus:border-blue-500 text-slate-800 font-bold">
+                        <select id="reg-package-select" onchange="window.calculateTotal(); window.updateSessionDaysSection()" class="input-field w-full bg-white border-2 border-slate-200 focus:border-blue-500 text-slate-800 font-bold">
                             <option value="" disabled selected>Select a Package...</option>
                             </select>
+                    </div>
+                    
+                    <!-- Session Days Section (shown after package selection) -->
+                    <div id="session-days-section" class="hidden md:col-span-2">
+                        <!-- For unlimited packages: Show info -->
+                        <div id="unlimited-session-info" class="hidden bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-200 shadow-md">
+                            <h3 class="text-sm font-bold text-green-900 uppercase tracking-wide mb-3 flex items-center">
+                                <i class="fas fa-calendar-alt mr-2"></i> Your Available Session Days
+                            </h3>
+                            <div id="unlimited-session-details" class="text-xs text-green-800 space-y-2"></div>
+                        </div>
+                        
+                        <!-- For limited packages: Ask to select 2 preferred days -->
+                        <div id="limited-session-select" class="hidden bg-blue-50/50 p-6 rounded-2xl border border-blue-100/50">
+                            <h3 class="text-sm font-bold text-slate-800 uppercase tracking-wide mb-3"><i class="fas fa-calendar-alt mr-2"></i> Preferred Session Days</h3>
+                            <p class="text-xs text-slate-500 mb-2">Please select <strong>2 preferred days</strong> for planning purposes. (Classes not available Mondays)</p>
+                            <p class="text-xs text-blue-600 mb-4 font-semibold">ℹ️ This is only for planning - you can attend on any available day based on your package.</p>
+                            
+                            <div class="grid grid-cols-2 md:grid-cols-3 gap-3">
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Tuesday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Tuesday</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Wednesday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Wednesday</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Thursday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Thursday</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Friday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Friday</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Saturday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Saturday</span>
+                                </label>
+                                <label class="flex items-center space-x-3 bg-white p-3 rounded-xl border border-blue-100 cursor-pointer hover:border-blue-400 hover:shadow-sm transition">
+                                    <input type="checkbox" class="accent-blue-600 w-5 h-5 rounded session-day-checkbox" value="Sunday" name="session_days" onchange="window.limitSessionDays()">
+                                    <span class="text-sm text-slate-700 font-bold">Sunday</span>
+                                </label>
+                            </div>
+                            <p id="session-days-error" class="text-xs text-red-600 mt-2 hidden font-bold">Please select exactly 2 preferred days.</p>
+                        </div>
                     </div>
 
                     <!-- Kids PT Options (for non-adults) -->
@@ -625,12 +671,6 @@
                     </div>
                     
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Child's Photo (Optional)</label>
-                        <input type="file" id="child-photo" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
-                        <p class="text-xs text-slate-500 mt-1">If not uploaded, trainer will capture during first class</p>
-                    </div>
-                    
-                    <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment Mode *</label>
                         <select id="payment-mode" onchange="window.togglePaymentMode()" class="input-field w-full bg-white" required>
                             <option value="">Select Payment Mode...</option>
@@ -649,9 +689,9 @@
                             <p class="text-xs text-blue-700 text-center font-semibold">Scan with any UPI app (PhonePe, Google Pay, Paytm, etc.)</p>
                         </div>
                         <div>
-                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Payment Screenshot *</label>
-                            <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
-                            <p class="text-xs text-slate-500 mt-1">Please upload a screenshot of your successful payment</p>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload UPI Payment Confirmation *</label>
+                            <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer" required>
+                            <p class="text-xs text-slate-500 mt-1">Please upload a screenshot of your UPI payment confirmation</p>
                         </div>
                     </div>
                     

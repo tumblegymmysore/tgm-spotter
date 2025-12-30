@@ -116,6 +116,8 @@ window.togglePTValidityInput = function() {
 window.updatePackageOptions = Parent.updatePackageOptions;
 window.checkApprovalRequirement = Parent.checkApprovalRequirement;
 window.calculateTotal = Parent.calculateTotal;
+window.updateSessionDaysSection = Parent.updateSessionDaysSection;
+window.limitSessionDays = Parent.limitSessionDays;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {

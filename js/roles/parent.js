@@ -801,10 +801,126 @@ export function calculateTotal() {
     
     if (!isRenewal && total > 0) total += REGISTRATION_FEE;
     document.getElementById('total-price').innerText = total;
+    
+    // Update session days section when package changes
+    window.updateSessionDaysSection();
 }
 
-export async function submitRegistration(actionType) {
+// Update session days section based on package type
+export function updateSessionDaysSection() {
+    const sessionDaysSection = document.getElementById('session-days-section');
+    const unlimitedInfo = document.getElementById('unlimited-session-info');
+    const limitedSelect = document.getElementById('limited-session-select');
     const batchCat = document.getElementById('reg-batch-category').value;
+    const timeSlot = document.getElementById('reg-time-slot').value;
+    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const isAdult = age >= ADULT_AGE_THRESHOLD;
+    const pkgSelect = document.getElementById('reg-package-select');
+    const selectedPkg = pkgSelect.value;
+    
+    // Hide both sections initially
+    if (sessionDaysSection) sessionDaysSection.classList.add('hidden');
+    if (unlimitedInfo) unlimitedInfo.classList.add('hidden');
+    if (limitedSelect) limitedSelect.classList.add('hidden');
+    
+    // Only show if package is selected and not PT
+    if (!selectedPkg || batchCat === 'Personal Training') return;
+    
+    // Check if package is unlimited (classes = 999)
+    let isUnlimited = false;
+    if (isAdult && batchCat === 'Morning Batch') {
+        isUnlimited = true;
+    } else if (selectedPkg) {
+        const pkgParts = selectedPkg.split('|');
+        const classes = parseInt(pkgParts[2] || '0');
+        isUnlimited = classes >= 999;
+    }
+    
+    if (sessionDaysSection) sessionDaysSection.classList.remove('hidden');
+    
+    if (isUnlimited) {
+        // Show unlimited info
+        if (unlimitedInfo) unlimitedInfo.classList.remove('hidden');
+        if (limitedSelect) limitedSelect.classList.add('hidden');
+        
+        // Generate session days info based on age and time preference
+        const detailsEl = document.getElementById('unlimited-session-details');
+        if (detailsEl) {
+            let details = '';
+            
+            if (isAdult && batchCat === 'Morning Batch') {
+                details = '<ul class="space-y-2 list-none"><li class="flex items-start"><span class="mr-2">📅</span><span><strong>Tuesday to Friday:</strong> 6:15 AM - 7:15 AM</span></li></ul>';
+            } else if (timeSlot === 'Morning') {
+                details = '<ul class="space-y-2 list-none">';
+                details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Tuesday to Friday:</strong> 6:15 AM - 7:15 AM</span></li>';
+                if (age >= 3 && age <= 5) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                } else if (age >= 6 && age <= 8) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 3:00 PM - 4:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 10:00 AM - 11:00 AM</span></li>';
+                } else if (age >= 8 && age < 15) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 12:00 PM - 1:00 PM</span></li>';
+                }
+                details += '</ul>';
+            } else {
+                // Evening/Weekend
+                details = '<ul class="space-y-2 list-none">';
+                if (age >= 3 && age <= 5) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 11:00 AM - 12:00 PM</span></li>';
+                } else if (age >= 5 && age <= 8) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 5:00 PM - 6:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 3:00 PM - 4:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 10:00 AM - 11:00 AM</span></li>';
+                } else if (age >= 8 && age < 15) {
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Wednesday to Friday:</strong> 6:00 PM - 7:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Saturday:</strong> 4:00 PM - 5:00 PM</span></li>';
+                    details += '<li class="flex items-start"><span class="mr-2">📅</span><span><strong>Sunday:</strong> 12:00 PM - 1:00 PM</span></li>';
+                }
+                details += '</ul>';
+            }
+            detailsEl.innerHTML = details;
+        }
+    } else {
+        // Show limited package selection (2 preferred days)
+        if (limitedSelect) limitedSelect.classList.remove('hidden');
+        if (unlimitedInfo) unlimitedInfo.classList.add('hidden');
+        
+        // Reset checkboxes
+        document.querySelectorAll('.session-day-checkbox').forEach(cb => cb.checked = false);
+        const errorEl = document.getElementById('session-days-error');
+        if (errorEl) errorEl.classList.add('hidden');
+    }
+};
+
+// Limit session days selection to 2
+export function limitSessionDays() {
+    const checkboxes = document.querySelectorAll('.session-day-checkbox:checked');
+    const errorEl = document.getElementById('session-days-error');
+    
+    if (checkboxes.length > 2) {
+        // Uncheck the last one
+        checkboxes[checkboxes.length - 1].checked = false;
+        if (errorEl) errorEl.classList.remove('hidden');
+        setTimeout(() => {
+            if (errorEl) errorEl.classList.add('hidden');
+        }, 3000);
+    } else if (checkboxes.length === 2) {
+        if (errorEl) errorEl.classList.add('hidden');
+    }
+};
+
+export async function submitRegistration(actionType) {
+    // Validation in field order: Time Preference -> Batch Category -> Package -> Session Days -> Start Date -> Payment Mode -> UPI Upload
+    const timeSlot = document.getElementById('reg-time-slot').value;
+    if (!timeSlot) return showErrorModal("Time Preference Required", "Please select a time preference (Evening/Weekend or Morning).");
+    
+    const batchCat = document.getElementById('reg-batch-category').value;
+    if (!batchCat) return showErrorModal("Batch Category Required", "Please select a batch category.");
+    
     const age = parseInt(document.getElementById('reg-child-age').innerText);
     const isAdult = age >= ADULT_AGE_THRESHOLD;
     const total = document.getElementById('total-price').innerText;
@@ -816,7 +932,7 @@ export async function submitRegistration(actionType) {
         if (isAdult) {
             const startDate = document.getElementById('reg-pt-start-date').value;
             if (!startDate) {
-                return showErrorModal("Date Required", "Please select a preferred start date for Personal Training.");
+                return showErrorModal("Start Date Required", "Please select a preferred start date for Personal Training.");
             }
             ptDetails = {
                 preferred_start_date: startDate,
@@ -833,9 +949,22 @@ export async function submitRegistration(actionType) {
         pkgLabel = `Morning Batch (Unlimited) - Tue-Fri`;
     } else {
         const val = document.getElementById('reg-package-select').value;
-        if (!val) return showErrorModal("Selection Missing", "Please select a package.");
+        if (!val) return showErrorModal("Package Selection Required", "Please select a package.");
         pkgLabel = document.querySelector(`#reg-package-select option[value="${val}"]`).text;
+        
+        // Check session days for limited packages
+        const isUnlimited = val.split('|')[2] >= 999;
+        if (!isUnlimited) {
+            const selectedDays = Array.from(document.querySelectorAll('.session-day-checkbox:checked'));
+            if (selectedDays.length !== 2) {
+                return showErrorModal("Session Days Required", "Please select exactly 2 preferred days for planning purposes.");
+            }
+        }
     }
+    
+    // Start Date validation
+    const startDate = document.getElementById('reg-date').value;
+    if (!startDate) return showErrorModal("Start Date Required", "Please select a start date for your package.");
 
     if (actionType === 'REQUEST') {
         let note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
@@ -875,6 +1004,7 @@ export async function submitRegistration(actionType) {
         return;
     }
 
+    // Payment Mode validation
     const paymentMode = document.getElementById('payment-mode').value;
     if (!paymentMode) return showErrorModal("Payment Mode Required", "Please select a payment mode (UPI or Cash).");
     
@@ -883,7 +1013,9 @@ export async function submitRegistration(actionType) {
     
     // Only require and upload proof for UPI payments
     if (paymentMode === 'UPI') {
-        if (fileInput.files.length === 0) return showErrorModal("Proof Required", "Please upload payment screenshot for UPI payment.");
+        if (!fileInput || fileInput.files.length === 0) {
+            return showErrorModal("UPI Payment Confirmation Required", "Please upload your UPI payment confirmation screenshot.");
+        }
         
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
