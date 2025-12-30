@@ -41,6 +41,32 @@ window.generateTrialSlots = () => {
     }
 
     const age = calculateAge(dob);
+    const ageInMonths = (Date.now() - new Date(dob).getTime()) / (1000 * 60 * 60 * 24 * 30.44);
+
+    // AGE VALIDATION: Below 2.5 years not eligible
+    if (ageInMonths < 30) {
+        container.classList.add('hidden');
+        container.innerHTML = `
+            <div class="bg-gradient-to-br from-pink-50 to-rose-50 p-6 rounded-2xl border-2 border-pink-300 shadow-lg text-center col-span-3">
+                <div class="text-4xl mb-3">👶</div>
+                <h3 class="text-lg font-extrabold text-pink-900 mb-2">Almost There, Little Champion! 🌟</h3>
+                <p class="text-sm text-pink-800 mb-4 leading-relaxed">
+                    We're so excited to welcome your little one to Tumble Gym! However, our programs are designed for children who are at least <strong>2.5 years old</strong> to ensure they get the best and safest experience.
+                </p>
+                <p class="text-xs text-pink-700 mb-4 font-semibold">
+                    Please come back when your child turns 2.5 years old - we'll be here waiting with open arms! 🎉
+                </p>
+                <p class="text-xs text-pink-600 mb-4">
+                    Have questions or want to learn more? We'd love to chat!
+                </p>
+                <a href="https://wa.me/918618684685" target="_blank" class="inline-block bg-green-500 text-white px-6 py-3 rounded-full font-bold hover:bg-green-600 transform hover:scale-105 transition-all shadow-lg">
+                    <i class="fab fa-whatsapp mr-2"></i> Chat with Us on WhatsApp
+                </a>
+            </div>
+        `;
+        hiddenInput.value = '';
+        return;
+    }
 
     // ADULT LOGIC (15+)
     if (age >= ADULT_AGE_THRESHOLD && pref === 'Evening') {
@@ -74,7 +100,9 @@ window.generateTrialSlots = () => {
             } else {
                 let block = (dayOfWeek === 6) ? CLASS_SCHEDULE.SATURDAY : (dayOfWeek === 0) ? CLASS_SCHEDULE.SUNDAY : CLASS_SCHEDULE.EVENING;
                 if (block && block.days.includes(dayOfWeek)) {
-                    const slot = block.slots.find(s => age >= s.min && age < s.max);
+                    // Ages below 3 show same slots as 3-5
+                    const effectiveAge = age < 3 ? 3 : age;
+                    const slot = block.slots.find(s => effectiveAge >= s.min && effectiveAge < s.max);
                     if (slot) validTime = slot.time;
                 }
             }
@@ -311,7 +339,30 @@ function generateStudentCard(child, count) {
 // --- 4. REGISTRATION & UTILS (All Functionality Preserved) ---
 export function openRegistrationModal(leadString, isRenewal) {
     const child = JSON.parse(decodeURIComponent(leadString));
-    currentRegistrationId = child.id; currentLeadData = child;
+    currentRegistrationId = child.id;
+    currentLeadData = child;
+    
+    // Reset payment mode
+    const paymentModeEl = document.getElementById('payment-mode');
+    if (paymentModeEl) {
+        paymentModeEl.value = '';
+        document.getElementById('upi-payment-section').classList.add('hidden');
+        document.getElementById('cash-payment-section').classList.add('hidden');
+        const paymentProof = document.getElementById('payment-proof');
+        if (paymentProof) paymentProof.required = false;
+    }
+    
+    // Reset batch change reason field
+    const reasonField = document.getElementById('batch-change-reason');
+    if (reasonField) {
+        reasonField.classList.add('hidden');
+        const reasonText = document.getElementById('batch-change-reason-text');
+        if (reasonText) {
+            reasonText.value = '';
+            reasonText.required = false;
+        }
+    }
+    
     const age = calculateAge(child.dob);
 
     document.getElementById('reg-child-name').innerText = child.child_name;
@@ -339,15 +390,48 @@ export function openRegistrationModal(leadString, isRenewal) {
         // Hide day selection for adults (not needed for morning batch)
         document.getElementById('session-days-section')?.classList.add('hidden');
     } else {
-        timeEl.disabled = false; timeEl.value = "Evening"; 
-        if(age <= 5) batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
-        if(age >= 5 && age <= 8) batchEl.innerHTML += `<option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>`;
-        if(age >= 8 && age < 15) batchEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
+        timeEl.disabled = false; 
+        timeEl.value = "Evening"; 
+        
+        // For 3-5 years: Morning batch is NOT applicable initially
+        // Morning option will only be shown if batch is changed to 5-8
+        if(age <= 5) {
+            batchEl.innerHTML += `<option value="Toddler (3-5 Yrs)">Toddler (3-5 Yrs)</option>`;
+            // Remove morning option from time slot for 3-5 years
+            const morningOption = timeEl.querySelector('option[value="Morning"]');
+            if (morningOption) morningOption.style.display = 'none';
+        }
+        if(age >= 5 && age <= 8) {
+            batchEl.innerHTML += `<option value="Beginner (5-8 Yrs)">Beginner (5-8 Yrs)</option>`;
+        }
+        if(age >= 8 && age < 15) {
+            batchEl.innerHTML += `<option value="Intermediate (8+ Yrs)">Intermediate (8+ Yrs)</option>`;
+        }
         batchEl.innerHTML += `<option value="Special Needs">Special Needs</option><option value="Personal Training">Personal Training</option><option value="Other">Other</option>`;
         
         if (child.skills_rating?.personal_training) batchEl.value = "Personal Training";
         else if (child.special_needs) batchEl.value = "Special Needs";
         else if (child.recommended_batch && Array.from(batchEl.options).map(o=>o.value).includes(child.recommended_batch)) batchEl.value = child.recommended_batch;
+        
+        // Add event listener to batch category to show/hide morning option
+        batchEl.addEventListener('change', function() {
+            const currentAge = parseInt(document.getElementById('reg-child-age').innerText);
+            const selectedBatch = this.value;
+            const morningOption = timeEl.querySelector('option[value="Morning"]');
+            
+            // If 3-5 years and changing to 5-8 batch, show morning option
+            if (currentAge <= 5 && selectedBatch === 'Beginner (5-8 Yrs)') {
+                if (morningOption) morningOption.style.display = '';
+            } else if (currentAge <= 5) {
+                // If still 3-5 batch, hide morning and reset to Evening
+                if (morningOption) morningOption.style.display = 'none';
+                if (timeEl.value === 'Morning') {
+                    timeEl.value = 'Evening';
+                    showErrorModal("Morning Not Available", "Morning batch is not available for 3-5 years age group. Please select Evening/Weekend time slot.");
+                }
+            }
+            window.checkApprovalRequirement();
+        });
     }
     
     window.checkApprovalRequirement();
@@ -477,10 +561,36 @@ export function checkApprovalRequirement() {
         }
     } else {
         // Kids logic
-        needsApproval = (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning'));
+        // For 3-5 years: Morning batch is NOT applicable unless batch is changed to 5-8
+        const is3to5 = age >= 3 && age <= 5;
+        const isChangingTo5to8 = batchCat === 'Beginner (5-8 Yrs)' && currentLeadData.recommended_batch === 'Toddler (3-5 Yrs)';
+        
+        // If 3-5 years and trying to select morning, show error
+        if (is3to5 && timeSlot === 'Morning' && !isChangingTo5to8) {
+            needsApproval = true;
+            approvalMessage = 'Morning batch is not available for 3-5 years age group. Please select Evening/Weekend time slot.';
+            // Reset to Evening
+            document.getElementById('reg-time-slot').value = 'Evening';
+            window.checkApprovalRequirement();
+            return;
+        }
+        
+        // If changing from 3-5 to 5-8 and selecting morning, need approval with reason
+        if (isChangingTo5to8 && timeSlot === 'Morning') {
+            needsApproval = true;
+            // Show reason field for batch change
+            const reasonField = document.getElementById('batch-change-reason');
+            if (reasonField) {
+                reasonField.classList.remove('hidden');
+                reasonField.required = true;
+            }
+            approvalMessage = 'You\'ve selected a different batch (5-8 Yrs) and morning time slot. Please provide a reason for this change. Admin will review and confirm.';
+        }
+        
+        needsApproval = needsApproval || (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning' && !isChangingTo5to8));
         
         // If changing batch (e.g., 3-5 to 5-8), need approval
-        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch) {
+        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch && !isChangingTo5to8) {
             needsApproval = true;
             approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please reach out to admin to confirm before proceeding with payment.`;
         }
@@ -573,6 +683,13 @@ export async function submitRegistration(actionType) {
 
     if (actionType === 'REQUEST') {
         let note = `Request: ${document.getElementById('reg-time-slot').value} - ${batchCat}. Plan: ${pkgLabel}`;
+        
+        // Add batch change reason if provided
+        const reasonField = document.getElementById('batch-change-reason-text');
+        if (reasonField && !reasonField.classList.contains('hidden') && reasonField.value.trim()) {
+            note += `\nBatch Change Reason: ${reasonField.value.trim()}`;
+        }
+        
         if (ptDetails) {
             note += `\nPT Details: Start Date: ${ptDetails.preferred_start_date}`;
             if (ptDetails.notes) note += `\nNotes: ${ptDetails.notes}`;
@@ -601,24 +718,70 @@ export async function submitRegistration(actionType) {
         return;
     }
 
-    const fileInput = document.getElementById('payment-proof');
-    if (fileInput.files.length === 0) return showErrorModal("Proof Required", "Upload Payment Proof.");
+    const paymentMode = document.getElementById('payment-mode').value;
+    if (!paymentMode) return showErrorModal("Payment Mode Required", "Please select a payment mode (UPI or Cash).");
     
-    const btn = document.getElementById('btn-submit-pay'); btn.innerText = "Uploading..."; btn.disabled = true;
-
-    try {
+    const fileInput = document.getElementById('payment-proof');
+    let paymentProofUrl = null;
+    
+    // Only require and upload proof for UPI payments
+    if (paymentMode === 'UPI') {
+        if (fileInput.files.length === 0) return showErrorModal("Proof Required", "Please upload payment screenshot for UPI payment.");
+        
         const file = fileInput.files[0];
         const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
         const { error: err } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
         if(err) throw err;
         const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
+        paymentProofUrl = publicUrl;
+    }
+    
+    const btn = document.getElementById('btn-submit-pay'); btn.innerText = "Submitting..."; btn.disabled = true;
 
-        await supabaseClient.from('leads').update({
-            status: 'Registration Requested', selected_package: pkgLabel, package_price: total, payment_proof_url: publicUrl,
+    try {
+        const updateData = {
+            status: 'Registration Requested',
+            selected_package: pkgLabel,
+            package_price: total,
             start_date: document.getElementById('reg-date').value,
             session_days: Array.from(document.querySelectorAll('input[name="session_days"]:checked')).map(cb => cb.value),
-            payment_status: 'Verification Pending'
-        }).eq('id', currentRegistrationId);
+            payment_status: 'Verification Pending',
+            payment_mode: paymentMode
+        };
+        
+        // Only add payment_proof_url if it exists (UPI payments)
+        if (paymentProofUrl) {
+            updateData.payment_proof_url = paymentProofUrl;
+        }
+
+        await supabaseClient.from('leads').update(updateData).eq('id', currentRegistrationId);
+        
+        // Send notification to admin about new registration
+        try {
+            await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${supabaseKey}`
+                },
+                body: JSON.stringify({
+                    record: {
+                        type: 'registration_notification',
+                        child_name: currentLeadData.child_name,
+                        parent_name: currentLeadData.parent_name,
+                        phone: currentLeadData.phone,
+                        email: currentLeadData.email,
+                        payment_mode: paymentMode,
+                        total_amount: total,
+                        package: pkgLabel,
+                        lead_id: currentRegistrationId
+                    }
+                })
+            });
+        } catch (notifyErr) {
+            console.error('Notification error:', notifyErr);
+            // Don't block submission if notification fails
+        }
 
         document.getElementById('reg-modal').classList.add('hidden');
         showSuccessModal("Submitted!", "Registration & Payment info sent to Admin.", () => window.location.reload());
@@ -684,6 +847,26 @@ export async function saveChildInfo() {
         btn.innerText = originalText;
     }
 }
+// View assessment details
+window.viewAssessment = function(leadString) {
+    const child = JSON.parse(decodeURIComponent(leadString));
+    const feedback = child.feedback || 'No feedback provided.';
+    const skills = child.skills_rating || {};
+    const activeSkills = [];
+    if (skills.listening) activeSkills.push('Listening');
+    if (skills.flexibility) activeSkills.push('Flexibility');
+    if (skills.strength) activeSkills.push('Strength');
+    if (skills.balance) activeSkills.push('Balance');
+    
+    const skillsText = activeSkills.length > 0 ? activeSkills.join(', ') : 'None noted';
+    
+    showSuccessModal(
+        `Assessment for ${child.child_name} 📝`,
+        `Trainer Feedback:\n${feedback}\n\nStrengths Observed: ${skillsText}\n\nRecommended Batch: ${child.recommended_batch || 'Standard'}`,
+        null
+    );
+};
+
 export function openFeedbackModal(id) { document.getElementById('feedback-lead-id').value = id; document.getElementById('feedback-modal').classList.remove('hidden'); }
 export async function submitParentFeedback() { 
     const id = document.getElementById('feedback-lead-id').value;

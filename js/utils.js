@@ -108,12 +108,14 @@ export function showSuccessModal(title, message, onCloseCallback = null) {
     }
 }
 
-// 6. Error Modal (NEW - Fixes the ugly alerts)
+// 6. Error Modal (NEW - Fixes the ugly alerts, with higher z-index)
 export function showErrorModal(title, message) {
     const modal = document.getElementById('error-modal');
     if (modal) {
         document.getElementById('error-title').innerText = title;
         document.getElementById('error-msg').innerText = message;
+        // Ensure error modal appears above registration modal (z-50 -> z-[60])
+        modal.style.zIndex = '60';
         modal.classList.remove('hidden');
     } else {
         alert(`${title}\n${message}`); // Fallback

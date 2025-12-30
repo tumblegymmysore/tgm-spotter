@@ -1,5 +1,6 @@
 import { supabaseClient, supabaseKey, ADULT_AGE_THRESHOLD } from '../config.js'; 
 import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
+import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
 
 let currentAssessmentLead = null;
 
@@ -84,7 +85,7 @@ function createTrialCard(lead) {
 }
 
 // --- 3. ASSESSMENT ---
-export function openAssessment(leadString) {
+export async function openAssessment(leadString) {
     const lead = JSON.parse(decodeURIComponent(leadString));
     currentAssessmentLead = lead; 
     document.getElementById('assess-lead-id').value = lead.id;
@@ -102,6 +103,46 @@ export function openAssessment(leadString) {
     else if (age >= 5) batch = "Beginner (5-8 Yrs)";
     
     document.getElementById('assess-batch').value = batch;
+    
+    // Load child info and siblings
+    const dobDisplay = lead.dob ? new Date(lead.dob).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+    document.getElementById('assess-child-info').innerHTML = `
+        <div class="bg-blue-50 p-3 rounded-lg mb-3 border border-blue-200">
+            <p class="text-sm font-bold text-blue-900 mb-1">👶 Little Gymnast Info</p>
+            <p class="text-xs text-blue-800"><strong>Name:</strong> ${lead.child_name}</p>
+            <p class="text-xs text-blue-800"><strong>DOB:</strong> ${dobDisplay}</p>
+            <p class="text-xs text-blue-800"><strong>Age:</strong> ${age} Years</p>
+        </div>
+    `;
+    
+    // Fetch siblings
+    try {
+        const { data: siblings } = await supabaseClient
+            .from('leads')
+            .select('id, child_name, dob, status, recommended_batch')
+            .eq('email', lead.email)
+            .neq('id', lead.id)
+            .in('status', ['Enrolled', 'Trial Completed', 'Registration Requested', 'Ready to Pay']);
+        
+        if (siblings && siblings.length > 0) {
+            const siblingsHtml = siblings.map(s => {
+                const sAge = calculateAge(s.dob);
+                return `<p class="text-xs text-indigo-800"><strong>${s.child_name}</strong> (${sAge} Yrs) - ${s.recommended_batch || s.status}</p>`;
+            }).join('');
+            document.getElementById('assess-sibling-info').innerHTML = `
+                <div class="bg-indigo-50 p-3 rounded-lg mb-3 border border-indigo-200">
+                    <p class="text-sm font-bold text-indigo-900 mb-2">👨‍👩‍👧‍👦 Siblings Already in Class</p>
+                    ${siblingsHtml}
+                </div>
+            `;
+        } else {
+            document.getElementById('assess-sibling-info').innerHTML = '';
+        }
+    } catch (e) {
+        console.error('Error fetching siblings:', e);
+        document.getElementById('assess-sibling-info').innerHTML = '';
+    }
+    
     document.getElementById('assessment-modal').classList.remove('hidden');
 }
 
@@ -143,27 +184,99 @@ export async function fetchInbox() { /* Same as previous version */
         messages.forEach(msg => {
             if (!msg.leads) return;
             const lid = msg.leads.id;
-            if (!conversations[lid]) conversations[lid] = { details: msg.leads, lastMessage: msg, unread: 0 };
+            if (!conversations[lid]) {
+                conversations[lid] = { details: msg.leads, lastMessage: msg, unread: 0, messages: [] };
+            }
+            conversations[lid].messages.push(msg);
+            // Update last message if this is more recent
+            if (new Date(msg.created_at) > new Date(conversations[lid].lastMessage.created_at)) {
+                conversations[lid].lastMessage = msg;
+            }
             if (msg.sender_role !== 'trainer' && !msg.is_read) { conversations[lid].unread++; globalUnread++; }
         });
-        document.getElementById('inbox-badge')?.classList.toggle('hidden', globalUnread === 0);
-        container.innerHTML = '';
-        Object.values(conversations).forEach(conv => {
-            const leadString = encodeURIComponent(JSON.stringify(conv.details));
-            const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
-            container.innerHTML += `
-                <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
-                    <div class="flex items-center">
-                        <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">${conv.details.child_name.charAt(0)}</div>
-                        <div class="overflow-hidden">
-                            <h4 class="font-bold text-slate-800 text-sm truncate">${conv.details.parent_name}</h4>
-                            <p class="text-xs text-slate-500 truncate w-48">${conv.lastMessage.sender_role === 'trainer' ? 'You: ' : ''}${conv.lastMessage.message_text}</p>
-                        </div>
-                    </div>
-                    ${conv.unread > 0 ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${conv.unread}</span>` : ''}
-                </div>`;
+        
+        // Sort conversations: unread first, then by most recent message
+        const sortedConversations = Object.values(conversations).sort((a, b) => {
+            if (a.unread > 0 && b.unread === 0) return -1;
+            if (a.unread === 0 && b.unread > 0) return 1;
+            return new Date(b.lastMessage.created_at) - new Date(a.lastMessage.created_at);
         });
+        document.getElementById('inbox-badge')?.classList.toggle('hidden', globalUnread === 0);
+        
+        // Add filter buttons for read/unread
+        const filterContainer = document.getElementById('inbox-filters');
+        if (filterContainer) {
+            filterContainer.innerHTML = `
+                <button onclick="window.filterInbox('all')" id="filter-all" class="px-4 py-2 rounded-lg text-sm font-bold bg-blue-600 text-white">All</button>
+                <button onclick="window.filterInbox('unread')" id="filter-unread" class="px-4 py-2 rounded-lg text-sm font-bold bg-slate-200 text-slate-700">Unread</button>
+                <button onclick="window.filterInbox('read')" id="filter-read" class="px-4 py-2 rounded-lg text-sm font-bold bg-slate-200 text-slate-700">Read</button>
+            `;
+        }
+        
+        // Store conversations globally for filtering
+        window.trainerConversations = sortedConversations;
+        window.currentInboxFilter = 'all';
+        
+        renderInbox(sortedConversations);
     } catch (e) { console.warn("Inbox Error:", e); }
+}
+
+// Render inbox with filtering
+function renderInbox(conversations) {
+    const container = document.getElementById('list-inbox');
+    if (!container) return;
+    
+    const filter = window.currentInboxFilter || 'all';
+    const filtered = conversations.filter(conv => {
+        if (filter === 'unread') return conv.unread > 0;
+        if (filter === 'read') return conv.unread === 0;
+        return true;
+    });
+    
+    container.innerHTML = '';
+    if (filtered.length === 0) {
+        container.innerHTML = '<div class="p-8 text-center text-slate-400">No conversations found.</div>';
+        return;
+    }
+    
+    filtered.forEach(conv => {
+        const leadString = encodeURIComponent(JSON.stringify(conv.details));
+        const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
+        container.innerHTML += `
+            <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">${conv.details.child_name.charAt(0)}</div>
+                    <div class="overflow-hidden">
+                        <h4 class="font-bold text-slate-800 text-sm truncate">${conv.details.parent_name}</h4>
+                        <p class="text-xs text-slate-500 truncate w-48">${conv.lastMessage.sender_role === 'trainer' ? 'You: ' : ''}${conv.lastMessage.message_text}</p>
+                    </div>
+                </div>
+                ${conv.unread > 0 ? `<span class="bg-blue-600 text-white text-[10px] font-bold px-2 py-0.5 rounded-full">${conv.unread}</span>` : ''}
+            </div>`;
+    });
+}
+
+// Filter inbox function
+window.filterInbox = function(filter) {
+    window.currentInboxFilter = filter;
+    const conversations = window.trainerConversations || [];
+    renderInbox(conversations);
+    
+    // Update button styles
+    document.getElementById('filter-all')?.classList.toggle('bg-blue-600', filter === 'all');
+    document.getElementById('filter-all')?.classList.toggle('text-white', filter === 'all');
+    document.getElementById('filter-all')?.classList.toggle('bg-slate-200', filter !== 'all');
+    document.getElementById('filter-all')?.classList.toggle('text-slate-700', filter !== 'all');
+    
+    document.getElementById('filter-unread')?.classList.toggle('bg-blue-600', filter === 'unread');
+    document.getElementById('filter-unread')?.classList.toggle('text-white', filter === 'unread');
+    document.getElementById('filter-unread')?.classList.toggle('bg-slate-200', filter !== 'unread');
+    document.getElementById('filter-unread')?.classList.toggle('text-slate-700', filter !== 'unread');
+    
+    document.getElementById('filter-read')?.classList.toggle('bg-blue-600', filter === 'read');
+    document.getElementById('filter-read')?.classList.toggle('text-white', filter === 'read');
+    document.getElementById('filter-read')?.classList.toggle('bg-slate-200', filter !== 'read');
+    document.getElementById('filter-read')?.classList.toggle('text-slate-700', filter !== 'read');
 }
 
 export function switchTab(tab) {
@@ -172,4 +285,5 @@ export function switchTab(tab) {
     document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('text-blue-600','border-b-2'); b.classList.add('text-slate-500'); });
     document.getElementById(`tab-btn-${tab}`).classList.add('text-blue-600', 'border-b-2');
     if (tab === 'inbox') fetchInbox();
+    if (tab === 'attendance') loadAttendanceView();
 }

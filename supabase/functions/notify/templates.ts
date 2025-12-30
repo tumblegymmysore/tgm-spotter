@@ -80,32 +80,40 @@ export const generateWelcomeEmail = (data: any) => {
       <body>
         <div class="container">
           <div class="header">
-            <h1>Tumble Gym Mysore</h1>
-            <p>Trial Request Confirmed</p>
+            <h1 style="margin: 0; font-size: 28px; font-weight: 900; position: relative; z-index: 1;">🎉 Welcome to Tumble Gym! 🌟</h1>
+            <p style="margin: 10px 0 0; font-size: 18px; position: relative; z-index: 1;">Your Trial Request is Confirmed! ✨</p>
           </div>
           <div class="body-content">
-            <div>
-              <strong>Dear ${data.parent_name},</strong><br><br>
-              Thank you for registering your child, <strong>${data.child_name}</strong>, for a trial session at The Tumble Gym, Mysore! We are excited to welcome your child and introduce them to the wonderful world of gymnastics.
+            <div style="font-size: 15px; line-height: 1.7;">
+              <p style="font-size: 16px; color: #1e40af; font-weight: bold; margin-bottom: 15px;">Dear ${data.parent_name},</p>
+              <p>Thank you so much for registering <strong>${data.child_name}</strong> for a trial session at The Tumble Gym, Mysore! 🎪 We are absolutely <em>thrilled</em> to welcome your little champion and introduce them to the amazing world of gymnastics! 🌈</p>
             </div>
             
             ${trialInfoHTML}
 
-            <div class="next-steps">
-              <h3>Next Steps:</h3>
-              <ul>
-                <li><strong>Dress Code:</strong> Please wear comfortable clothing (e.g., shorts/leggings and a t-shirt). No zippers or buttons.</li>
-                <li><strong>Timing:</strong> Please arrive on time for the session.</li>
-                <li><strong>Water:</strong> Bring a water bottle.</li>
+            <div class="next-steps" style="background: linear-gradient(135deg, #eff6ff 0%, #dbeafe 100%); border-left: 5px solid #3b82f6; padding: 20px; margin: 25px 0; border-radius: 12px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.1);">
+              <h3 style="margin-top: 0; color: #1e3a8a; font-size: 18px; font-weight: 900; margin-bottom: 15px;">🎯 Important Reminders for Your First Class:</h3>
+              <ul style="margin: 0; padding-left: 20px; color: #1e40af;">
+                <li style="margin-bottom: 10px; font-size: 14px;"><strong>👕 Dress Code:</strong> Please wear comfortable clothing (shorts/leggings and a t-shirt). No zippers or buttons.</li>
+                <li style="margin-bottom: 10px; font-size: 14px;"><strong>⏰ Timing:</strong> Please arrive on time for the session - we can't wait to get started! 🚀</li>
+                <li style="margin-bottom: 10px; font-size: 14px;"><strong>💧 Water:</strong> Bring a water bottle to stay hydrated during the fun!</li>
+                <li style="margin-bottom: 10px; font-size: 14px;"><strong>🍽️ Food:</strong> Avoid heavy meals 2-3 hours before class. No milk/dairy 1 hour before, and minimal liquids 30 minutes before.</li>
               </ul>
             </div>
             
+            <div style="background-color: #fef3c7; border: 2px solid #fcd34d; padding: 20px; margin: 25px 0; border-radius: 12px; text-align: center;">
+              <h3 style="margin-top: 0; color: #92400e; font-size: 18px; font-weight: bold;">📍 Find Us at Tumble Gym Mysore!</h3>
+              <p style="color: #854d0e; font-size: 14px; margin: 10px 0;">Click below to get directions and navigate to our location:</p>
+              <a href="https://maps.google.com/?q=Tumble+Gym+Mysore" target="_blank" style="display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; text-decoration: none; padding: 12px 24px; border-radius: 8px; font-weight: bold; font-size: 14px; margin-top: 10px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);">
+                🗺️ Open in Google Maps
+              </a>
+            </div>
+            
             <div class="closing-text">
-              If you have any questions or need to reschedule, please do not hesitate to contact us at <a href="mailto:tumblegymmysore@gmail.com">tumblegymmysore@gmail.com</a> or <a href="tel:+918618684685">+91 8618684685</a>.
-              <br><br>
-              We look forward to seeing you and your child soon!
-              <br>
-              <strong>Warm regards,<br>The Tumble Gym Team</strong>
+              <p style="font-size: 15px; color: #1e40af; font-weight: bold; margin-bottom: 10px;">🎉 We're so excited to meet ${data.child_name}!</p>
+              <p>If you have any questions or need to reschedule, please do not hesitate to contact us at <a href="mailto:tumblegymmysore@gmail.com">tumblegymmysore@gmail.com</a> or <a href="tel:+918618684685">+91 8618684685</a>.</p>
+              <p style="margin-top: 15px;">We look forward to seeing you and your little champion soon! 🌟</p>
+              <p style="margin-top: 15px;"><strong>Warm regards,<br>The Tumble Gym Team 🏆</strong></p>
             </div>
 
             <div class="reference-header">Submission Reference Details</div>
@@ -190,7 +198,7 @@ export const generateFeedbackEmail = (data: any) => {
   // 4. Skills Badges
   const skills = data.skills_rating || {};
   let skillsHtml = "";
-  const activeSkills = [];
+  const activeSkills: string[] = [];
   if (skills.listening) activeSkills.push("Listening");
   if (skills.flexibility) activeSkills.push("Flexibility");
   if (skills.strength) activeSkills.push("Strength");
@@ -210,31 +218,35 @@ export const generateFeedbackEmail = (data: any) => {
         <style>
           body { font-family: Helvetica, Arial, sans-serif; background: #f4f4f5; color: #333; }
           .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; border: 1px solid #e4e4e7; overflow: hidden; }
-          .header { background-color: #16a34a; padding: 30px; text-align: center; color: white; }
+          .header { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); padding: 35px 30px; text-align: center; color: white; position: relative; overflow: hidden; }
+          .header::before { content: ''; position: absolute; top: -50%; right: -50%; width: 200%; height: 200%; background: radial-gradient(circle, rgba(255,255,255,0.1) 1px, transparent 1px); background-size: 30px 30px; animation: float 20s infinite linear; }
+          @keyframes float { 0% { transform: translate(0, 0) rotate(0deg); } 100% { transform: translate(-30px, -30px) rotate(360deg); } }
           .content { padding: 30px; }
-          .score-card { background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 20px; margin: 20px 0; }
+          .score-card { background: linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%); border: 2px solid #86efac; border-radius: 12px; padding: 25px; margin: 25px 0; box-shadow: 0 4px 12px rgba(34, 197, 94, 0.1); }
           .btn-container { text-align: center; margin-top: 30px; }
-          .btn { display: inline-block; background: #16a34a; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold; font-size: 14px; }
+          .btn { display: inline-block; background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%); color: white; padding: 14px 28px; border-radius: 12px; text-decoration: none; font-weight: bold; font-size: 15px; box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3); transition: transform 0.2s; }
+          .btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(59, 130, 246, 0.4); }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
-            <h1>Trial Completed!</h1>
-            <p>Great job, ${data.child_name}!</p>
+            <h1 style="margin: 0; font-size: 28px; font-weight: 900; position: relative; z-index: 1;">🎉 Trial Completed! 🌟</h1>
+            <p style="margin: 10px 0 0; font-size: 18px; position: relative; z-index: 1;">Amazing job, ${data.child_name}! You're a star! ⭐</p>
           </div>
           <div class="content">
-            <p><strong>Dear ${data.parent_name},</strong></p>
-            <p>It was wonderful having ${data.child_name} at The Tumble Gym today! Our trainers have completed their assessment.</p>
+            <p style="font-size: 16px; color: #1e40af; font-weight: bold; margin-bottom: 15px;">Dear ${data.parent_name},</p>
+            <p style="font-size: 15px; line-height: 1.7;">It was absolutely wonderful having <strong>${data.child_name}</strong> at The Tumble Gym today! 🌈 Our trainers have completed their assessment and we're so excited to share the results with you!</p>
             
             <div class="score-card">
-              <h3 style="margin-top:0; color:#15803d; margin-bottom:10px;">Assessment Results</h3>
+              <h3 style="margin-top:0; color:#15803d; margin-bottom:15px; font-size:20px; font-weight:900;">🏆 Assessment Results</h3>
               ${feedbackHTML}
               ${skillsHtml}
               ${recommendationHTML}
             </div>
 
-            <p>We would love to see ${data.child_name} continue their gymnastics journey with us!</p>
+            <p style="font-size: 15px; line-height: 1.7; color: #1e293b; margin-top: 20px;">We would absolutely <strong>love</strong> to see ${data.child_name} continue their amazing gymnastics journey with us! 🎯✨</p>
+            <p style="font-size: 14px; color: #64748b; margin-top: 10px;">Ready to enroll? Click below to complete registration and secure your spot!</p>
             
             <div class="btn-container">
                 <a href="https://tumblegymmysore.github.io/tgm-spotter/" class="btn">Proceed to Registration</a>

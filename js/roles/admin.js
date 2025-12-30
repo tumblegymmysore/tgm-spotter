@@ -2,6 +2,7 @@
 import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
 import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
+import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
 
 // --- 1. DASHBOARD LOADER ---
 export async function loadAdminDashboard(adminName) {
@@ -39,7 +40,7 @@ export async function loadAdminDashboard(adminName) {
         } else if (tab === 'batches') {
             fetchDeclinedRegistrations();
         } else if (tab === 'attendance') {
-            fetchAllStudents();
+            loadAdminAttendanceView();
         }
     };
     
@@ -389,13 +390,20 @@ export async function fetchPendingRegistrations() {
             listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending payments.</p>'; 
             return; 
         }
+        
+        // Highlight new registrations (created in last 24 hours)
+        const now = new Date();
+        const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
         let pendingCount = 0;
         let enrolledCount = 0;
         
         data.forEach(lead => {
+            const createdDate = new Date(lead.created_at || lead.submitted_at);
+            const isNew = createdDate >= oneDayAgo;
+            
             if (lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Ready to Pay' || lead.status === 'Trial Completed') {
-                listNew.innerHTML += createVerificationCard(lead);
+                listNew.innerHTML += createVerificationCard(lead, isNew);
                 pendingCount++;
             } else if (lead.status === 'Enrolled') {
                 listDone.innerHTML += createEnrolledCard(lead);
@@ -419,7 +427,7 @@ export async function fetchPendingRegistrations() {
 
 // --- 3. CARDS ---
 
-function createVerificationCard(lead) {
+function createVerificationCard(lead, isNew = false) {
     const statusColors = {
         'Trial Completed': 'bg-blue-100 text-blue-700',
         'Enrollment Requested': 'bg-orange-100 text-orange-700',
@@ -427,6 +435,7 @@ function createVerificationCard(lead) {
         'Ready to Pay': 'bg-green-100 text-green-700'
     };
     const statusColor = statusColors[lead.status] || 'bg-purple-100 text-purple-700';
+    const newBadge = isNew ? '<span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full animate-pulse font-bold">NEW!</span>' : '';
     
     // Get final_price from metadata
     const finalPrice = getFinalPrice(lead);
@@ -436,10 +445,10 @@ function createVerificationCard(lead) {
     const showPaymentActions = lead.status === 'Registration Requested' && lead.payment_proof_url;
     
     return `
-    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 border-purple-500 mb-3 hover:shadow-md transition">
+    <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition ${isNew ? 'animate-pulse' : ''}">
         <div class="flex justify-between items-start mb-2">
             <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name}</h4>
+                <h4 class="font-bold text-slate-800">${lead.child_name}${newBadge}</h4>
                 <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
                 <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
             </div>

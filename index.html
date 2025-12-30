@@ -144,11 +144,51 @@
         </section>
     </div>
 
-    <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-md mx-auto mb-20">
+    <div id="parent-portal" class="hide pt-24 px-4 fade-in max-w-2xl mx-auto mb-20">
         <div class="text-center mb-8">
             <h1 class="text-4xl font-extrabold mb-2 section-header">My Gymnastics Hub 🏠</h1>
             <p class="text-slate-600 text-sm">Welcome back! Here's everything about your little star! ⭐</p>
         </div>
+        
+        <!-- Common Information Section -->
+        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 mb-6 border-2 border-blue-200 shadow-md">
+            <h2 class="text-xl font-bold text-blue-900 mb-4 flex items-center">
+                <span class="text-2xl mr-2">📋</span> Important Information for Parents
+            </h2>
+            <div class="space-y-4">
+                <div class="bg-white rounded-xl p-4 border border-blue-100">
+                    <h3 class="font-bold text-blue-800 mb-2 flex items-center">
+                        <span class="mr-2">👕</span> What to Wear
+                    </h3>
+                    <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                        <li>Comfortable clothing (shorts/leggings and a t-shirt)</li>
+                        <li>No zippers or buttons</li>
+                        <li>Bare feet or grip socks (no regular socks)</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-blue-100">
+                    <h3 class="font-bold text-blue-800 mb-2 flex items-center">
+                        <span class="mr-2">🍽️</span> Food Guidelines
+                    </h3>
+                    <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
+                        <li>Avoid heavy meals 2-3 hours before class</li>
+                        <li>No milk or dairy products 1 hour before class</li>
+                        <li>Minimal liquids 30 minutes before class</li>
+                        <li>Bring a water bottle for hydration during class</li>
+                    </ul>
+                </div>
+                <div class="bg-white rounded-xl p-4 border border-blue-100">
+                    <h3 class="font-bold text-blue-800 mb-2 flex items-center">
+                        <span class="mr-2">📍</span> Find Us at Tumble Gym Mysore
+                    </h3>
+                    <p class="text-sm text-blue-700 mb-2">Need directions? Click below to navigate to our location:</p>
+                    <a href="https://maps.google.com/?q=Tumble+Gym+Mysore" target="_blank" class="inline-block bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-lg font-bold text-sm hover:shadow-lg transform hover:scale-105 transition-all">
+                        <span class="mr-2">🗺️</span> Open in Google Maps
+                    </a>
+                </div>
+            </div>
+        </div>
+        
         <div id="parent-content" class="space-y-6"></div>
     </div>
 
@@ -242,11 +282,75 @@
         </div>
 
         <div id="view-attendance" class="tab-content hidden">
-            <div class="bg-white p-8 rounded-2xl shadow text-center">
-                <div class="w-16 h-16 bg-purple-100 text-purple-500 rounded-full flex items-center justify-center mx-auto mb-4"><i class="fas fa-user-check text-2xl"></i></div>
-                <h3 class="text-xl font-bold text-slate-800">Daily Attendance</h3>
-                <p class="text-slate-500 mb-6">Mark presence for active students.</p>
-                <button class="bg-purple-600 text-white px-6 py-2 rounded-lg font-bold">Coming Soon</button>
+            <div class="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden max-w-4xl mx-auto">
+                <div class="p-6 bg-gradient-to-r from-purple-600 to-indigo-600 text-white">
+                    <h3 class="text-2xl font-bold mb-2 flex items-center">
+                        <i class="fas fa-check-circle mr-3"></i>Daily Attendance
+                    </h3>
+                    <p class="text-purple-100 text-sm">Record attendance for active students</p>
+                </div>
+                
+                <div class="p-6 space-y-6">
+                    <!-- Date and Batch Selection -->
+                    <div class="grid md:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Date *</label>
+                            <input type="date" id="attendance-date" class="input-field w-full" value="">
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Select Batch *</label>
+                            <select id="attendance-batch" class="input-field w-full" onchange="window.loadAttendanceStudents()">
+                                <option value="">Select Batch...</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <!-- Quick Actions -->
+                    <div class="flex gap-3">
+                        <button onclick="window.setAttendanceDate('today')" class="px-4 py-2 bg-blue-100 text-blue-700 rounded-lg text-sm font-bold hover:bg-blue-200">
+                            Today
+                        </button>
+                        <button onclick="window.setAttendanceDate('yesterday')" class="px-4 py-2 bg-slate-100 text-slate-700 rounded-lg text-sm font-bold hover:bg-slate-200">
+                            Yesterday
+                        </button>
+                        <button onclick="window.loadAttendanceStudents()" class="px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-bold hover:bg-green-700">
+                            <i class="fas fa-sync-alt mr-2"></i>Load Students
+                        </button>
+                    </div>
+                    
+                    <!-- Attendance Summary -->
+                    <div id="attendance-summary" class="hidden bg-gradient-to-r from-green-50 to-emerald-50 p-4 rounded-xl border border-green-200">
+                        <div class="grid grid-cols-3 gap-4 text-center">
+                            <div>
+                                <p class="text-2xl font-bold text-green-700" id="summary-present">0</p>
+                                <p class="text-xs text-green-600 font-bold">Present</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-red-700" id="summary-absent">0</p>
+                                <p class="text-xs text-red-600 font-bold">Absent</p>
+                            </div>
+                            <div>
+                                <p class="text-2xl font-bold text-slate-700" id="summary-total">0</p>
+                                <p class="text-xs text-slate-600 font-bold">Total</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Students List -->
+                    <div id="attendance-students-list" class="space-y-3">
+                        <div class="text-center p-8 text-slate-400">
+                            <i class="fas fa-info-circle text-2xl mb-2"></i>
+                            <p>Select a date and batch to load students</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Save Button -->
+                    <div class="flex justify-end gap-3 pt-4 border-t">
+                        <button onclick="window.saveAttendance()" id="btn-save-attendance" class="px-6 py-3 bg-purple-600 text-white rounded-lg font-bold hover:bg-purple-700 shadow-lg disabled:opacity-50 disabled:cursor-not-allowed">
+                            <i class="fas fa-save mr-2"></i>Save Attendance
+                        </button>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -316,7 +420,7 @@
     </div>
 
     <div id="reg-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-slate-900/80 flex items-center justify-center backdrop-blur-sm p-4 overflow-y-auto">
-    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl my-8 overflow-hidden flex flex-col max-h-[90vh]">
+    <div class="bg-white rounded-3xl shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]">
         
         <div class="bg-slate-50 p-6 border-b border-slate-100 flex justify-between items-center sticky top-0 z-10">
             <div>
@@ -486,9 +590,46 @@
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Start Date</label>
                         <input type="date" id="reg-date" class="input-field w-full bg-white">
                     </div>
+                    
                     <div>
-                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Payment Screenshot</label>
-                        <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Child's Photo (Optional)</label>
+                        <input type="file" id="child-photo" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
+                        <p class="text-xs text-slate-500 mt-1">If not uploaded, trainer will capture during first class</p>
+                    </div>
+                    
+                    <div>
+                        <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Payment Mode *</label>
+                        <select id="payment-mode" onchange="window.togglePaymentMode()" class="input-field w-full bg-white" required>
+                            <option value="">Select Payment Mode...</option>
+                            <option value="UPI">UPI (Online Payment)</option>
+                            <option value="Cash">Cash (In-Person Payment)</option>
+                        </select>
+                    </div>
+                    
+                    <!-- UPI Payment Section -->
+                    <div id="upi-payment-section" class="hidden space-y-4">
+                        <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200">
+                            <p class="text-sm font-bold text-blue-900 mb-3 text-center">💳 Scan QR Code to Pay via UPI</p>
+                            <div class="flex justify-center mb-3">
+                                <img id="qr-code-image" src="" alt="UPI QR Code" class="w-48 h-48 border-2 border-blue-300 rounded-lg shadow-lg">
+                            </div>
+                            <p class="text-xs text-blue-700 text-center font-semibold">Scan with any UPI app (PhonePe, Google Pay, Paytm, etc.)</p>
+                        </div>
+                        <div>
+                            <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Upload Payment Screenshot *</label>
+                            <input type="file" id="payment-proof" accept="image/*" class="block w-full text-sm text-slate-500 file:mr-4 file:py-2.5 file:px-4 file:rounded-xl file:border-0 file:text-xs file:font-bold file:bg-white file:text-blue-600 file:border-blue-100 file:border hover:file:bg-blue-50 cursor-pointer">
+                            <p class="text-xs text-slate-500 mt-1">Please upload a screenshot of your successful payment</p>
+                        </div>
+                    </div>
+                    
+                    <!-- Cash Payment Section -->
+                    <div id="cash-payment-section" class="hidden">
+                        <div class="bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-200">
+                            <p class="text-sm font-bold text-green-900 mb-2 text-center flex items-center justify-center">
+                                <span class="mr-2">💰</span> Cash Payment
+                            </p>
+                            <p class="text-xs text-green-800 text-center">Please bring the exact amount on your first day of class. No screenshot upload needed.</p>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -712,6 +853,8 @@
                 
                 <div class="text-center mb-6">
                     <h2 id="assess-child-name" class="text-2xl font-bold text-slate-800">Child Name</h2>
+                    <div id="assess-child-info"></div>
+                    <div id="assess-sibling-info"></div>
                     <p class="text-slate-500 text-sm">Trial Session Evaluation</p>
                 </div>
 

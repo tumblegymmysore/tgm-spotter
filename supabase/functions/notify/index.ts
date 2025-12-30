@@ -26,7 +26,70 @@ serve(async (req) => {
     const { record } = await req.json()
     
     // =========================================================
-    // SCENARIO A: TRAINER FEEDBACK (Skip Validations)
+    // SCENARIO A: REGISTRATION NOTIFICATION (New Payment)
+    // =========================================================
+    if (record.type === 'registration_notification') {
+        console.log(`Processing Registration Notification for: ${record.child_name}`);
+        
+        const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+          <head>
+            <style>
+              body { font-family: Helvetica, Arial, sans-serif; background: #f4f4f5; color: #333; }
+              .container { max-width: 600px; margin: 20px auto; background: #ffffff; border-radius: 8px; overflow: hidden; border: 1px solid #e4e4e7; }
+              .header { background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 50%, #ec4899 100%); padding: 30px; text-align: center; color: white; }
+              .content { padding: 30px; }
+              .info-box { background: #eff6ff; border-left: 4px solid #3b82f6; padding: 15px; margin: 15px 0; border-radius: 4px; }
+            </style>
+          </head>
+          <body>
+            <div class="container">
+              <div class="header">
+                <h1 style="margin: 0; font-size: 24px; font-weight: bold;">🎉 New Registration Payment!</h1>
+              </div>
+              <div class="content">
+                <p><strong>Dear Admin,</strong></p>
+                <p>A new registration payment has been submitted and requires your verification!</p>
+                <div class="info-box">
+                  <p><strong>Child:</strong> ${record.child_name}</p>
+                  <p><strong>Parent:</strong> ${record.parent_name}</p>
+                  <p><strong>Phone:</strong> +91 ${record.phone}</p>
+                  <p><strong>Email:</strong> ${record.email}</p>
+                  <p><strong>Package:</strong> ${record.package}</p>
+                  <p><strong>Amount:</strong> ₹${record.total_amount}</p>
+                  <p><strong>Payment Mode:</strong> ${record.payment_mode}</p>
+                </div>
+                <p>Please log in to the admin dashboard to verify and approve this registration.</p>
+              </div>
+            </div>
+          </body>
+        </html>
+        `;
+        
+        const emailRes = await fetch('https://api.resend.com/emails', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'Authorization': `Bearer ${RESEND_API_KEY}`,
+          },
+          body: JSON.stringify({
+            from: 'onboarding@resend.dev',
+            to: ['tumblegymmysore@gmail.com'],
+            subject: `💰 New Registration Payment: ${record.child_name}`,
+            html: emailHtml,
+          }),
+        });
+        
+        const emailData = await emailRes.json();
+        return new Response(JSON.stringify({ message: "Notification Sent", data: emailData }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+    
+    // =========================================================
+    // SCENARIO B: TRAINER FEEDBACK (Skip Validations)
     // =========================================================
     if (record.type === 'feedback_email') {
         console.log(`Processing Feedback Email for: ${record.child_name}`);
@@ -113,7 +176,7 @@ serve(async (req) => {
     // ---------------------------------------------------------
     const emailHtml = generateWelcomeEmail(record);
     
-    // Send Welcome Email
+    // Send Welcome Email to Parent AND Admin
     const emailReq = fetch('https://api.resend.com/emails', {
       method: 'POST',
       headers: {
@@ -122,8 +185,8 @@ serve(async (req) => {
       },
       body: JSON.stringify({
         from: 'onboarding@resend.dev', 
-        to: ['tumblegymmysore@gmail.com'], 
-        subject: `New Trial Request: ${record.child_name}`,
+        to: [record.email, 'tumblegymmysore@gmail.com'], // Send to parent AND admin
+        subject: `🎉 Trial Confirmed! Welcome to Tumble Gym, ${record.child_name}!`,
         html: emailHtml,
       }),
     });
