@@ -864,16 +864,16 @@ export async function saveAdminPackage() {
         packageMetadata.package_months = parseInt(months);
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
-    } else if (pkgType === 'morning') {
-        const val = document.getElementById('admin-pkg-morning-select').value;
-        if (!val) {
-            showErrorModal("Selection Required", "Please select a morning package.");
-            return;
-        }
-        const [id, price, classes, months] = val.split('|');
-        const pkg = id.includes('adult') ? MORNING_PACKAGES.ADULT : MORNING_PACKAGES.CHILD;
-        const basePrice = parseInt(price);
-        const finalPackagePrice = customFees.package_fee_override || basePrice;
+           } else if (pkgType === 'morning') {
+               const val = document.getElementById('admin-pkg-morning-select').value;
+               if (!val) {
+                   showErrorModal("Selection Required", "Please select a morning package.");
+                   return;
+               }
+               const [id, price, classes, months] = val.split('|');
+               const pkg = MORNING_PACKAGES.CHILD; // Same for all now
+               const basePrice = parseInt(price);
+               const finalPackagePrice = customFees.package_fee_override || basePrice;
         
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);

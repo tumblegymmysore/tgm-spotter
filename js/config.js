@@ -88,10 +88,10 @@ export const STANDARD_PACKAGES = [
     { id: "12m_unl", label: "12 Months - Unlimited", price: 35000, classes: 999, months: 12 },
 ];
 
-// 7. Morning Packages
+// 7. Morning Packages (Same rate for all - ₹5500)
 export const MORNING_PACKAGES = {
-    CHILD: { id: "morn_child", label: "Morning Unlimited (Child)", price: 5500, classes: 999, months: 1 },
-    ADULT: { id: "morn_adult", label: "Morning Unlimited (Adult)", price: 6000, classes: 999, months: 1 }
+    CHILD: { id: "morn_child", label: "Morning Unlimited", price: 5500, classes: 999, months: 1 },
+    ADULT: { id: "morn_adult", label: "Morning Unlimited", price: 5500, classes: 999, months: 1 }
 };
 
 // 8. PT Rates

@@ -324,14 +324,18 @@ export function openRegistrationModal(leadString, isRenewal) {
     batchEl.innerHTML = ''; 
 
     if (age >= ADULT_AGE_THRESHOLD) {
-        // Adults: Morning Batch or Personal Training
+        // Adults: Personal Training is primary, Morning Batch is secondary option
         timeEl.value = "Morning"; 
         timeEl.disabled = true; 
         batchEl.innerHTML = `
             <option value="">Select Option...</option>
-            <option value="Morning Batch">Morning Batch (Unlimited - Tue-Fri)</option>
             <option value="Personal Training">Personal Training</option>
+            <option value="Morning Batch">Morning Batch (Unlimited - Tue-Fri)</option>
         `;
+        // Pre-select PT if recommended
+        if (child.recommended_batch === 'Adult Fitness' || child.skills_rating?.personal_training) {
+            batchEl.value = "Personal Training";
+        }
         // Hide day selection for adults (not needed for morning batch)
         document.getElementById('session-days-section')?.classList.add('hidden');
     } else {
@@ -405,14 +409,10 @@ export function updatePackageOptions() {
     
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
     
-    // For adults with morning batch, show unlimited package
-    if (isAdult && batchCat === 'Morning Batch') {
-        const morningPkg = MORNING_PACKAGES.ADULT;
-        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">${morningPkg.label} - ₹${morningPkg.price}</option>`;
-    } else if (timeSlot === 'Morning') {
-        // Kids morning
-        const morningPkg = MORNING_PACKAGES.CHILD;
-        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">${morningPkg.label} - ₹${morningPkg.price}</option>`;
+    // Morning batch - same rate ₹5500 for all
+    if (timeSlot === 'Morning') {
+        const morningPkg = MORNING_PACKAGES.CHILD; // Same for all now
+        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">Morning Unlimited - ₹${morningPkg.price}</option>`;
     } else {
         // Evening/Weekend packages
         STANDARD_PACKAGES.forEach(p => pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label} - ₹${p.price}</option>`);
@@ -429,15 +429,17 @@ export function checkApprovalRequirement() {
     // UI Toggle
     const isPT = batchCat === 'Personal Training';
     const isAdultMorning = isAdult && batchCat === 'Morning Batch';
+    const isKidsMorning = !isAdult && timeSlot === 'Morning';
     
     // Show/hide PT options (different for adults vs kids)
-    document.getElementById('reg-package-select').parentElement.classList.toggle('hidden', isPT || isAdultMorning);
+    document.getElementById('reg-package-select').parentElement.classList.toggle('hidden', isPT || isAdultMorning || isKidsMorning);
     document.getElementById('group-pt-options').classList.toggle('hidden', !isPT || !isAdult); // Adult PT only
     const kidsPTOptions = document.getElementById('group-pt-options-kids');
     if (kidsPTOptions) {
         kidsPTOptions.classList.toggle('hidden', !isPT || isAdult); // Kids PT only
     }
     document.getElementById('adult-morning-info').classList.toggle('hidden', !isAdultMorning);
+    document.getElementById('kids-morning-info').classList.toggle('hidden', !isKidsMorning);
     
     // Set minimum date for PT start date (tomorrow) - only for adults
     if (isPT && isAdult) {
@@ -449,27 +451,63 @@ export function checkApprovalRequirement() {
         }
     }
     
-    if(!isPT && !isAdultMorning) window.updatePackageOptions();
+    if(!isPT && !isAdultMorning && !isKidsMorning) window.updatePackageOptions();
 
     // Logic for approval requirement
     let needsApproval = false;
+    let approvalMessage = '';
     
     if (isAdult) {
-        // Adults always need approval for PT
+        // Adults: Approval needed only when changing FROM group TO PT
+        // If recommendation was PT but they chose morning - can proceed
+        const recommendedPT = currentLeadData.recommended_batch === 'Adult Fitness' || currentLeadData.skills_rating?.personal_training;
+        
         if (isPT) {
-            needsApproval = true;
+            // If changing from group to PT, need approval
+            if (!recommendedPT) {
+                needsApproval = true;
+                approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details, rate, and validity period before proceeding with payment.';
+            } else {
+                // If PT was recommended, still need approval to discuss details
+                needsApproval = true;
+                approvalMessage = 'Please discuss with admin regarding rate per session, number of sessions, and validity period. Admin will confirm these details after your discussion.';
+            }
         } else if (isAdultMorning) {
             // Morning batch for adults - can proceed directly (unlimited, fixed schedule)
             needsApproval = false;
         }
     } else {
-        // Kids logic (existing)
+        // Kids logic
         needsApproval = (batchCat === 'Other' || (age < ADULT_AGE_THRESHOLD && timeSlot === 'Morning'));
-        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch) needsApproval = true;
-        if (isPT && !currentLeadData.skills_rating?.personal_training) needsApproval = true;
+        
+        // If changing batch (e.g., 3-5 to 5-8), need approval
+        if (batchCat !== 'Other' && !isPT && currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch) {
+            needsApproval = true;
+            approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please reach out to admin to confirm before proceeding with payment.`;
+        }
+        
+        // If changing to PT from group, need approval
+        if (isPT && !currentLeadData.skills_rating?.personal_training) {
+            needsApproval = true;
+            approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details, rate, and validity period before proceeding with payment.';
+        }
+        
+        // Other cases
+        if (needsApproval && !approvalMessage) {
+            approvalMessage = 'Please submit a request; our Admin will review and approve shortly.';
+        }
     }
 
-    document.getElementById('approval-notice').classList.toggle('hidden', !needsApproval);
+    // Update approval notice message if custom message provided
+    const approvalNotice = document.getElementById('approval-notice');
+    if (approvalMessage && needsApproval) {
+        const noticeText = approvalNotice.querySelector('div') || approvalNotice.querySelector('p');
+        if (noticeText) {
+            noticeText.innerHTML = `<strong>Approval Required:</strong> ${approvalMessage}`;
+        }
+    }
+    
+    approvalNotice.classList.toggle('hidden', !needsApproval);
     document.getElementById('btn-submit-pay').classList.toggle('hidden', needsApproval);
     document.getElementById('btn-submit-request').classList.toggle('hidden', !needsApproval);
     document.getElementById('payment-section').classList.toggle('hidden', needsApproval);
@@ -488,8 +526,8 @@ export function calculateTotal() {
         // For adults, this goes to admin for approval anyway
         total = 0; // Will be set by admin
     } else if (isAdult && batchCat === 'Morning Batch') {
-        // Adult morning batch - unlimited package
-        const morningPkg = MORNING_PACKAGES.ADULT;
+        // Adult morning batch - unlimited package (₹5500)
+        const morningPkg = MORNING_PACKAGES.CHILD; // Same rate for all
         total = morningPkg.price;
     } else {
         const val = document.getElementById('reg-package-select').value;
