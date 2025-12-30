@@ -164,56 +164,59 @@ function enableFormSections(enable) {
     const form = document.getElementById('intake-form');
     if (!form) return;
     
-    // Get all sections after child info (trial, parent info, medical, consent, submit)
+    // Get all sections (trial, parent info, medical, consent, submit)
+    // NOTE: Child info section (name, DOB, gender, intent) is ALWAYS visible
     const trialSection = document.getElementById('trial-section');
     const parentSection = form.querySelector('.bg-gradient-to-br.from-slate-50');
-    const medicalSection = form.querySelector('.grid.md\\:grid-cols-2');
+    const medicalSection = document.getElementById('medical-section');
     const consentSection = form.querySelector('.bg-gradient-to-br.from-yellow-50');
     const submitBtn = document.getElementById('btn-submit');
-    const overlayEl = document.getElementById('form-ineligible-overlay');
     
-    // Enable/disable all form fields except DOB and child name
-    const formFields = form.querySelectorAll('input:not(#dob):not(#k_name), select:not(#gender):not(#intent), textarea, button[type="submit"]');
-    formFields.forEach(field => {
-        if (enable) {
+    if (enable) {
+        // Show all sections
+        if (trialSection) trialSection.style.display = '';
+        if (parentSection) parentSection.style.display = '';
+        if (medicalSection) medicalSection.style.display = '';
+        if (consentSection) consentSection.style.display = '';
+        if (submitBtn) submitBtn.style.display = '';
+        
+        // Enable all form fields except DOB and child name (they're always enabled)
+        const formFields = form.querySelectorAll('input:not(#dob):not(#k_name), select:not(#gender):not(#intent), textarea, button[type="submit"]');
+        formFields.forEach(field => {
             field.disabled = false;
             field.style.opacity = '1';
             field.style.pointerEvents = 'auto';
-        } else {
+        });
+        
+        // Enable gender and intent (they're always enabled)
+        const genderField = document.getElementById('gender');
+        const intentField = document.getElementById('intent');
+        if (genderField) genderField.disabled = false;
+        if (intentField) intentField.disabled = false;
+    } else {
+        // Hide only: trial section, parent section, medical section, consent section, submit button
+        // Keep child info section visible so they can correct DOB
+        if (trialSection) trialSection.style.display = 'none';
+        if (parentSection) parentSection.style.display = 'none';
+        if (medicalSection) medicalSection.style.display = 'none';
+        if (consentSection) consentSection.style.display = 'none';
+        if (submitBtn) submitBtn.style.display = 'none';
+        
+        // Disable all form fields except DOB, child name, gender, and intent
+        // These remain enabled so parents can correct the birthdate
+        const formFields = form.querySelectorAll('input:not(#dob):not(#k_name), select:not(#gender):not(#intent), textarea, button[type="submit"]');
+        formFields.forEach(field => {
             field.disabled = true;
             field.style.opacity = '0.5';
             field.style.pointerEvents = 'none';
-        }
-    });
-    
-    // Show/hide sections
-    const sectionsToToggle = [trialSection, parentSection, medicalSection, consentSection, submitBtn];
-    sectionsToToggle.forEach(el => {
-        if (el) {
-            if (enable) {
-                el.style.display = '';
-                el.style.visibility = 'visible';
-                el.style.opacity = '1';
-            } else {
-                el.style.display = 'none';
-            }
-        }
-    });
-    
-    // Show/hide overlay message
-    if (overlayEl) {
-        if (enable) {
-            overlayEl.classList.add('hidden');
-        } else {
-            overlayEl.classList.remove('hidden');
-        }
+        });
+        
+        // Keep gender and intent enabled so they can still see/edit child info
+        const genderField = document.getElementById('gender');
+        const intentField = document.getElementById('intent');
+        if (genderField) genderField.disabled = false;
+        if (intentField) intentField.disabled = false;
     }
-    
-    // Also disable gender and intent if not eligible
-    const genderField = document.getElementById('gender');
-    const intentField = document.getElementById('intent');
-    if (genderField) genderField.disabled = !enable;
-    if (intentField) intentField.disabled = !enable;
 }
 
 // --- 2. INTAKE FORM ---
