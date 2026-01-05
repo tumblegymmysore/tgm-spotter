@@ -691,6 +691,16 @@ export function openRegistrationModal(leadString, isRenewal) {
         }
     }
     
+    // Hide session days section initially
+    const sessionDaysSection = document.getElementById('session-days-section');
+    if (sessionDaysSection) {
+        sessionDaysSection.classList.add('hidden');
+    }
+    const unlimitedInfo = document.getElementById('unlimited-session-info');
+    if (unlimitedInfo) unlimitedInfo.classList.add('hidden');
+    const limitedSelect = document.getElementById('limited-session-select');
+    if (limitedSelect) limitedSelect.classList.add('hidden');
+    
     document.getElementById('reg-modal').classList.remove('hidden');
 
     const timeEl = document.getElementById('reg-time-slot');
@@ -1335,20 +1345,25 @@ export function updateSessionDaysSection() {
     const sessionDaysSection = document.getElementById('session-days-section');
     const unlimitedInfo = document.getElementById('unlimited-session-info');
     const limitedSelect = document.getElementById('limited-session-select');
-    const batchCat = document.getElementById('reg-batch-category').value;
-    const timeSlot = document.getElementById('reg-time-slot').value;
-    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const batchCat = document.getElementById('reg-batch-category')?.value || '';
+    const timeSlot = document.getElementById('reg-time-slot')?.value || '';
+    const ageEl = document.getElementById('reg-child-age');
+    const age = ageEl ? parseInt(ageEl.innerText) : 0;
     const isAdult = age >= ADULT_AGE_THRESHOLD;
     const pkgSelect = document.getElementById('reg-package-select');
-    const selectedPkg = pkgSelect.value;
+    const selectedPkg = pkgSelect?.value || '';
     
-    // Hide both sections initially
-    if (sessionDaysSection) sessionDaysSection.classList.add('hidden');
+    // Hide both sections and container initially
     if (unlimitedInfo) unlimitedInfo.classList.add('hidden');
     if (limitedSelect) limitedSelect.classList.add('hidden');
+    if (sessionDaysSection) sessionDaysSection.classList.add('hidden');
     
     // Only show if package is selected and not PT
-    if (!selectedPkg || batchCat === 'Personal Training') return;
+    if (!selectedPkg || batchCat === 'Personal Training') {
+        // Ensure container is hidden when no package selected
+        if (sessionDaysSection) sessionDaysSection.classList.add('hidden');
+        return;
+    }
     
     // Check if package is unlimited (classes = 999)
     let isUnlimited = false;
@@ -1360,10 +1375,10 @@ export function updateSessionDaysSection() {
         isUnlimited = classes >= 999;
     }
     
-    if (sessionDaysSection) sessionDaysSection.classList.remove('hidden');
-    
+    // Only show the container if we have content to display
     if (isUnlimited) {
         // Show unlimited info
+        if (sessionDaysSection) sessionDaysSection.classList.remove('hidden');
         if (unlimitedInfo) unlimitedInfo.classList.remove('hidden');
         if (limitedSelect) limitedSelect.classList.add('hidden');
         
