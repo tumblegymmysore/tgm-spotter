@@ -470,9 +470,11 @@ export function openRegistrationModal(leadString, isRenewal) {
         const paymentProof = document.getElementById('payment-proof');
         if (paymentProof) paymentProof.required = false;
     }
-    // Hide payment section if finance features are disabled
-    if (!ENABLE_FINANCE_FEATURES && paymentSection) {
-        paymentSection.classList.add('hidden');
+    // Hide payment section and fee display section if finance features are disabled
+    if (!ENABLE_FINANCE_FEATURES) {
+        if (paymentSection) paymentSection.classList.add('hidden');
+        const feeDisplaySection = document.getElementById('fee-display-section');
+        if (feeDisplaySection) feeDisplaySection.classList.add('hidden');
     }
     
     // Reset batch change reason field
@@ -497,6 +499,14 @@ export function openRegistrationModal(leadString, isRenewal) {
     const packageNameDisplay = document.getElementById('package-name-display');
     if (packageFeeDisplay) packageFeeDisplay.innerText = '0';
     if (packageNameDisplay) packageNameDisplay.innerText = '-';
+    
+    // Update default approval notice message based on flag
+    if (!ENABLE_FINANCE_FEATURES) {
+        const approvalNoticeText = document.getElementById('approval-notice-text');
+        if (approvalNoticeText && approvalNoticeText.textContent.includes('final fee')) {
+            approvalNoticeText.innerHTML = '<strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve shortly.';
+        }
+    }
     
     document.getElementById('reg-modal').classList.remove('hidden');
 
@@ -675,8 +685,12 @@ export function openRegistrationModal(leadString, isRenewal) {
     
     if (child.status === 'Ready to Pay' || isPackageLocked) {
         document.getElementById('reg-program-display').innerText = child.recommended_batch || 'Standard Batch';
-        const finalPrice = getFinalPrice(child);
-        document.getElementById('total-price').innerText = finalPrice || child.package_price || 0;
+        if (ENABLE_FINANCE_FEATURES) {
+            const finalPrice = getFinalPrice(child);
+            document.getElementById('total-price').innerText = finalPrice || child.package_price || 0;
+        } else {
+            document.getElementById('total-price').innerText = '-';
+        }
         
         // Lock all fields if package is admin-locked
         if (isPackageLocked) {
@@ -688,14 +702,14 @@ export function openRegistrationModal(leadString, isRenewal) {
             
             // Show admin lock notice
             const approvalNotice = document.getElementById('approval-notice');
+            const priceInfo = ENABLE_FINANCE_FEATURES ? `<br><strong>Price:</strong> ₹${getFinalPrice(child) || meta?.package_price || child.package_price || 0}` : '';
             approvalNotice.innerHTML = `
                 <div class="p-4 bg-purple-50 border border-purple-200 rounded-xl flex items-start gap-3">
                     <i class="fas fa-lock text-purple-600 mt-0.5"></i>
                     <div class="text-xs text-purple-800 leading-relaxed">
                         <strong>Admin-Locked Package:</strong> This package has been set by Admin and cannot be modified. 
                         Please contact Admin if you need to make changes.
-                        <br><strong>Package:</strong> ${meta?.selected_package || child.selected_package || 'Not Set'}
-                        <br><strong>Price:</strong> ₹${getFinalPrice(child) || meta?.package_price || child.package_price || 0}
+                        <br><strong>Package:</strong> ${meta?.selected_package || child.selected_package || 'Not Set'}${priceInfo}
                     </div>
                 </div>
             `;
@@ -736,10 +750,14 @@ export function updatePackageOptions() {
     // Morning batch - same rate ₹5500 for all
     if (timeSlot === 'Morning') {
         const morningPkg = MORNING_PACKAGES.CHILD; // Same for all now
-        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">Morning Unlimited - ₹${morningPkg.price}</option>`;
+        const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${morningPkg.price}` : '';
+        pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">Morning Unlimited${priceText}</option>`;
     } else {
         // Evening/Weekend packages
-        STANDARD_PACKAGES.forEach(p => pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label} - ₹${p.price}</option>`);
+        STANDARD_PACKAGES.forEach(p => {
+            const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${p.price}` : '';
+            pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label}${priceText}</option>`;
+        });
     }
     window.calculateTotal();
 }
@@ -848,9 +866,14 @@ export function checkApprovalRequirement() {
     // Update approval notice message if custom message provided
     const approvalNotice = document.getElementById('approval-notice');
     if (approvalMessage && needsApproval) {
-        const noticeText = approvalNotice.querySelector('div') || approvalNotice.querySelector('p');
+        const noticeText = document.getElementById('approval-notice-text') || approvalNotice.querySelector('div') || approvalNotice.querySelector('p');
         if (noticeText) {
-            noticeText.innerHTML = `<strong>Approval Required:</strong> ${approvalMessage}`;
+            // Remove fee-related text from approval message if finance features disabled
+            let message = approvalMessage;
+            if (!ENABLE_FINANCE_FEATURES) {
+                message = message.replace(/final fee/gi, 'details').replace(/fee/gi, 'details').replace(/rate/gi, 'details').replace(/pricing/gi, 'details');
+            }
+            noticeText.innerHTML = `<strong>Approval Required:</strong> ${message}`;
         }
     }
     
@@ -897,21 +920,28 @@ export function calculateTotal() {
         }
     }
     
-    // Update package fee display
+    // Update package fee display (only if finance features enabled)
     const packageFeeDisplay = document.getElementById('package-fee-display');
     const packageNameDisplay = document.getElementById('package-name-display');
-    if (packageFeeDisplay) packageFeeDisplay.innerText = packageFee;
     if (packageNameDisplay) packageNameDisplay.innerText = packageName;
     
-    // Calculate total (registration fee + package fee)
-    let total = 0;
-    if (!isRenewal && packageFee > 0) {
-        total = REGISTRATION_FEE + packageFee;
+    if (ENABLE_FINANCE_FEATURES) {
+        if (packageFeeDisplay) packageFeeDisplay.innerText = packageFee;
+        
+        // Calculate total (registration fee + package fee)
+        let total = 0;
+        if (!isRenewal && packageFee > 0) {
+            total = REGISTRATION_FEE + packageFee;
+        } else {
+            total = packageFee;
+        }
+        
+        document.getElementById('total-price').innerText = total;
     } else {
-        total = packageFee;
+        // Hide price displays when finance features disabled
+        if (packageFeeDisplay) packageFeeDisplay.innerText = '-';
+        document.getElementById('total-price').innerText = '-';
     }
-    
-    document.getElementById('total-price').innerText = total;
     
     // Update session days section when package changes
     window.updateSessionDaysSection();

@@ -616,10 +616,10 @@ function createVerificationCard(lead, isNew = false) {
             <p><strong>Status:</strong> ${lead.status || 'N/A'}</p>
             ${hasPackage ? `
                 <p><strong>Package:</strong> ${selectedPkg || lead.recommended_batch || 'Not Set'}</p>
-                <p><strong>Amount:</strong> ₹${finalPrice || meta?.package_price || lead.package_price || '0'}</p>
+                ${ENABLE_FINANCE_FEATURES ? `<p><strong>Amount:</strong> ₹${finalPrice || meta?.package_price || lead.package_price || '0'}</p>` : ''}
             ` : `
                 <p><strong>Recommended Batch:</strong> ${lead.recommended_batch || 'Not Set'}</p>
-                <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
+                <p class="text-orange-600"><strong>Action:</strong> Set package${ENABLE_FINANCE_FEATURES ? ' and pricing' : ''}</p>
             `}
             ${lead.start_date ? `<p><strong>Start Date:</strong> ${lead.start_date}</p>` : ''}
             ${ENABLE_FINANCE_FEATURES && paymentMode ? `<p><strong>Payment Mode:</strong> ${paymentMode}</p>` : ''}
@@ -734,7 +734,7 @@ export async function approvePayment(leadId) {
                         <p class="text-sm text-blue-800"><strong>Name:</strong> ${lead.child_name}</p>
                         <p class="text-sm text-blue-800"><strong>Parent:</strong> ${lead.parent_name}</p>
                         <p class="text-sm text-blue-800"><strong>Package:</strong> ${selectedPkg}</p>
-                        <p class="text-sm text-blue-800"><strong>Total Amount:</strong> ₹${finalPrice || '0'}</p>
+                        ${ENABLE_FINANCE_FEATURES ? `<p class="text-sm text-blue-800"><strong>Total Amount:</strong> ₹${finalPrice || '0'}</p>` : ''}
                     </div>
                     
                     <div class="bg-purple-50 p-4 rounded-xl border border-purple-200 mb-4">
@@ -910,7 +910,11 @@ export async function modifyAdminPackage(leadId) {
         const packagePrice = meta?.package_price || lead.package_price || 0;
         const finalPrice = getFinalPrice(lead);
         document.getElementById('admin-pkg-current-package').innerText = selectedPkg;
-        document.getElementById('admin-pkg-current-price').innerText = finalPrice || packagePrice || '₹0';
+        if (ENABLE_FINANCE_FEATURES) {
+            document.getElementById('admin-pkg-current-price').innerText = finalPrice || packagePrice || '₹0';
+        } else {
+            document.getElementById('admin-pkg-current-price').innerText = 'N/A';
+        }
         const isLocked = meta?.package_locked || lead.package_locked || false;
         document.getElementById('admin-pkg-current-locked').innerText = isLocked ? 'Yes' : 'No';
 
@@ -1047,6 +1051,23 @@ export async function modifyAdminPackage(leadId) {
             document.getElementById('admin-pkg-fee-override-flag').checked = true;
         }
         
+        // Hide fee-related sections if finance features disabled
+        if (!ENABLE_FINANCE_FEATURES) {
+            const customFeeSection = document.getElementById('admin-custom-fee-section');
+            const feeDisplaySection = document.getElementById('admin-pkg-fee-display-section');
+            const priceRow = document.getElementById('admin-pkg-current-price-row');
+            if (customFeeSection) customFeeSection.classList.add('hidden');
+            if (feeDisplaySection) feeDisplaySection.classList.add('hidden');
+            if (priceRow) priceRow.classList.add('hidden');
+        } else {
+            const customFeeSection = document.getElementById('admin-custom-fee-section');
+            const feeDisplaySection = document.getElementById('admin-pkg-fee-display-section');
+            const priceRow = document.getElementById('admin-pkg-current-price-row');
+            if (customFeeSection) customFeeSection.classList.remove('hidden');
+            if (feeDisplaySection) feeDisplaySection.classList.remove('hidden');
+            if (priceRow) priceRow.classList.remove('hidden');
+        }
+        
         document.getElementById('admin-package-modal').classList.remove('hidden');
         window.calculateAdminPackageTotal();
         
@@ -1078,7 +1099,8 @@ export function updateAdminPackageOptions() {
         const select = document.getElementById('admin-pkg-standard-select');
         select.innerHTML = '<option value="">Select Package...</option>';
         STANDARD_PACKAGES.forEach(pkg => {
-            select.innerHTML += `<option value="${pkg.id}|${pkg.price}|${pkg.classes}|${pkg.months}">${pkg.label} - ₹${pkg.price}</option>`;
+            const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${pkg.price}` : '';
+            select.innerHTML += `<option value="${pkg.id}|${pkg.price}|${pkg.classes}|${pkg.months}">${pkg.label}${priceText}</option>`;
         });
         document.getElementById('admin-pkg-standard-options').classList.remove('hidden');
     } else if (pkgType === 'morning') {
@@ -1108,7 +1130,9 @@ export function calculateAdminPackageTotal() {
     if (regFeeOverrideFlag && regFeeOverrideFlag.checked && regFeeOverride) {
         regFee = parseInt(regFeeOverride.value) || REGISTRATION_FEE;
     }
-    document.getElementById('admin-pkg-reg-fee-display').innerText = regFee;
+    if (ENABLE_FINANCE_FEATURES) {
+        document.getElementById('admin-pkg-reg-fee-display').innerText = regFee;
+    }
 
     // Calculate base package fee
     if (pkgType === 'standard') {
@@ -1132,16 +1156,25 @@ export function calculateAdminPackageTotal() {
         packageFee = parseInt(feeOverride.value) || packageFee;
     }
     
-    document.getElementById('admin-pkg-fee-display').innerText = packageFee;
+    if (ENABLE_FINANCE_FEATURES) {
+        document.getElementById('admin-pkg-fee-display').innerText = packageFee;
 
-    // Calculate total (add registration fee if not renewal)
-    const status = document.getElementById('admin-pkg-status').innerText;
-    let total = packageFee;
-    if (status !== 'Enrolled' && packageFee > 0) {
-        total += regFee;
+        // Calculate total (add registration fee if not renewal)
+        const status = document.getElementById('admin-pkg-status').innerText;
+        let total = packageFee;
+        if (status !== 'Enrolled' && packageFee > 0) {
+            total += regFee;
+        }
+
+        document.getElementById('admin-pkg-total').innerText = total;
+    } else {
+        // Hide prices when finance features disabled
+        document.getElementById('admin-pkg-fee-display').innerText = '-';
+        document.getElementById('admin-pkg-total').innerText = '-';
+        if (document.getElementById('admin-pkg-reg-fee-display')) {
+            document.getElementById('admin-pkg-reg-fee-display').innerText = '-';
+        }
     }
-
-    document.getElementById('admin-pkg-total').innerText = total;
 }
 
 // Add event listeners for real-time calculation
@@ -2590,7 +2623,7 @@ export async function openStudentProfile(leadId) {
                     </h3>
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div><strong class="text-green-900">Package:</strong> <span class="text-green-700">${selectedPkg}</span></div>
-                        <div><strong class="text-green-900">Total Amount:</strong> <span class="text-green-700">₹${finalPrice || '0'}</span></div>
+                        ${ENABLE_FINANCE_FEATURES ? `<div><strong class="text-green-900">Total Amount:</strong> <span class="text-green-700">₹${finalPrice || '0'}</span></div>` : ''}
                         ${ENABLE_FINANCE_FEATURES ? `
                         <div><strong class="text-green-900">Payment Status:</strong> <span class="text-green-700">${lead.payment_status || 'Pending'}</span></div>
                         <div><strong class="text-green-900">Payment Mode:</strong> <span class="text-green-700">${paymentMode || 'N/A'}</span></div>

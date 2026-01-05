@@ -630,25 +630,27 @@
                 
                 <div id="approval-notice" class="hidden mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
                     <i class="fas fa-info-circle text-amber-600 mt-0.5"></i>
-                    <div class="text-xs text-amber-800 leading-relaxed">
+                    <div class="text-xs text-amber-800 leading-relaxed" id="approval-notice-text">
                         <strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve the final fee shortly.
                     </div>
                 </div>
 
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-sm font-bold text-slate-500">Registration Fee</span>
-                    <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
-                </div>
-                <div class="flex justify-between items-center mb-4">
-                    <span class="text-sm font-bold text-slate-500">Package Fee</span>
-                    <span class="text-sm font-bold text-slate-800">
-                        <span id="package-name-display" class="text-xs text-slate-600 mr-2">-</span>
-                        ₹<span id="package-fee-display">0</span>
-                    </span>
-                </div>
-                <div class="flex justify-between items-center mb-6 pt-4 border-t border-slate-200">
-                    <span class="text-lg font-bold text-slate-800">Total Payable</span>
-                    <span class="text-3xl font-black text-blue-600 tracking-tight">₹<span id="total-price">0</span></span>
+                <div id="fee-display-section">
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-bold text-slate-500">Registration Fee</span>
+                        <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
+                    </div>
+                    <div class="flex justify-between items-center mb-4">
+                        <span class="text-sm font-bold text-slate-500">Package Fee</span>
+                        <span class="text-sm font-bold text-slate-800">
+                            <span id="package-name-display" class="text-xs text-slate-600 mr-2">-</span>
+                            ₹<span id="package-fee-display">0</span>
+                        </span>
+                    </div>
+                    <div class="flex justify-between items-center mb-6 pt-4 border-t border-slate-200">
+                        <span class="text-lg font-bold text-slate-800">Total Payable</span>
+                        <span class="text-3xl font-black text-blue-600 tracking-tight">₹<span id="total-price">0</span></span>
+                    </div>
                 </div>
 
                 <div id="payment-section" class="hidden space-y-4 transition-all duration-300">
@@ -737,7 +739,7 @@
                     <div class="grid grid-cols-2 gap-3 text-sm">
                         <div><span class="text-slate-600">Batch:</span> <span id="admin-pkg-current-batch" class="font-bold text-slate-800">-</span></div>
                         <div><span class="text-slate-600">Package:</span> <span id="admin-pkg-current-package" class="font-bold text-slate-800">-</span></div>
-                        <div><span class="text-slate-600">Price:</span> <span id="admin-pkg-current-price" class="font-bold text-slate-800">-</span></div>
+                        <div id="admin-pkg-current-price-row"><span class="text-slate-600">Price:</span> <span id="admin-pkg-current-price" class="font-bold text-slate-800">-</span></div>
                         <div><span class="text-slate-600">Locked:</span> <span id="admin-pkg-current-locked" class="font-bold text-slate-800">-</span></div>
                     </div>
                 </div>
@@ -845,7 +847,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-4">
+                    <div id="admin-custom-fee-section" class="bg-amber-50 p-4 rounded-xl border border-amber-200 mb-4">
                         <h5 class="font-bold text-amber-900 mb-3 text-sm uppercase">Custom Fee Override</h5>
                         <div class="grid grid-cols-2 gap-4">
                             <div>
@@ -867,7 +869,7 @@
                         </div>
                     </div>
 
-                    <div class="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div id="admin-pkg-fee-display-section" class="bg-slate-50 p-4 rounded-xl border border-slate-200">
                         <div class="flex justify-between items-center mb-2">
                             <span class="text-sm font-bold text-slate-700">Registration Fee</span>
                             <span class="text-sm font-bold text-slate-800">₹<span id="admin-pkg-reg-fee-display">2000</span></span>
