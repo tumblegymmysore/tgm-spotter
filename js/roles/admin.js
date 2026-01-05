@@ -1,5 +1,5 @@
 // js/roles/admin.js
-import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS } from '../config.js';
+import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, ENABLE_FINANCE_FEATURES } from '../config.js';
 import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
@@ -596,10 +596,10 @@ function createVerificationCard(lead, isNew = false) {
     const meta = getPackageMetadata(lead);
     const selectedPkg = meta?.selected_package || lead.selected_package;
     const hasPackage = selectedPkg || finalPrice;
-    // Get payment_mode from metadata (stored in parent_note)
-    const paymentMode = meta?.payment_mode || lead.payment_mode || null;
-    // Show payment actions for Registration Requested status (both UPI and Cash)
-    const showPaymentActions = lead.status === 'Registration Requested' && (lead.payment_proof_url || paymentMode === 'Cash');
+    // Get payment_mode from metadata (stored in parent_note) - only if finance features enabled
+    const paymentMode = ENABLE_FINANCE_FEATURES ? (meta?.payment_mode || lead.payment_mode || null) : null;
+    // Show payment actions for Registration Requested status (both UPI and Cash) - only if finance features enabled
+    const showPaymentActions = ENABLE_FINANCE_FEATURES && lead.status === 'Registration Requested' && (lead.payment_proof_url || paymentMode === 'Cash');
     
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition">
@@ -622,7 +622,7 @@ function createVerificationCard(lead, isNew = false) {
                 <p class="text-orange-600"><strong>Action:</strong> Set package and pricing</p>
             `}
             ${lead.start_date ? `<p><strong>Start Date:</strong> ${lead.start_date}</p>` : ''}
-            ${paymentMode ? `<p><strong>Payment Mode:</strong> ${paymentMode}</p>` : ''}
+            ${ENABLE_FINANCE_FEATURES && paymentMode ? `<p><strong>Payment Mode:</strong> ${paymentMode}</p>` : ''}
             ${meta?.pt_request ? `
                 <div class="mt-2 p-2 bg-amber-50 border border-amber-200 rounded">
                     <p class="font-bold text-amber-900 mb-1"><i class="fas fa-dumbbell mr-1"></i> Personal Training Request</p>
@@ -631,13 +631,13 @@ function createVerificationCard(lead, isNew = false) {
                     <p class="text-xs text-amber-700 mt-1">Admin to set: Rate per session, Number of sessions, Validity period</p>
                 </div>
             ` : ''}
-            ${lead.payment_proof_url ? `
+            ${ENABLE_FINANCE_FEATURES && lead.payment_proof_url ? `
                 <div class="mt-2">
                     <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
                         <i class="fas fa-paperclip mr-1"></i> View Payment Screenshot
                     </a>
                 </div>
-            ` : paymentMode === 'Cash' ? `
+            ` : ENABLE_FINANCE_FEATURES && paymentMode === 'Cash' ? `
                 <div class="mt-2 p-2 bg-green-50 border border-green-200 rounded">
                     <p class="text-xs text-green-800 font-semibold"><i class="fas fa-money-bill-wave mr-1"></i> Cash Payment - Verify on first day</p>
                 </div>
@@ -683,6 +683,12 @@ function createEnrolledCard(lead) {
 // --- 4. ACTIONS ---
 
 export async function approvePayment(leadId) {
+    // Safety check: Don't allow payment approval if finance features are disabled
+    if (!ENABLE_FINANCE_FEATURES) {
+        showErrorModal("Feature Disabled", "Finance features are currently disabled.");
+        return;
+    }
+    
     try {
         // Fetch lead details to get payment mode and other info
         const { data: lead, error: fetchError } = await supabaseClient
@@ -829,6 +835,12 @@ export async function approvePayment(leadId) {
 }
 
 export async function rejectPayment(leadId) {
+    // Safety check: Don't allow payment rejection if finance features are disabled
+    if (!ENABLE_FINANCE_FEATURES) {
+        showErrorModal("Feature Disabled", "Finance features are currently disabled.");
+        return;
+    }
+    
     // Create a better rejection modal
     const reason = await new Promise((resolve) => {
         const modal = document.createElement('div');
@@ -2493,7 +2505,7 @@ export async function openStudentProfile(leadId) {
         const age = calculateAge(lead.dob);
         const finalPrice = getFinalPrice(lead);
         const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
-        const paymentMode = meta?.payment_mode || lead.payment_mode || null;
+        const paymentMode = ENABLE_FINANCE_FEATURES ? (meta?.payment_mode || lead.payment_mode || null) : null;
         
         // Format dates
         const formatDate = (dateStr) => {
@@ -2579,10 +2591,12 @@ export async function openStudentProfile(leadId) {
                     <div class="grid grid-cols-2 gap-4 text-sm">
                         <div><strong class="text-green-900">Package:</strong> <span class="text-green-700">${selectedPkg}</span></div>
                         <div><strong class="text-green-900">Total Amount:</strong> <span class="text-green-700">₹${finalPrice || '0'}</span></div>
+                        ${ENABLE_FINANCE_FEATURES ? `
                         <div><strong class="text-green-900">Payment Status:</strong> <span class="text-green-700">${lead.payment_status || 'Pending'}</span></div>
                         <div><strong class="text-green-900">Payment Mode:</strong> <span class="text-green-700">${paymentMode || 'N/A'}</span></div>
+                        ` : ''}
                         ${meta?.start_date ? `<div><strong class="text-green-900">Start Date:</strong> <span class="text-green-700">${formatDate(meta.start_date)}</span></div>` : ''}
-                        ${verification ? `
+                        ${ENABLE_FINANCE_FEATURES && verification ? `
                         <div class="col-span-2 mt-3 p-3 bg-white rounded border border-green-300">
                             <strong class="text-green-900">Payment Verification:</strong>
                             <p class="text-xs text-green-700 mt-1"><strong>Verified by:</strong> ${verification.verified_by || 'N/A'}</p>
@@ -2591,7 +2605,7 @@ export async function openStudentProfile(leadId) {
                             ${verification.verification_notes ? `<p class="text-xs text-green-700 mt-2"><strong>Notes:</strong> ${verification.verification_notes}</p>` : ''}
                         </div>
                         ` : ''}
-                        ${lead.payment_proof_url ? `
+                        ${ENABLE_FINANCE_FEATURES && lead.payment_proof_url ? `
                         <div class="col-span-2">
                             <a href="${lead.payment_proof_url}" target="_blank" class="text-blue-600 font-bold underline hover:text-blue-800">
                                 <i class="fas fa-paperclip mr-1"></i> View Payment Proof

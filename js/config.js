@@ -10,6 +10,9 @@ export const ADULT_AGE_THRESHOLD = 15; // Universal Rule: 15+ is Adult
 export const MIN_ELIGIBLE_AGE = 2.5; // Minimum age in years to be eligible
 export const WHATSAPP_LINK = "https://wa.me/918618684685";
 
+// 2.1. Feature Flags
+export const ENABLE_FINANCE_FEATURES = false; // Set to true to enable payment QR codes, payment mode selection, and finance data capture
+
 // 3. Trial Rules
 export const TRIAL_EXCLUDED_DAYS = [1, 2]; // 1=Monday (Closed), 2=Tuesday (Busy) - No Trials
 

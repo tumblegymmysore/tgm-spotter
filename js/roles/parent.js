@@ -1,5 +1,5 @@
 // js/roles/parent.js (v67 - Final Optimized & Fixed)
-import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, MIN_ELIGIBLE_AGE, WHATSAPP_LINK } from '../config.js';
+import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, MIN_ELIGIBLE_AGE, WHATSAPP_LINK, ENABLE_FINANCE_FEATURES } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput, getFinalPrice, getPackageMetadata } from '../utils.js';
 
 let currentRegistrationId = null;
@@ -412,11 +412,14 @@ const STATUS_STRATEGIES = {
     'Ready to Pay': (child, str) => {
         const finalPrice = getFinalPrice(child);
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong><br>Fee: ₹${finalPrice || child.package_price || '0'}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse">Pay Now & Enroll</button>` };
+        const buttonText = ENABLE_FINANCE_FEATURES ? 'Pay Now & Enroll' : 'Complete Registration';
+        const buttonClass = ENABLE_FINANCE_FEATURES ? 'bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse' : 'bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700';
+        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong>${ENABLE_FINANCE_FEATURES ? `<br>Fee: ₹${finalPrice || child.package_price || '0'}` : ''}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full ${buttonClass}">${buttonText}</button>` };
     },
     'Registration Requested': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        return { badge: 'Verifying Payment', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">Payment Receipt Uploaded</p>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
+        const message = ENABLE_FINANCE_FEATURES ? 'Payment Receipt Uploaded' : 'Registration Submitted';
+        return { badge: ENABLE_FINANCE_FEATURES ? 'Verifying Payment' : 'Registration Submitted', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">${message}</p>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
     },
     'Enrolled': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
@@ -457,14 +460,19 @@ export function openRegistrationModal(leadString, isRenewal) {
     currentRegistrationId = child.id;
     currentLeadData = child;
     
-    // Reset payment mode
+    // Reset payment mode and hide payment section if finance features disabled
     const paymentModeEl = document.getElementById('payment-mode');
+    const paymentSection = document.getElementById('payment-section');
     if (paymentModeEl) {
         paymentModeEl.value = '';
         document.getElementById('upi-payment-section').classList.add('hidden');
         document.getElementById('cash-payment-section').classList.add('hidden');
         const paymentProof = document.getElementById('payment-proof');
         if (paymentProof) paymentProof.required = false;
+    }
+    // Hide payment section if finance features are disabled
+    if (!ENABLE_FINANCE_FEATURES && paymentSection) {
+        paymentSection.classList.add('hidden');
     }
     
     // Reset batch change reason field
@@ -695,11 +703,18 @@ export function openRegistrationModal(leadString, isRenewal) {
             document.getElementById('btn-submit-request').classList.add('hidden');
         }
         
-        // If Ready to Pay (not just locked), show payment section
+        // If Ready to Pay (not just locked), show payment section (only if finance features enabled)
         if (child.status === 'Ready to Pay') {
-            document.getElementById('payment-section').classList.remove('hidden');
-            document.getElementById('btn-submit-pay').classList.remove('hidden');
-            document.getElementById('btn-submit-request').classList.add('hidden');
+            if (ENABLE_FINANCE_FEATURES) {
+                document.getElementById('payment-section').classList.remove('hidden');
+                document.getElementById('btn-submit-pay').classList.remove('hidden');
+                document.getElementById('btn-submit-request').classList.add('hidden');
+            } else {
+                // If finance features disabled, show request button instead
+                document.getElementById('payment-section').classList.add('hidden');
+                document.getElementById('btn-submit-pay').classList.add('hidden');
+                document.getElementById('btn-submit-request').classList.remove('hidden');
+            }
             if (!isPackageLocked) {
                 document.getElementById('approval-notice').classList.add('hidden');
             }
@@ -1037,6 +1052,11 @@ export function limitSessionDays() {
 
 // Toggle payment mode (UPI/Cash) and show/hide relevant sections
 export function togglePaymentMode() {
+    // If finance features are disabled, don't show payment options
+    if (!ENABLE_FINANCE_FEATURES) {
+        return;
+    }
+    
     const paymentMode = document.getElementById('payment-mode').value;
     const upiSection = document.getElementById('upi-payment-section');
     const cashSection = document.getElementById('cash-payment-section');
@@ -1185,31 +1205,35 @@ export async function submitRegistration(actionType) {
         return;
     }
 
-    // Payment Mode validation
-    const paymentMode = document.getElementById('payment-mode').value;
-    if (!paymentMode) return showErrorModal("Payment Mode Required", "Please select a payment mode (UPI or Cash).");
+    // Payment Mode validation (only if finance features enabled)
+    let paymentMode = null;
+    let paymentProofUrl = null;
+    
+    if (ENABLE_FINANCE_FEATURES) {
+        paymentMode = document.getElementById('payment-mode').value;
+        if (!paymentMode) return showErrorModal("Payment Mode Required", "Please select a payment mode (UPI or Cash).");
+        
+        const fileInput = document.getElementById('payment-proof');
+        
+        // Only require and upload proof for UPI payments
+        if (paymentMode === 'UPI') {
+            if (!fileInput || fileInput.files.length === 0) {
+                return showErrorModal("UPI Payment Confirmation Required", "Please upload your UPI payment confirmation screenshot.");
+            }
+            
+            const file = fileInput.files[0];
+            const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
+            const { error: err } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
+            if(err) throw err;
+            const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
+            paymentProofUrl = publicUrl;
+        }
+    }
     
     // Acknowledgement checkbox validation
     const consentCheckbox = document.getElementById('reg-consent');
     if (!consentCheckbox || !consentCheckbox.checked) {
         return showErrorModal("Acknowledgement Required", "Please acknowledge the terms and conditions to proceed with registration.");
-    }
-    
-    const fileInput = document.getElementById('payment-proof');
-    let paymentProofUrl = null;
-    
-    // Only require and upload proof for UPI payments
-    if (paymentMode === 'UPI') {
-        if (!fileInput || fileInput.files.length === 0) {
-            return showErrorModal("UPI Payment Confirmation Required", "Please upload your UPI payment confirmation screenshot.");
-        }
-        
-        const file = fileInput.files[0];
-        const fileName = `${currentRegistrationId}_${Date.now()}.${file.name.split('.').pop()}`;
-        const { error: err } = await supabaseClient.storage.from('payment-proofs').upload(fileName, file);
-        if(err) throw err;
-        const { data: { publicUrl } } = supabaseClient.storage.from('payment-proofs').getPublicUrl(fileName);
-        paymentProofUrl = publicUrl;
     }
     
     const btn = document.getElementById('btn-submit-pay'); btn.innerText = "Submitting..."; btn.disabled = true;
@@ -1229,9 +1253,12 @@ export async function submitRegistration(actionType) {
         // Store payment_mode and other details in metadata (parent_note)
         const existingNote = currentLeadData?.parent_note || '';
         const metadata = {
-            final_price: total,
-            payment_mode: paymentMode
+            final_price: total
         };
+        // Only include payment_mode if finance features are enabled
+        if (ENABLE_FINANCE_FEATURES && paymentMode) {
+            metadata.payment_mode = paymentMode;
+        }
         
         // Only add session_days if we have values (for limited packages)
         if (sessionDays.length > 0) {
@@ -1247,13 +1274,18 @@ export async function submitRegistration(actionType) {
             selected_package: pkgLabel,
             package_price: total,
             start_date: document.getElementById('reg-date').value,
-            payment_status: 'Verification Pending',
+            ...(ENABLE_FINANCE_FEATURES ? { payment_status: 'Verification Pending' } : {}),
             parent_note: updatedNote
         };
         
-        // Only add payment_proof_url if it exists (UPI payments)
-        if (paymentProofUrl) {
+        // Only add payment_proof_url if it exists (UPI payments) and finance features enabled
+        if (ENABLE_FINANCE_FEATURES && paymentProofUrl) {
             updateData.payment_proof_url = paymentProofUrl;
+        }
+        
+        // Only add payment_mode if finance features enabled
+        if (ENABLE_FINANCE_FEATURES && paymentMode) {
+            updateData.payment_mode = paymentMode;
         }
 
         const { data: updatedLead, error: updateError } = await supabaseClient
@@ -1291,7 +1323,7 @@ export async function submitRegistration(actionType) {
                         parent_name: currentLeadData.parent_name,
                         phone: currentLeadData.phone,
                         email: currentLeadData.email,
-                        payment_mode: paymentMode,
+                        ...(ENABLE_FINANCE_FEATURES && paymentMode ? { payment_mode: paymentMode } : {}),
                         total_amount: total,
                         package: pkgLabel,
                         lead_id: currentRegistrationId
