@@ -1,6 +1,7 @@
 // js/roles/parent.js (v67 - Final Optimized & Fixed)
 import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, MIN_ELIGIBLE_AGE, WHATSAPP_LINK, ENABLE_FINANCE_FEATURES } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput, getFinalPrice, getPackageMetadata } from '../utils.js';
+import { getAttendanceHistory } from '../attendance.js';
 
 let currentRegistrationId = null;
 let currentLeadData = null;
@@ -380,7 +381,13 @@ export async function loadParentDashboard(email) {
     container.innerHTML = '';
     for (const child of data) {
         const count = countMap[child.id] || 0;
-        container.innerHTML += generateStudentCard(child, count);
+        // For enrolled students, fetch attendance data first
+        if (child.status === 'Enrolled') {
+            const card = await generateStudentCardWithAttendance(child, count);
+            container.innerHTML += card;
+        } else {
+            container.innerHTML += generateStudentCard(child, count);
+        }
     }
 }
 
@@ -421,13 +428,16 @@ const STATUS_STRATEGIES = {
         const message = ENABLE_FINANCE_FEATURES ? 'Payment Receipt Uploaded' : 'Registration Submitted';
         return { badge: ENABLE_FINANCE_FEATURES ? 'Verifying Payment' : 'Registration Submitted', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">${message}</p>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
     },
-    'Enrolled': (child, str) => {
+    'Enrolled': async (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
         const meta = getPackageMetadata(child);
         const startDate = meta?.start_date || child.start_date;
         
         // Try to get package months from metadata
         let packageMonths = null;
+        let packageClasses = null;
+        let selectedPackage = meta?.selected_package || child.selected_package || 'Not Set';
+        
         if (meta && meta.package_months) {
             packageMonths = meta.package_months;
         } else if (child.parent_note) {
@@ -437,9 +447,58 @@ const STATUS_STRATEGIES = {
             }
         }
         
-        // Calculate next payment date
-        let nextPaymentDate = null;
+        // Get package classes from metadata or package name
+        if (meta && meta.classes) {
+            packageClasses = meta.classes;
+        } else if (selectedPackage.includes('Unlimited') || selectedPackage.includes('unlimited')) {
+            packageClasses = 999; // Unlimited
+        } else {
+            // Try to extract from package name (e.g., "1 Month - 8 Classes")
+            const classesMatch = selectedPackage.match(/(\d+)\s*Classes?/i);
+            if (classesMatch) {
+                packageClasses = parseInt(classesMatch[1]);
+            }
+        }
+        
+        // Calculate end date (validity date)
+        let endDate = null;
         if (startDate && packageMonths) {
+            try {
+                const start = new Date(startDate);
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + packageMonths);
+                endDate = end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            } catch (e) {
+                console.warn('Error calculating end date:', e);
+            }
+        }
+        
+        // Fetch attendance history
+        let attendanceRecords = [];
+        let daysAttended = 0;
+        let daysRemaining = null;
+        
+        try {
+            attendanceRecords = await getAttendanceHistory(child.id);
+            // Count present days (attendance where is_present is true or is_missed is false)
+            daysAttended = attendanceRecords.filter(a => {
+                if (a.is_present === true) return true;
+                if (a.is_missed === false) return true;
+                if (a.is_present !== false && a.is_missed !== true) return true; // Default to present if unclear
+                return false;
+            }).length;
+            
+            // Calculate remaining days (only for limited packages)
+            if (packageClasses && packageClasses < 999) {
+                daysRemaining = Math.max(0, packageClasses - daysAttended);
+            }
+        } catch (e) {
+            console.warn('Error fetching attendance:', e);
+        }
+        
+        // Calculate next payment date (for finance features disabled)
+        let nextPaymentDate = null;
+        if (!ENABLE_FINANCE_FEATURES && startDate && packageMonths) {
             try {
                 const start = new Date(startDate);
                 const next = new Date(start);
@@ -453,13 +512,76 @@ const STATUS_STRATEGIES = {
         const buttonText = ENABLE_FINANCE_FEATURES ? 'Renew Membership' : 'Change Package';
         const nextPaymentInfo = !ENABLE_FINANCE_FEATURES && nextPaymentDate ? `<div class="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-lg mb-3 border border-emerald-100"><strong>Next Payment Date:</strong> ${nextPaymentDate}</div>` : '';
         
-        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${nextPaymentInfo}${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">${buttonText}</button>` };
+        // Build attendance summary
+        const attendanceSummary = `
+            <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-4 rounded-xl mb-4 border-2 border-blue-200 shadow-sm">
+                <h4 class="font-bold text-blue-900 text-sm mb-3 flex items-center">
+                    <i class="fas fa-calendar-check mr-2"></i> Package & Attendance Summary
+                </h4>
+                <div class="grid grid-cols-2 gap-3 text-xs">
+                    <div>
+                        <span class="text-blue-700 font-semibold">Package:</span>
+                        <p class="text-blue-900 font-bold mt-0.5">${selectedPackage}</p>
+                    </div>
+                    ${endDate ? `
+                    <div>
+                        <span class="text-blue-700 font-semibold">Validity Until:</span>
+                        <p class="text-blue-900 font-bold mt-0.5">${endDate}</p>
+                    </div>
+                    ` : ''}
+                    ${packageClasses !== null ? `
+                    <div>
+                        <span class="text-blue-700 font-semibold">Days Entitled:</span>
+                        <p class="text-blue-900 font-bold mt-0.5">${packageClasses === 999 ? 'Unlimited' : packageClasses}</p>
+                    </div>
+                    ` : ''}
+                    <div>
+                        <span class="text-blue-700 font-semibold">Days Attended:</span>
+                        <p class="text-blue-900 font-bold mt-0.5">${daysAttended}</p>
+                    </div>
+                    ${daysRemaining !== null ? `
+                    <div>
+                        <span class="text-blue-700 font-semibold">Days Remaining:</span>
+                        <p class="text-blue-900 font-bold mt-0.5">${daysRemaining}</p>
+                    </div>
+                    ` : ''}
+                </div>
+                <button onclick="window.viewAttendanceDetails('${str}')" class="w-full mt-3 bg-blue-600 text-white text-xs font-bold py-2 rounded-lg hover:bg-blue-700 transition flex items-center justify-center gap-2">
+                    <i class="fas fa-list-alt"></i> View Detailed Attendance
+                </button>
+            </div>
+        `;
+        
+        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${attendanceSummary}${nextPaymentInfo}${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">${buttonText}</button>` };
     },
     'Follow Up': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
         return { badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` };
     }
 };
+
+async function generateStudentCardWithAttendance(child, count) {
+    const str = encodeURIComponent(JSON.stringify(child));
+    const strategy = STATUS_STRATEGIES[child.status] || STATUS_STRATEGIES['Pending Trial'];
+    const ui = await strategy(child, str);
+    const badge = count > 0 ? `<span id="msg-badge-${child.id}" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>` : '';
+
+    return `
+    <div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white mb-4 hover:shadow-md transition-all duration-300">
+        <div class="flex justify-between items-start mb-4">
+            <div class="flex gap-4 items-center">
+                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-lg">${child.child_name.charAt(0)}</div>
+                <div><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3><p class="text-xs font-bold text-slate-400 uppercase mt-0.5">${calculateAge(child.dob)} Yrs • ${child.intent}</p></div>
+            </div>
+            <span class="${ui.color} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">${ui.badge}</span>
+        </div>
+        ${ui.action}
+        <div class="flex gap-3 mt-4 pt-4 border-t border-slate-50">
+            <button onclick="window.openParentChat('${str}')" class="flex-1 text-xs font-bold bg-blue-50 text-blue-600 hover:bg-blue-100 relative py-2.5 rounded-lg border border-blue-200 transition"><i class="fas fa-comment-alt mr-2"></i>Chat with Coach ${badge}</button>
+            <button onclick="window.openEditModal('${str}')" class="w-12 text-xs font-bold bg-slate-100 text-slate-600 hover:bg-slate-200 py-2.5 rounded-lg border border-slate-300 transition flex items-center justify-center"><i class="fas fa-pen"></i></button>
+        </div>
+    </div>`;
+}
 
 function generateStudentCard(child, count) {
     const str = encodeURIComponent(JSON.stringify(child));
@@ -1725,4 +1847,221 @@ export async function submitParentFeedback() {
         document.getElementById('feedback-modal').classList.add('hidden');
     } catch (e) { showErrorModal("Error", e.message); }
 }
+
+// View attendance details for enrolled students
+export async function viewAttendanceDetails(leadString) {
+    const child = JSON.parse(decodeURIComponent(leadString));
+    const modal = document.getElementById('attendance-details-modal');
+    const content = document.getElementById('attendance-details-content');
+    
+    if (!modal || !content) {
+        showErrorModal("Error", "Attendance modal not found.");
+        return;
+    }
+    
+    // Show loading state
+    content.innerHTML = `
+        <div class="text-center p-8 text-slate-400">
+            <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+            <p>Loading attendance records...</p>
+        </div>
+    `;
+    modal.classList.remove('hidden');
+    
+    try {
+        // Get package metadata
+        const meta = getPackageMetadata(child);
+        const startDate = meta?.start_date || child.start_date;
+        const selectedPackage = meta?.selected_package || child.selected_package || 'Not Set';
+        
+        // Get package months and classes
+        let packageMonths = null;
+        let packageClasses = null;
+        
+        if (meta && meta.package_months) {
+            packageMonths = meta.package_months;
+        }
+        if (meta && meta.classes) {
+            packageClasses = meta.classes;
+        } else if (selectedPackage.includes('Unlimited') || selectedPackage.includes('unlimited')) {
+            packageClasses = 999;
+        }
+        
+        // Calculate end date
+        let endDate = null;
+        if (startDate && packageMonths) {
+            try {
+                const start = new Date(startDate);
+                const end = new Date(start);
+                end.setMonth(end.getMonth() + packageMonths);
+                endDate = end.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            } catch (e) {
+                console.warn('Error calculating end date:', e);
+            }
+        }
+        
+        // Fetch attendance history
+        const attendanceRecords = await getAttendanceHistory(child.id);
+        
+        // Count attendance
+        const presentRecords = attendanceRecords.filter(a => {
+            if (a.is_present === true) return true;
+            if (a.is_missed === false) return true;
+            if (a.is_present !== false && a.is_missed !== true) return true;
+            return false;
+        });
+        const absentRecords = attendanceRecords.filter(a => a.is_missed === true || a.is_present === false);
+        
+        const daysAttended = presentRecords.length;
+        const daysAbsent = absentRecords.length;
+        const daysRemaining = packageClasses && packageClasses < 999 ? Math.max(0, packageClasses - daysAttended) : null;
+        
+        // Format date helper
+        const formatDate = (dateStr) => {
+            if (!dateStr) return 'N/A';
+            try {
+                const date = new Date(dateStr);
+                return date.toLocaleDateString('en-IN', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+            } catch (e) {
+                return dateStr;
+            }
+        };
+        
+        // Build attendance records HTML
+        let recordsHTML = '';
+        if (attendanceRecords.length === 0) {
+            recordsHTML = `
+                <div class="text-center p-8 bg-slate-50 rounded-xl border border-slate-200">
+                    <i class="fas fa-calendar-times text-4xl text-slate-300 mb-3"></i>
+                    <p class="text-slate-500 font-semibold">No attendance records yet</p>
+                    <p class="text-xs text-slate-400 mt-1">Attendance will appear here once recorded by your trainer</p>
+                </div>
+            `;
+        } else {
+            // Sort by date (most recent first)
+            const sortedRecords = [...attendanceRecords].sort((a, b) => {
+                const dateA = new Date(a.attendance_date || a.date || 0);
+                const dateB = new Date(b.attendance_date || b.date || 0);
+                return dateB - dateA;
+            });
+            
+            recordsHTML = `
+                <div class="space-y-2">
+                    ${sortedRecords.map(record => {
+                        const recordDate = record.attendance_date || record.date;
+                        const isPresent = record.is_present === true || (record.is_missed !== true && record.is_present !== false);
+                        const statusClass = isPresent ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
+                        const statusIcon = isPresent ? 'fa-check-circle text-green-600' : 'fa-times-circle text-red-600';
+                        const statusText = isPresent ? 'Present' : 'Absent';
+                        const batch = record.batch || child.recommended_batch || 'N/A';
+                        const recordedBy = record.recorded_by || record.recordedBy || 'Trainer';
+                        
+                        return `
+                            <div class="flex items-center justify-between p-3 rounded-lg border ${statusClass}">
+                                <div class="flex items-center gap-3">
+                                    <i class="fas ${statusIcon} text-lg"></i>
+                                    <div>
+                                        <p class="font-bold text-slate-800 text-sm">${formatDate(recordDate)}</p>
+                                        <p class="text-xs text-slate-600">${batch} • Recorded by ${recordedBy}</p>
+                                    </div>
+                                </div>
+                                <span class="px-3 py-1 rounded-full text-xs font-bold ${isPresent ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
+                                    ${statusText}
+                                </span>
+                            </div>
+                        `;
+                    }).join('')}
+                </div>
+            `;
+        }
+        
+        // Build modal content
+        content.innerHTML = `
+            <div class="space-y-6">
+                <!-- Header Info -->
+                <div class="bg-gradient-to-br from-blue-50 to-indigo-50 p-5 rounded-xl border-2 border-blue-200">
+                    <h2 class="text-2xl font-black text-blue-900 mb-1">${child.child_name}</h2>
+                    <p class="text-sm text-blue-700">${child.recommended_batch || 'Standard Batch'}</p>
+                </div>
+                
+                <!-- Package Summary -->
+                <div class="bg-slate-50 p-5 rounded-xl border-2 border-slate-200">
+                    <h3 class="font-bold text-slate-900 mb-4 flex items-center">
+                        <i class="fas fa-box mr-2"></i> Package Information
+                    </h3>
+                    <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div>
+                            <span class="text-slate-600 font-semibold">Package:</span>
+                            <p class="text-slate-900 font-bold mt-1">${selectedPackage}</p>
+                        </div>
+                        ${packageClasses !== null ? `
+                        <div>
+                            <span class="text-slate-600 font-semibold">Days Entitled:</span>
+                            <p class="text-slate-900 font-bold mt-1">${packageClasses === 999 ? 'Unlimited' : packageClasses}</p>
+                        </div>
+                        ` : ''}
+                        <div>
+                            <span class="text-slate-600 font-semibold">Days Attended:</span>
+                            <p class="text-green-700 font-bold mt-1">${daysAttended}</p>
+                        </div>
+                        ${daysRemaining !== null ? `
+                        <div>
+                            <span class="text-slate-600 font-semibold">Days Remaining:</span>
+                            <p class="text-blue-700 font-bold mt-1">${daysRemaining}</p>
+                        </div>
+                        ` : ''}
+                        ${startDate ? `
+                        <div>
+                            <span class="text-slate-600 font-semibold">Start Date:</span>
+                            <p class="text-slate-900 font-bold mt-1">${formatDate(startDate)}</p>
+                        </div>
+                        ` : ''}
+                        ${endDate ? `
+                        <div>
+                            <span class="text-slate-600 font-semibold">Validity Until:</span>
+                            <p class="text-slate-900 font-bold mt-1">${endDate}</p>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                
+                <!-- Attendance Statistics -->
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-green-50 p-4 rounded-xl border-2 border-green-200 text-center">
+                        <p class="text-3xl font-black text-green-700">${daysAttended}</p>
+                        <p class="text-xs font-bold text-green-600 uppercase mt-1">Present</p>
+                    </div>
+                    <div class="bg-red-50 p-4 rounded-xl border-2 border-red-200 text-center">
+                        <p class="text-3xl font-black text-red-700">${daysAbsent}</p>
+                        <p class="text-xs font-bold text-red-600 uppercase mt-1">Absent</p>
+                    </div>
+                    <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
+                        <p class="text-3xl font-black text-blue-700">${attendanceRecords.length}</p>
+                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Total Records</p>
+                    </div>
+                </div>
+                
+                <!-- Attendance Records -->
+                <div>
+                    <h3 class="font-bold text-slate-900 mb-4 flex items-center">
+                        <i class="fas fa-list-alt mr-2"></i> Attendance History
+                    </h3>
+                    ${recordsHTML}
+                </div>
+            </div>
+        `;
+    } catch (error) {
+        console.error('Error loading attendance details:', error);
+        content.innerHTML = `
+            <div class="text-center p-8 bg-red-50 rounded-xl border border-red-200">
+                <i class="fas fa-exclamation-triangle text-4xl text-red-300 mb-3"></i>
+                <p class="text-red-700 font-semibold">Error loading attendance records</p>
+                <p class="text-xs text-red-500 mt-1">${error.message || 'Please try again later'}</p>
+            </div>
+        `;
+    }
+}
+
+// Make it available globally
+window.viewAttendanceDetails = viewAttendanceDetails;
 export function handlePackageChange() { window.calculateTotal(); }

@@ -589,10 +589,9 @@
                     <!-- Adult Morning Batch Info -->
                     <div id="adult-morning-info" class="hidden md:col-span-2 bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-300 shadow-md">
                         <p class="text-sm text-green-900 font-bold mb-3 flex items-center">
-                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Unlimited Fun!
+                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Consistent Fitness!
                         </p>
                         <ul class="text-xs text-green-800 space-y-2 list-none">
-                            <li class="flex items-start"><span class="mr-2">✨</span><span>Unlimited classes - Come as often as you want!</span></li>
                             <li class="flex items-start"><span class="mr-2">⏰</span><span>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM only</span></li>
                         </ul>
                     </div>
@@ -600,12 +599,11 @@
                     <!-- Kids Morning Batch Info -->
                     <div id="kids-morning-info" class="hidden md:col-span-2 bg-gradient-to-br from-green-50 to-emerald-50 p-5 rounded-xl border-2 border-green-300 shadow-md">
                         <p class="text-sm text-green-900 font-bold mb-3 flex items-center">
-                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Unlimited Fun!
+                            <span class="text-lg mr-2">🌅</span> Morning Energy Boost - Active Start!
                         </p>
                         <ul class="text-xs text-green-800 space-y-2 list-none">
-                            <li class="flex items-start"><span class="mr-2">✨</span><span>Unlimited classes - Come as often as you want!</span></li>
                             <li class="flex items-start"><span class="mr-2">⏰</span><span>Schedule: Tuesday to Friday, 6:15 AM - 7:15 AM</span></li>
-                            <li class="flex items-start"><span class="mr-2">🎉</span><span>Also available on weekends during your age group timings!</span></li>
+                            <li class="flex items-start"><span class="mr-2">🎉</span><span>Bonus: Also available on weekends during your age group timings!</span></li>
                         </ul>
                     </div>
                     
@@ -1097,6 +1095,25 @@
             
             <div class="p-6 overflow-y-auto" id="student-profile-content">
                 <p class="text-center text-slate-400">Loading student information...</p>
+            </div>
+        </div>
+    </div>
+
+    <!-- Attendance Details Modal for Parents -->
+    <div id="attendance-details-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/50 flex items-center justify-center backdrop-blur-sm p-4">
+        <div class="bg-white rounded-2xl shadow-2xl w-full max-w-4xl overflow-hidden flex flex-col max-h-[90vh]">
+            <div class="bg-gradient-to-r from-blue-600 to-indigo-600 p-4 text-white flex justify-between items-center shrink-0">
+                <h3 class="font-bold text-lg"><i class="fas fa-calendar-check mr-2"></i> Attendance Details</h3>
+                <button onclick="document.getElementById('attendance-details-modal').classList.add('hidden')" class="text-blue-100 hover:text-white">
+                    <i class="fas fa-times text-xl"></i>
+                </button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto" id="attendance-details-content">
+                <div class="text-center p-8 text-slate-400">
+                    <i class="fas fa-spinner fa-spin text-2xl mb-2"></i>
+                    <p>Loading attendance records...</p>
+                </div>
             </div>
         </div>
     </div>
