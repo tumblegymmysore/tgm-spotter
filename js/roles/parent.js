@@ -944,8 +944,7 @@ export function updatePackageOptions() {
         batchEl.innerHTML += '<option value="Morning Batch">Morning Batch (Tue-Fri)</option>';
         // Auto-select Morning Batch
         batchEl.value = 'Morning Batch';
-        // Trigger checkApprovalRequirement to update UI
-        window.checkApprovalRequirement();
+        // Don't call checkApprovalRequirement here - it will be called after packages are loaded
     } else if (timeSlot === 'Evening' && !isAdult) {
         // When Evening/Weekend is selected, always rebuild batch options
         // Use currentLeadData if available, otherwise try to get from existing batch selection
@@ -1026,13 +1025,19 @@ export function updatePackageOptions() {
                 }
             }
             
-            // Trigger checkApprovalRequirement to update UI
-            window.checkApprovalRequirement();
+            // Don't call checkApprovalRequirement here - it will be called after packages are loaded
+            // This prevents infinite loops and ensures packages load first
         }
     }
     
     // Always load packages based on time slot (this should run regardless of batch selection)
+    // This MUST run even if batch dropdown wasn't rebuilt
     // Clear the package select first
+    if (!pkgSelect) {
+        console.error('Package select element not found in updatePackageOptions');
+        return;
+    }
+    
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
     
     // Morning batch - same rate ₹5500 for all
@@ -1063,6 +1068,18 @@ export function updatePackageOptions() {
     // Always call calculateTotal to update UI
     if (typeof window.calculateTotal === 'function') {
         window.calculateTotal();
+    }
+    
+    // After packages are loaded, trigger checkApprovalRequirement to update UI
+    // This ensures packages are loaded before any approval checks
+    // But only if we're not already inside checkApprovalRequirement (to prevent infinite loops)
+    if (typeof window.checkApprovalRequirement === 'function' && !window._checkingApproval) {
+        window._checkingApproval = true;
+        try {
+            window.checkApprovalRequirement();
+        } finally {
+            window._checkingApproval = false;
+        }
     }
 }
 
@@ -1103,8 +1120,14 @@ export function checkApprovalRequirement() {
     
     // Always update package options - this ensures packages load for all scenarios
     // PT has its own package logic, but Morning and Evening/Weekend need packages loaded
-    if(!isPT) {
-        window.updatePackageOptions();
+    // Prevent infinite loops by checking if we're already updating packages
+    if(!isPT && !window._updatingPackages) {
+        window._updatingPackages = true;
+        try {
+            window.updatePackageOptions();
+        } finally {
+            window._updatingPackages = false;
+        }
     }
 
     // Logic for approval requirement
