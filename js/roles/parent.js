@@ -410,23 +410,23 @@ const STATUS_STRATEGIES = {
     'Trial Completed': (child, str) => {
         let txt = `Trainer recommends: <strong>${child.recommended_batch || 'Standard'}</strong>`;
         if (child.skills_rating?.personal_training) txt += ` <br>(Personal Training Advised)`;
-        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
+        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
     },
     'Enrollment Requested': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        return { badge: 'Pending Approval', color: 'bg-orange-100 text-orange-700', action: `<div class="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-100 flex items-start gap-3"><div class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-clock text-xs"></i></div><div><h4 class="font-bold text-orange-900 text-sm">Request Sent</h4><p class="text-xs text-orange-800 mt-1">Admin is verifying batch availability.</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="w-full bg-orange-100 text-orange-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Admin...</button>` };
+        return { badge: 'Pending Approval', color: 'bg-orange-100 text-orange-700', action: `<div class="bg-orange-50 p-4 rounded-xl mb-4 border border-orange-100 flex items-start gap-3"><div class="bg-orange-500 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-clock text-xs"></i></div><div><h4 class="font-bold text-orange-900 text-sm">Request Sent</h4><p class="text-xs text-orange-800 mt-1">Admin is verifying batch availability.</p></div></div><button disabled class="w-full bg-orange-100 text-orange-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Admin...</button>` };
     },
     'Ready to Pay': (child, str) => {
         const finalPrice = getFinalPrice(child);
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
         const buttonText = ENABLE_FINANCE_FEATURES ? 'Pay Now & Enroll' : 'Request Enrollment';
         const buttonClass = ENABLE_FINANCE_FEATURES ? 'bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse' : 'bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700';
-        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong>${ENABLE_FINANCE_FEATURES ? `<br>Fee: ₹${finalPrice || child.package_price || '0'}` : ''}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full ${buttonClass}">${buttonText}</button>` };
+        return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong>${ENABLE_FINANCE_FEATURES ? `<br>Fee: ₹${finalPrice || child.package_price || '0'}` : ''}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full ${buttonClass}">${buttonText}</button>` };
     },
     'Registration Requested': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
         const message = ENABLE_FINANCE_FEATURES ? 'Payment Receipt Uploaded' : 'Registration Submitted';
-        return { badge: ENABLE_FINANCE_FEATURES ? 'Verifying Payment' : 'Registration Submitted', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">${message}</p>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
+        return { badge: ENABLE_FINANCE_FEATURES ? 'Verifying Payment' : 'Registration Submitted', color: 'bg-purple-100 text-purple-700', action: `<div class="text-center p-4 bg-purple-50 rounded-xl border border-purple-100"><p class="text-xs font-bold text-purple-700 mb-2">${message}</p><button disabled class="bg-white text-purple-400 text-xs font-bold py-2 px-4 rounded-lg border border-purple-100">Processing...</button></div>` };
     },
     'Enrolled': async (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
@@ -437,6 +437,11 @@ const STATUS_STRATEGIES = {
         let packageMonths = null;
         let packageClasses = null;
         let selectedPackage = meta?.selected_package || child.selected_package || 'Not Set';
+        
+        // Remove price information from package name if finance features are disabled
+        if (!ENABLE_FINANCE_FEATURES && selectedPackage) {
+            selectedPackage = selectedPackage.replace(/\s*-\s*₹\d+/g, '').trim();
+        }
         
         if (meta && meta.package_months) {
             packageMonths = meta.package_months;
@@ -552,11 +557,11 @@ const STATUS_STRATEGIES = {
             </div>
         `;
         
-        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${attendanceSummary}${nextPaymentInfo}${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">${buttonText}</button>` };
+        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${attendanceSummary}${nextPaymentInfo}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">${buttonText}</button>` };
     },
     'Follow Up': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        return { badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` };
+        return { badge: 'On Hold', color: 'bg-orange-100 text-orange-700', action: `<div class="text-xs text-orange-800 bg-orange-50 p-3 rounded-lg mb-3 border border-orange-100">Follow-up: <strong>${child.follow_up_date || 'Future'}</strong></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-orange-500 text-white font-bold py-3 rounded-xl shadow-md hover:bg-orange-600">Resume Registration</button>` };
     }
 };
 
@@ -1665,21 +1670,193 @@ export function openParentChat(str) {
     document.getElementById(`msg-badge-${lead.id}`)?.classList.add('hidden');
     window.openChat(str); 
 }
-export function openEditModal(str) {
+export async function openEditModal(str) {
     const lead = JSON.parse(decodeURIComponent(str));
     document.getElementById('edit-lead-id').value = lead.id;
+    document.getElementById('edit-lead-str').value = str;
     document.getElementById('read-child-name').value = lead.child_name;
     document.getElementById('read-dob').value = lead.dob;
     document.getElementById('update-medical').value = lead.medical_info || '';
     document.getElementById('update-alt-phone').value = lead.alternate_phone || '';
     document.getElementById('update-address').value = lead.address || '';
+    
+    // Show/hide assessment button
+    const hasAssessment = lead.feedback || lead.skills_rating || lead.recommended_batch;
+    const assessmentSection = document.getElementById('assessment-button-section');
+    if (hasAssessment) {
+        assessmentSection.classList.remove('hidden');
+    } else {
+        assessmentSection.classList.add('hidden');
+    }
+    
+    // Handle photo display
+    const photoPreview = document.getElementById('current-photo-preview');
+    const photoUploadSection = document.getElementById('photo-upload-input-section');
+    if (lead.child_photo_url) {
+        document.getElementById('current-photo-img').src = lead.child_photo_url;
+        photoPreview.classList.remove('hidden');
+        photoUploadSection.classList.add('hidden');
+    } else {
+        photoPreview.classList.add('hidden');
+        photoUploadSection.classList.remove('hidden');
+    }
+    
+    // Reset photo upload
+    document.getElementById('child-photo-upload').value = '';
+    document.getElementById('photo-upload-filename').classList.add('hidden');
+    
+    // Load package history
+    await loadPackageHistory(lead);
+    
     document.getElementById('edit-modal').classList.remove('hidden');
+}
+
+// Function to extract package history from parent_note
+function extractPackageHistory(lead) {
+    const history = [];
+    const parentNote = lead.parent_note || '';
+    
+    // Find all PACKAGE_META blocks
+    const packageMetaRegex = /\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/g;
+    let match;
+    
+    while ((match = packageMetaRegex.exec(parentNote)) !== null) {
+        try {
+            const meta = JSON.parse(match[1]);
+            if (meta.selected_package || meta.start_date) {
+                history.push({
+                    package: meta.selected_package || lead.selected_package || 'Not Set',
+                    start_date: meta.start_date || lead.start_date,
+                    months: meta.package_months || meta.months,
+                    classes: meta.classes,
+                    price: meta.package_price || meta.price,
+                    end_date: meta.end_date || (meta.start_date && meta.package_months ? (() => {
+                        const start = new Date(meta.start_date);
+                        const end = new Date(start);
+                        end.setMonth(end.getMonth() + (meta.package_months || meta.months || 0));
+                        return end.toISOString().split('T')[0];
+                    })() : null)
+                });
+            }
+        } catch (e) {
+            console.warn('Error parsing package metadata:', e);
+        }
+    }
+    
+    // If no history found but current package exists, add current package
+    if (history.length === 0 && (lead.selected_package || lead.start_date)) {
+        const meta = getPackageMetadata(lead);
+        history.push({
+            package: meta?.selected_package || lead.selected_package || 'Not Set',
+            start_date: meta?.start_date || lead.start_date,
+            months: meta?.package_months || null,
+            classes: meta?.classes || null,
+            price: meta?.package_price || lead.package_price || null,
+            end_date: null
+        });
+    }
+    
+    // Sort by start_date (latest first)
+    history.sort((a, b) => {
+        if (!a.start_date) return 1;
+        if (!b.start_date) return -1;
+        return new Date(b.start_date) - new Date(a.start_date);
+    });
+    
+    return history;
+}
+
+// Load and display package history
+async function loadPackageHistory(lead) {
+    const container = document.getElementById('package-history-container');
+    const history = extractPackageHistory(lead);
+    
+    if (history.length === 0) {
+        container.innerHTML = `
+            <div class="text-center text-slate-400 text-sm py-4">
+                <i class="fas fa-box-open text-2xl mb-2"></i>
+                <p>No package history available</p>
+            </div>
+        `;
+        return;
+    }
+    
+    const formatDate = (dateStr) => {
+        if (!dateStr) return 'N/A';
+        try {
+            return new Date(dateStr).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+        } catch (e) {
+            return dateStr;
+        }
+    };
+    
+    container.innerHTML = `
+        <div class="space-y-3">
+            ${history.map((pkg, index) => {
+                let packageName = pkg.package || 'Not Set';
+                // Remove price information if finance features disabled
+                if (!ENABLE_FINANCE_FEATURES && packageName) {
+                    packageName = packageName.replace(/\s*-\s*₹\d+/g, '').trim();
+                }
+                
+                return `
+                    <div class="bg-white p-4 rounded-lg border-2 ${index === 0 ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}">
+                        ${index === 0 ? '<div class="text-xs font-bold text-blue-700 mb-2"><i class="fas fa-star mr-1"></i> Current Package</div>' : ''}
+                        <div class="grid grid-cols-2 gap-3 text-sm">
+                            <div>
+                                <span class="text-slate-600 font-semibold">Package:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">${packageName}</p>
+                            </div>
+                            ${pkg.start_date ? `
+                            <div>
+                                <span class="text-slate-600 font-semibold">Start Date:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">${formatDate(pkg.start_date)}</p>
+                            </div>
+                            ` : ''}
+                            ${pkg.end_date ? `
+                            <div>
+                                <span class="text-slate-600 font-semibold">End Date:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">${formatDate(pkg.end_date)}</p>
+                            </div>
+                            ` : ''}
+                            ${pkg.months ? `
+                            <div>
+                                <span class="text-slate-600 font-semibold">Duration:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">${pkg.months} Month${pkg.months > 1 ? 's' : ''}</p>
+                            </div>
+                            ` : ''}
+                            ${pkg.classes ? `
+                            <div>
+                                <span class="text-slate-600 font-semibold">Classes:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">${pkg.classes === 999 ? 'Unlimited' : pkg.classes}</p>
+                            </div>
+                            ` : ''}
+                            ${ENABLE_FINANCE_FEATURES && pkg.price ? `
+                            <div>
+                                <span class="text-slate-600 font-semibold">Price:</span>
+                                <p class="text-slate-900 font-bold mt-0.5">₹${pkg.price}</p>
+                            </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }).join('')}
+        </div>
+    `;
+}
+
+// View assessment from edit modal
+window.viewAssessmentDetailsFromEdit = function() {
+    const str = document.getElementById('edit-lead-str').value;
+    document.getElementById('edit-modal').classList.add('hidden');
+    window.viewAssessmentDetails(str);
 }
 export async function saveChildInfo() {
     const leadId = document.getElementById('edit-lead-id').value;
     const medical = document.getElementById('update-medical').value.trim();
     const altPhone = document.getElementById('update-alt-phone').value.trim().replace(/\D/g, '');
     const address = document.getElementById('update-address').value.trim();
+    const photoFile = document.getElementById('child-photo-upload').files[0];
     
     // Validation
     if (!leadId) return showErrorModal("Error", "Invalid record ID.");
@@ -1693,19 +1870,58 @@ export async function saveChildInfo() {
         return showErrorModal("Check Alternate Number", "Emergency Contact Number must be exactly 10 digits.");
     }
     
+    // Check if photo already exists (one-time upload only)
+    const { data: existingLead } = await supabaseClient
+        .from('leads')
+        .select('child_photo_url')
+        .eq('id', leadId)
+        .single();
+    
+    if (existingLead?.child_photo_url && photoFile) {
+        return showErrorModal("Photo Already Uploaded", "Child photo can only be uploaded once. Please contact admin to change the photo.");
+    }
+    
     const btn = document.getElementById('btn-save-info');
     const originalText = btn.innerText;
     btn.disabled = true;
     btn.innerText = "Saving...";
     
     try {
+        let photoUrl = existingLead?.child_photo_url || null;
+        
+        // Upload photo if provided and no existing photo
+        if (photoFile && !photoUrl) {
+            const fileExt = photoFile.name.split('.').pop();
+            const fileName = `${leadId}_${Date.now()}.${fileExt}`;
+            const filePath = `child-photos/${fileName}`;
+            
+            const { error: uploadError } = await supabaseClient.storage
+                .from('child-photos')
+                .upload(filePath, photoFile);
+            
+            if (uploadError) throw uploadError;
+            
+            const { data: { publicUrl } } = supabaseClient.storage
+                .from('child-photos')
+                .getPublicUrl(filePath);
+            
+            photoUrl = publicUrl;
+        }
+        
+        // Update lead information
+        const updateData = {
+            medical_info: medical,
+            alternate_phone: altPhone || null,
+            address: address
+        };
+        
+        if (photoUrl) {
+            updateData.child_photo_url = photoUrl;
+        }
+        
         const { error } = await supabaseClient
             .from('leads')
-            .update({
-                medical_info: medical,
-                alternate_phone: altPhone || null,
-                address: address
-            })
+            .update(updateData)
             .eq('id', leadId);
         
         if (error) throw error;
@@ -1872,7 +2088,12 @@ export async function viewAttendanceDetails(leadString) {
         // Get package metadata
         const meta = getPackageMetadata(child);
         const startDate = meta?.start_date || child.start_date;
-        const selectedPackage = meta?.selected_package || child.selected_package || 'Not Set';
+        let selectedPackage = meta?.selected_package || child.selected_package || 'Not Set';
+        
+        // Remove price information from package name if finance features are disabled
+        if (!ENABLE_FINANCE_FEATURES && selectedPackage) {
+            selectedPackage = selectedPackage.replace(/\s*-\s*₹\d+/g, '').trim();
+        }
         
         // Get package months and classes
         let packageMonths = null;
@@ -1903,17 +2124,15 @@ export async function viewAttendanceDetails(leadString) {
         // Fetch attendance history
         const attendanceRecords = await getAttendanceHistory(child.id);
         
-        // Count attendance
+        // Count attendance (only count present records)
         const presentRecords = attendanceRecords.filter(a => {
             if (a.is_present === true) return true;
             if (a.is_missed === false) return true;
             if (a.is_present !== false && a.is_missed !== true) return true;
             return false;
         });
-        const absentRecords = attendanceRecords.filter(a => a.is_missed === true || a.is_present === false);
         
         const daysAttended = presentRecords.length;
-        const daysAbsent = absentRecords.length;
         const daysRemaining = packageClasses && packageClasses < 999 ? Math.max(0, packageClasses - daysAttended) : null;
         
         // Format date helper
@@ -1950,27 +2169,28 @@ export async function viewAttendanceDetails(leadString) {
                     ${sortedRecords.map(record => {
                         const recordDate = record.attendance_date || record.date;
                         const isPresent = record.is_present === true || (record.is_missed !== true && record.is_present !== false);
-                        const statusClass = isPresent ? 'bg-green-50 border-green-200' : 'bg-red-50 border-red-200';
-                        const statusIcon = isPresent ? 'fa-check-circle text-green-600' : 'fa-times-circle text-red-600';
-                        const statusText = isPresent ? 'Present' : 'Absent';
                         const batch = record.batch || child.recommended_batch || 'N/A';
                         const recordedBy = record.recorded_by || record.recordedBy || 'Trainer';
                         
-                        return `
-                            <div class="flex items-center justify-between p-3 rounded-lg border ${statusClass}">
-                                <div class="flex items-center gap-3">
-                                    <i class="fas ${statusIcon} text-lg"></i>
-                                    <div>
-                                        <p class="font-bold text-slate-800 text-sm">${formatDate(recordDate)}</p>
-                                        <p class="text-xs text-slate-600">${batch} • Recorded by ${recordedBy}</p>
+                        // Only show present records (attendance)
+                        if (isPresent) {
+                            return `
+                                <div class="flex items-center justify-between p-3 rounded-lg border bg-green-50 border-green-200">
+                                    <div class="flex items-center gap-3">
+                                        <i class="fas fa-check-circle text-green-600 text-lg"></i>
+                                        <div>
+                                            <p class="font-bold text-slate-800 text-sm">${formatDate(recordDate)}</p>
+                                            <p class="text-xs text-slate-600">${batch} • Recorded by ${recordedBy}</p>
+                                        </div>
                                     </div>
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
+                                        Present
+                                    </span>
                                 </div>
-                                <span class="px-3 py-1 rounded-full text-xs font-bold ${isPresent ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}">
-                                    ${statusText}
-                                </span>
-                            </div>
-                        `;
-                    }).join('')}
+                            `;
+                        }
+                        return ''; // Don't show absent records
+                    }).filter(html => html).join('')}
                 </div>
             `;
         }
@@ -2026,19 +2246,22 @@ export async function viewAttendanceDetails(leadString) {
                 </div>
                 
                 <!-- Attendance Statistics -->
-                <div class="grid grid-cols-3 gap-4">
+                <div class="grid grid-cols-2 gap-4">
                     <div class="bg-green-50 p-4 rounded-xl border-2 border-green-200 text-center">
                         <p class="text-3xl font-black text-green-700">${daysAttended}</p>
-                        <p class="text-xs font-bold text-green-600 uppercase mt-1">Present</p>
+                        <p class="text-xs font-bold text-green-600 uppercase mt-1">Days Attended</p>
                     </div>
-                    <div class="bg-red-50 p-4 rounded-xl border-2 border-red-200 text-center">
-                        <p class="text-3xl font-black text-red-700">${daysAbsent}</p>
-                        <p class="text-xs font-bold text-red-600 uppercase mt-1">Absent</p>
-                    </div>
+                    ${daysRemaining !== null ? `
                     <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
-                        <p class="text-3xl font-black text-blue-700">${attendanceRecords.length}</p>
-                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Total Records</p>
+                        <p class="text-3xl font-black text-blue-700">${daysRemaining}</p>
+                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Days Remaining</p>
                     </div>
+                    ` : `
+                    <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
+                        <p class="text-3xl font-black text-blue-700">${packageClasses === 999 ? '∞' : packageClasses || 'N/A'}</p>
+                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Days Entitled</p>
+                    </div>
+                    `}
                 </div>
                 
                 <!-- Attendance Records -->
