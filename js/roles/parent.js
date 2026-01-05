@@ -1854,8 +1854,13 @@ async function loadPackageHistory(lead) {
                                 ` : ''}
                                 ${item.skills_rating ? `
                                 <div>
-                                    <span class="text-slate-600 font-semibold">Skills Assessed:</span>
-                                    <p class="text-slate-700 mt-0.5 text-xs">${Object.keys(item.skills_rating).filter(k => item.skills_rating[k]).length} skill areas evaluated</p>
+                                    <span class="text-slate-600 font-semibold mb-2 block">Skills Assessed:</span>
+                                    <div class="flex flex-wrap gap-2 mt-1">
+                                        ${item.skills_rating.listening ? `<span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded-full border border-blue-200">👂 Listening</span>` : ''}
+                                        ${item.skills_rating.flexibility ? `<span class="px-2 py-1 bg-green-100 text-green-700 text-xs font-bold rounded-full border border-green-200">🤸 Flexibility</span>` : ''}
+                                        ${item.skills_rating.strength ? `<span class="px-2 py-1 bg-orange-100 text-orange-700 text-xs font-bold rounded-full border border-orange-200">💪 Strength</span>` : ''}
+                                        ${item.skills_rating.balance ? `<span class="px-2 py-1 bg-purple-100 text-purple-700 text-xs font-bold rounded-full border border-purple-200">⚖️ Balance</span>` : ''}
+                                    </div>
                                 </div>
                                 ` : ''}
                             </div>
@@ -2208,7 +2213,11 @@ export async function viewAttendanceDetails(leadString) {
         });
         
         const daysAttended = presentRecords.length;
-        const daysRemaining = packageClasses && packageClasses < 999 ? Math.max(0, packageClasses - daysAttended) : null;
+        const daysBalance = packageClasses && packageClasses < 999 ? Math.max(0, packageClasses - daysAttended) : null;
+        
+        // Get recommended/session days from metadata
+        const sessionDays = meta?.session_days || [];
+        const recommendedDays = Array.isArray(sessionDays) ? sessionDays : (sessionDays ? [sessionDays] : []);
         
         // Format date helper
         const formatDate = (dateStr) => {
@@ -2247,19 +2256,36 @@ export async function viewAttendanceDetails(leadString) {
                         const batch = record.batch || child.recommended_batch || 'N/A';
                         const recordedBy = record.recorded_by || record.recordedBy || 'Trainer';
                         
+                        // Check if this is a recommended day
+                        let dayOfWeek = '';
+                        try {
+                            const date = new Date(recordDate);
+                            dayOfWeek = date.toLocaleDateString('en-US', { weekday: 'long' });
+                        } catch (e) {
+                            // Ignore
+                        }
+                        
+                        const isRecommendedDay = recommendedDays.length > 0 && recommendedDays.includes(dayOfWeek);
+                        
                         // Only show present records (attendance)
                         if (isPresent) {
+                            // Different styling for recommended vs alternate days
+                            const bgClass = isRecommendedDay ? 'bg-green-50 border-green-300' : 'bg-blue-50 border-blue-200';
+                            const iconClass = isRecommendedDay ? 'fa-check-circle text-green-600' : 'fa-calendar-check text-blue-600';
+                            const badgeClass = isRecommendedDay ? 'bg-green-100 text-green-700' : 'bg-blue-100 text-blue-700';
+                            const badgeText = isRecommendedDay ? 'Recommended Day' : 'Alternate Day';
+                            
                             return `
-                                <div class="flex items-center justify-between p-3 rounded-lg border bg-green-50 border-green-200">
+                                <div class="flex items-center justify-between p-3 rounded-lg border-2 ${bgClass}">
                                     <div class="flex items-center gap-3">
-                                        <i class="fas fa-check-circle text-green-600 text-lg"></i>
+                                        <i class="fas ${iconClass} text-lg"></i>
                                         <div>
                                             <p class="font-bold text-slate-800 text-sm">${formatDate(recordDate)}</p>
                                             <p class="text-xs text-slate-600">${batch} • Recorded by ${recordedBy}</p>
                                         </div>
                                     </div>
-                                    <span class="px-3 py-1 rounded-full text-xs font-bold bg-green-100 text-green-700">
-                                        Present
+                                    <span class="px-3 py-1 rounded-full text-xs font-bold ${badgeClass}">
+                                        ${badgeText}
                                     </span>
                                 </div>
                             `;
@@ -2299,10 +2325,18 @@ export async function viewAttendanceDetails(leadString) {
                             <span class="text-slate-600 font-semibold">Days Attended:</span>
                             <p class="text-green-700 font-bold mt-1">${daysAttended}</p>
                         </div>
-                        ${daysRemaining !== null ? `
+                        ${daysBalance !== null ? `
                         <div>
-                            <span class="text-slate-600 font-semibold">Days Remaining:</span>
-                            <p class="text-blue-700 font-bold mt-1">${daysRemaining}</p>
+                            <span class="text-slate-600 font-semibold">Days Balance:</span>
+                            <p class="text-blue-700 font-bold mt-1">${daysBalance}</p>
+                        </div>
+                        ` : ''}
+                        ${recommendedDays.length > 0 ? `
+                        <div class="md:col-span-2">
+                            <span class="text-slate-600 font-semibold">Recommended Days:</span>
+                            <div class="flex flex-wrap gap-2 mt-1">
+                                ${recommendedDays.map(day => `<span class="px-2 py-1 bg-indigo-100 text-indigo-700 text-xs font-bold rounded-full border border-indigo-200">${day}</span>`).join('')}
+                            </div>
                         </div>
                         ` : ''}
                         ${startDate ? `
@@ -2321,20 +2355,24 @@ export async function viewAttendanceDetails(leadString) {
                 </div>
                 
                 <!-- Attendance Statistics -->
-                <div class="grid grid-cols-2 gap-4">
+                <div class="grid grid-cols-3 gap-4">
+                    <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
+                        <p class="text-3xl font-black text-blue-700">${packageClasses === 999 ? '∞' : packageClasses || 'N/A'}</p>
+                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Days Entitled</p>
+                    </div>
                     <div class="bg-green-50 p-4 rounded-xl border-2 border-green-200 text-center">
                         <p class="text-3xl font-black text-green-700">${daysAttended}</p>
                         <p class="text-xs font-bold text-green-600 uppercase mt-1">Days Attended</p>
                     </div>
-                    ${daysRemaining !== null ? `
-                    <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
-                        <p class="text-3xl font-black text-blue-700">${daysRemaining}</p>
-                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Days Remaining</p>
+                    ${daysBalance !== null ? `
+                    <div class="bg-purple-50 p-4 rounded-xl border-2 border-purple-200 text-center">
+                        <p class="text-3xl font-black text-purple-700">${daysBalance}</p>
+                        <p class="text-xs font-bold text-purple-600 uppercase mt-1">Days Balance</p>
                     </div>
                     ` : `
-                    <div class="bg-blue-50 p-4 rounded-xl border-2 border-blue-200 text-center">
-                        <p class="text-3xl font-black text-blue-700">${packageClasses === 999 ? '∞' : packageClasses || 'N/A'}</p>
-                        <p class="text-xs font-bold text-blue-600 uppercase mt-1">Days Entitled</p>
+                    <div class="bg-slate-50 p-4 rounded-xl border-2 border-slate-200 text-center">
+                        <p class="text-3xl font-black text-slate-700">∞</p>
+                        <p class="text-xs font-bold text-slate-600 uppercase mt-1">Unlimited</p>
                     </div>
                     `}
                 </div>
