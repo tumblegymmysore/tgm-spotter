@@ -925,14 +925,14 @@ export function updatePackageOptions() {
         batchEl.value = 'Morning Batch';
         // Trigger checkApprovalRequirement to update UI
         window.checkApprovalRequirement();
-    } else if (timeSlot === 'Evening' && !isAdult && currentLeadData) {
-        // When switching back to Evening, restore normal batch options
-        // Rebuild batch options based on recommended batch and age
-        const recommendedBatch = currentLeadData.recommended_batch;
+    } else if (timeSlot === 'Evening' && !isAdult) {
+        // When Evening/Weekend is selected, always rebuild batch options
+        // Use currentLeadData if available, otherwise try to get from existing batch selection
+        const recommendedBatch = currentLeadData?.recommended_batch || batchEl.value || '';
         const batchesToShow = new Set();
         
-        // Always include the recommended batch
-        if (recommendedBatch) {
+        // Always include the recommended batch (if it's a valid batch option)
+        if (recommendedBatch && recommendedBatch !== 'Personal Training' && recommendedBatch !== 'Special Needs' && recommendedBatch !== 'Morning Batch') {
             batchesToShow.add(recommendedBatch);
         }
         
@@ -972,28 +972,42 @@ export function updatePackageOptions() {
             }
         }
         
-        // Rebuild batch dropdown
-        batchEl.innerHTML = '<option value="">Select Batch...</option>';
-        const batchOrder = ['Toddler (3-5 Yrs)', 'Beginner (5-8 Yrs)', 'Intermediate (8+ Yrs)'];
-        batchOrder.forEach(batch => {
-            if (batchesToShow.has(batch)) {
-                batchEl.innerHTML += `<option value="${batch}">${batch}</option>`;
+        // Only rebuild batch dropdown if we have batches to show and it's empty or needs updating
+        if (batchesToShow.size > 0) {
+            // Check if dropdown is empty or only has placeholder
+            const currentOptions = Array.from(batchEl.options).map(o => o.value).filter(v => v);
+            const needsRebuild = currentOptions.length === 0 || (currentOptions.length === 1 && currentOptions[0] === '');
+            
+            // Save current selection if it exists and is valid
+            const currentSelection = batchEl.value && batchesToShow.has(batchEl.value) ? batchEl.value : null;
+            
+            if (needsRebuild || !currentOptions.some(opt => batchesToShow.has(opt))) {
+                // Rebuild batch dropdown
+                batchEl.innerHTML = '<option value="">Select Batch...</option>';
+                const batchOrder = ['Toddler (3-5 Yrs)', 'Beginner (5-8 Yrs)', 'Intermediate (8+ Yrs)'];
+                batchOrder.forEach(batch => {
+                    if (batchesToShow.has(batch)) {
+                        batchEl.innerHTML += `<option value="${batch}">${batch}</option>`;
+                    }
+                });
+                
+                // Restore or set selection
+                if (currentSelection) {
+                    batchEl.value = currentSelection;
+                } else if (recommendedBatch && batchesToShow.has(recommendedBatch)) {
+                    batchEl.value = recommendedBatch;
+                } else if (batchesToShow.has('Toddler (3-5 Yrs)') && age >= 3 && age <= 5) {
+                    batchEl.value = "Toddler (3-5 Yrs)";
+                } else if (batchesToShow.has('Beginner (5-8 Yrs)') && age >= 5 && age <= 8) {
+                    batchEl.value = "Beginner (5-8 Yrs)";
+                } else if (batchesToShow.has('Intermediate (8+ Yrs)') && age >= 8 && age < 15) {
+                    batchEl.value = "Intermediate (8+ Yrs)";
+                }
             }
-        });
-        
-        // Pre-select recommended batch if available
-        if (recommendedBatch && batchesToShow.has(recommendedBatch)) {
-            batchEl.value = recommendedBatch;
-        } else if (batchesToShow.has('Toddler (3-5 Yrs)') && age >= 3 && age <= 5) {
-            batchEl.value = "Toddler (3-5 Yrs)";
-        } else if (batchesToShow.has('Beginner (5-8 Yrs)') && age >= 5 && age <= 8) {
-            batchEl.value = "Beginner (5-8 Yrs)";
-        } else if (batchesToShow.has('Intermediate (8+ Yrs)') && age >= 8 && age < 15) {
-            batchEl.value = "Intermediate (8+ Yrs)";
+            
+            // Trigger checkApprovalRequirement to update UI
+            window.checkApprovalRequirement();
         }
-        
-        // Trigger checkApprovalRequirement to update UI
-        window.checkApprovalRequirement();
     }
     
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
