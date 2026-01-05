@@ -784,8 +784,89 @@ export function updatePackageOptions() {
     const timeSlot = document.getElementById('reg-time-slot').value;
     const batchCat = document.getElementById('reg-batch-category').value;
     const pkgSelect = document.getElementById('reg-package-select');
+    const batchEl = document.getElementById('reg-batch-category');
     const age = parseInt(document.getElementById('reg-child-age').innerText);
     const isAdult = age >= ADULT_AGE_THRESHOLD;
+    
+    // If Morning is selected for kids, update batch category to only show Morning Batch
+    if (timeSlot === 'Morning' && !isAdult) {
+        // For kids selecting Morning, only show Morning Batch option
+        batchEl.innerHTML = '<option value="">Select Batch...</option>';
+        batchEl.innerHTML += '<option value="Morning Batch">Morning Batch (Tue-Fri)</option>';
+        // Auto-select Morning Batch
+        batchEl.value = 'Morning Batch';
+        // Trigger checkApprovalRequirement to update UI
+        window.checkApprovalRequirement();
+    } else if (timeSlot === 'Evening' && !isAdult && currentLeadData) {
+        // When switching back to Evening, restore normal batch options
+        // Rebuild batch options based on recommended batch and age
+        const recommendedBatch = currentLeadData.recommended_batch;
+        const batchesToShow = new Set();
+        
+        // Always include the recommended batch
+        if (recommendedBatch) {
+            batchesToShow.add(recommendedBatch);
+        }
+        
+        // Add batches based on age and recommended batch
+        if (recommendedBatch === 'Toddler (3-5 Yrs)' || (age >= 3 && age <= 5 && !recommendedBatch)) {
+            batchesToShow.add('Toddler (3-5 Yrs)');
+            if (age >= 5 || recommendedBatch === 'Toddler (3-5 Yrs)') {
+                batchesToShow.add('Beginner (5-8 Yrs)');
+            }
+        }
+        
+        if (recommendedBatch === 'Beginner (5-8 Yrs)' || (age >= 5 && age <= 8 && !recommendedBatch)) {
+            batchesToShow.add('Beginner (5-8 Yrs)');
+            batchesToShow.add('Toddler (3-5 Yrs)');
+            if (age >= 8 || recommendedBatch === 'Beginner (5-8 Yrs)') {
+                batchesToShow.add('Intermediate (8+ Yrs)');
+            }
+        }
+        
+        if (recommendedBatch === 'Intermediate (8+ Yrs)' || (age >= 8 && age < 15 && !recommendedBatch)) {
+            batchesToShow.add('Intermediate (8+ Yrs)');
+            batchesToShow.add('Beginner (5-8 Yrs)');
+        }
+        
+        // Fallback: If no recommended batch, show based on age
+        if (batchesToShow.size === 0) {
+            if (age >= 3 && age <= 5) {
+                batchesToShow.add('Toddler (3-5 Yrs)');
+                if (age >= 5) batchesToShow.add('Beginner (5-8 Yrs)');
+            } else if (age >= 5 && age <= 8) {
+                batchesToShow.add('Toddler (3-5 Yrs)');
+                batchesToShow.add('Beginner (5-8 Yrs)');
+                if (age >= 8) batchesToShow.add('Intermediate (8+ Yrs)');
+            } else if (age >= 8 && age < 15) {
+                batchesToShow.add('Beginner (5-8 Yrs)');
+                batchesToShow.add('Intermediate (8+ Yrs)');
+            }
+        }
+        
+        // Rebuild batch dropdown
+        batchEl.innerHTML = '<option value="">Select Batch...</option>';
+        const batchOrder = ['Toddler (3-5 Yrs)', 'Beginner (5-8 Yrs)', 'Intermediate (8+ Yrs)'];
+        batchOrder.forEach(batch => {
+            if (batchesToShow.has(batch)) {
+                batchEl.innerHTML += `<option value="${batch}">${batch}</option>`;
+            }
+        });
+        
+        // Pre-select recommended batch if available
+        if (recommendedBatch && batchesToShow.has(recommendedBatch)) {
+            batchEl.value = recommendedBatch;
+        } else if (batchesToShow.has('Toddler (3-5 Yrs)') && age >= 3 && age <= 5) {
+            batchEl.value = "Toddler (3-5 Yrs)";
+        } else if (batchesToShow.has('Beginner (5-8 Yrs)') && age >= 5 && age <= 8) {
+            batchEl.value = "Beginner (5-8 Yrs)";
+        } else if (batchesToShow.has('Intermediate (8+ Yrs)') && age >= 8 && age < 15) {
+            batchEl.value = "Intermediate (8+ Yrs)";
+        }
+        
+        // Trigger checkApprovalRequirement to update UI
+        window.checkApprovalRequirement();
+    }
     
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
     
@@ -816,7 +897,11 @@ export function checkApprovalRequirement() {
     const isKidsMorning = !isAdult && timeSlot === 'Morning';
     
     // Show/hide PT options (different for adults vs kids)
-    document.getElementById('reg-package-select').parentElement.classList.toggle('hidden', isPT || isAdultMorning || isKidsMorning);
+    // Hide the entire package selection container (including label) when not needed
+    const packageSelectContainer = document.getElementById('reg-package-select').parentElement;
+    if (packageSelectContainer) {
+        packageSelectContainer.classList.toggle('hidden', isPT || isAdultMorning || isKidsMorning);
+    }
     document.getElementById('group-pt-options').classList.toggle('hidden', !isPT || !isAdult); // Adult PT only
     const kidsPTOptions = document.getElementById('group-pt-options-kids');
     if (kidsPTOptions) {

@@ -190,7 +190,7 @@
                     <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
                         <li>Comfortable clothing (shorts/leggings and a t-shirt)</li>
                         <li>No zippers or buttons</li>
-                        <li>Bare feet or grip socks (no regular socks)</li>
+                        <li>Bare feet during classes</li>
                     </ul>
                 </div>
                 <div class="bg-white rounded-xl p-4 border border-blue-100">
@@ -199,7 +199,7 @@
                     </h3>
                     <ul class="text-sm text-blue-700 space-y-1 list-disc list-inside">
                         <li>Avoid heavy meals 2-3 hours before class</li>
-                        <li>No milk or dairy products 1 hour before class</li>
+                        <li>No milk for minimum 1 hour before class</li>
                         <li>Minimal liquids 30 minutes before class</li>
                         <li>Bring a water bottle for hydration during class</li>
                     </ul>
@@ -484,7 +484,7 @@
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
                     <div>
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Time Preference</label>
-                        <select id="reg-time-slot" onchange="window.updatePackageOptions()" class="input-field w-full bg-white">
+                        <select id="reg-time-slot" onchange="window.updatePackageOptions(); window.checkApprovalRequirement();" class="input-field w-full bg-white">
                             <option value="Evening">Evening / Weekend</option>
                             <option value="Morning">Morning (Mixed Batch)</option>
                         </select>
