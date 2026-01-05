@@ -412,7 +412,7 @@ const STATUS_STRATEGIES = {
     'Ready to Pay': (child, str) => {
         const finalPrice = getFinalPrice(child);
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        const buttonText = ENABLE_FINANCE_FEATURES ? 'Pay Now & Enroll' : 'Complete Registration';
+        const buttonText = ENABLE_FINANCE_FEATURES ? 'Pay Now & Enroll' : 'Request Enrollment';
         const buttonClass = ENABLE_FINANCE_FEATURES ? 'bg-green-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-green-200 hover:bg-green-700 animate-pulse' : 'bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700';
         return { badge: 'Approved', color: 'bg-green-100 text-green-700', action: `<div class="bg-green-50 p-4 rounded-xl mb-4 border border-green-100 flex items-start gap-3"><div class="bg-green-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check-double text-xs"></i></div><div><h4 class="font-bold text-green-900 text-sm">Admission Approved!</h4><p class="text-xs text-green-800 mt-1"><strong>${child.recommended_batch || 'Standard Batch'}</strong>${ENABLE_FINANCE_FEATURES ? `<br>Fee: ₹${finalPrice || child.package_price || '0'}` : ''}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full ${buttonClass}">${buttonText}</button>` };
     },
@@ -423,7 +423,37 @@ const STATUS_STRATEGIES = {
     },
     'Enrolled': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
-        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">Renew Membership</button>` };
+        const meta = getPackageMetadata(child);
+        const startDate = meta?.start_date || child.start_date;
+        
+        // Try to get package months from metadata
+        let packageMonths = null;
+        if (meta && meta.package_months) {
+            packageMonths = meta.package_months;
+        } else if (child.parent_note) {
+            const monthsMatch = child.parent_note.match(/\[PACKAGE_META\].*?"months":\s*(\d+).*?\[\/PACKAGE_META\]/);
+            if (monthsMatch) {
+                packageMonths = parseInt(monthsMatch[1]);
+            }
+        }
+        
+        // Calculate next payment date
+        let nextPaymentDate = null;
+        if (startDate && packageMonths) {
+            try {
+                const start = new Date(startDate);
+                const next = new Date(start);
+                next.setMonth(next.getMonth() + packageMonths);
+                nextPaymentDate = next.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
+            } catch (e) {
+                console.warn('Error calculating next payment date:', e);
+            }
+        }
+        
+        const buttonText = ENABLE_FINANCE_FEATURES ? 'Renew Membership' : 'Change Package';
+        const nextPaymentInfo = !ENABLE_FINANCE_FEATURES && nextPaymentDate ? `<div class="text-xs text-emerald-800 bg-emerald-50 p-3 rounded-lg mb-3 border border-emerald-100"><strong>Next Payment Date:</strong> ${nextPaymentDate}</div>` : '';
+        
+        return { badge: 'Active Student', color: 'bg-emerald-100 text-emerald-700', action: `<div class="flex items-center gap-2 mb-4 text-emerald-800 text-xs font-bold bg-emerald-50 px-3 py-1.5 rounded-lg w-fit border border-emerald-100"><span class="w-2 h-2 bg-emerald-500 rounded-full"></span> Active</div>${nextPaymentInfo}${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', true)" class="w-full border-2 border-emerald-600 text-emerald-700 font-bold py-3 rounded-xl hover:bg-emerald-50 transition">${buttonText}</button>` };
     },
     'Follow Up': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
@@ -472,7 +502,14 @@ export function openRegistrationModal(leadString, isRenewal) {
     }
     // Hide payment section and fee display section if finance features are disabled
     if (!ENABLE_FINANCE_FEATURES) {
-        if (paymentSection) paymentSection.classList.add('hidden');
+        if (paymentSection) {
+            paymentSection.classList.add('hidden');
+            // Also make payment mode field not required
+            const paymentModeField = document.getElementById('payment-mode');
+            if (paymentModeField) {
+                paymentModeField.required = false;
+            }
+        }
         const feeDisplaySection = document.getElementById('fee-display-section');
         if (feeDisplaySection) feeDisplaySection.classList.add('hidden');
     }
@@ -724,10 +761,15 @@ export function openRegistrationModal(leadString, isRenewal) {
                 document.getElementById('btn-submit-pay').classList.remove('hidden');
                 document.getElementById('btn-submit-request').classList.add('hidden');
             } else {
-                // If finance features disabled, show request button instead
+                // If finance features disabled, show request button instead (Request Enrollment)
                 document.getElementById('payment-section').classList.add('hidden');
                 document.getElementById('btn-submit-pay').classList.add('hidden');
                 document.getElementById('btn-submit-request').classList.remove('hidden');
+                // Update button text to "Request Enrollment"
+                const requestBtn = document.getElementById('btn-submit-request');
+                if (requestBtn) {
+                    requestBtn.innerHTML = 'Request Enrollment <i class="fas fa-paper-plane ml-2"></i>';
+                }
             }
             if (!isPackageLocked) {
                 document.getElementById('approval-notice').classList.add('hidden');
@@ -878,9 +920,22 @@ export function checkApprovalRequirement() {
     }
     
     approvalNotice.classList.toggle('hidden', !needsApproval);
-    document.getElementById('btn-submit-pay').classList.toggle('hidden', needsApproval);
-    document.getElementById('btn-submit-request').classList.toggle('hidden', !needsApproval);
-    document.getElementById('payment-section').classList.toggle('hidden', needsApproval);
+    
+    // When finance features disabled, always show request button with "Request Enrollment" text
+    if (!ENABLE_FINANCE_FEATURES) {
+        document.getElementById('btn-submit-pay').classList.add('hidden');
+        document.getElementById('btn-submit-request').classList.remove('hidden');
+        document.getElementById('payment-section').classList.add('hidden');
+        const requestBtn = document.getElementById('btn-submit-request');
+        if (requestBtn) {
+            requestBtn.innerHTML = 'Request Enrollment <i class="fas fa-paper-plane ml-2"></i>';
+        }
+    } else {
+        document.getElementById('btn-submit-pay').classList.toggle('hidden', needsApproval);
+        document.getElementById('btn-submit-request').classList.toggle('hidden', !needsApproval);
+        document.getElementById('payment-section').classList.toggle('hidden', needsApproval);
+    }
+    
     window.calculateTotal(); 
 }
 
@@ -1266,7 +1321,12 @@ export async function submitRegistration(actionType) {
         return showErrorModal("Acknowledgement Required", "Please acknowledge the terms and conditions to proceed with registration.");
     }
     
-    const btn = document.getElementById('btn-submit-pay'); btn.innerText = "Submitting..."; btn.disabled = true;
+    // Determine which button to use based on finance features and action type
+    const submitBtn = (ENABLE_FINANCE_FEATURES && actionType === 'PAY') ? document.getElementById('btn-submit-pay') : document.getElementById('btn-submit-request');
+    if (submitBtn) {
+        submitBtn.innerText = "Submitting..."; 
+        submitBtn.disabled = true;
+    }
 
     try {
         // Get session days - only for limited packages
@@ -1280,11 +1340,24 @@ export async function submitRegistration(actionType) {
             sessionDays = Array.from(limitedSelect.querySelectorAll('.session-day-checkbox:checked')).map(cb => cb.value);
         }
         
+        // Get package months from selected package
+        let packageMonths = null;
+        const pkgSelect = document.getElementById('reg-package-select');
+        if (pkgSelect && pkgSelect.value) {
+            const pkgParts = pkgSelect.value.split('|');
+            if (pkgParts.length >= 4) {
+                packageMonths = parseInt(pkgParts[3] || '0');
+            }
+        }
+        
         // Store payment_mode and other details in metadata (parent_note)
         const existingNote = currentLeadData?.parent_note || '';
         const metadata = {
             final_price: total
         };
+        if (packageMonths) {
+            metadata.package_months = packageMonths;
+        }
         // Only include payment_mode if finance features are enabled
         if (ENABLE_FINANCE_FEATURES && paymentMode) {
             metadata.payment_mode = paymentMode;
@@ -1370,7 +1443,14 @@ export async function submitRegistration(actionType) {
             // Force a hard reload to ensure fresh data
             window.location.href = window.location.href;
         });
-    } catch (e) { showErrorModal("Upload Error", e.message); btn.disabled = false; btn.innerText = "Pay & Enroll"; }
+    } catch (e) { 
+        showErrorModal("Upload Error", e.message); 
+        const errorBtn = (ENABLE_FINANCE_FEATURES && actionType === 'PAY') ? document.getElementById('btn-submit-pay') : document.getElementById('btn-submit-request');
+        if (errorBtn) {
+            errorBtn.disabled = false; 
+            errorBtn.innerText = ENABLE_FINANCE_FEATURES ? "Pay & Enroll" : "Request Enrollment"; 
+        }
+    }
 }
 
 export function openParentChat(str) { 
