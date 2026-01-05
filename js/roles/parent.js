@@ -1010,6 +1010,7 @@ export function updatePackageOptions() {
         }
     }
     
+    // Always load packages based on time slot (this should run regardless of batch selection)
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
     
     // Morning batch - same rate ₹5500 for all
@@ -1018,12 +1019,14 @@ export function updatePackageOptions() {
         const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${morningPkg.price}` : '';
         pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">Morning Unlimited${priceText}</option>`;
     } else {
-        // Evening/Weekend packages
+        // Evening/Weekend packages - ensure these always load for any non-Morning time slot
         STANDARD_PACKAGES.forEach(p => {
             const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${p.price}` : '';
             pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label}${priceText}</option>`;
         });
     }
+    
+    // Always call calculateTotal to update UI
     window.calculateTotal();
 }
 
@@ -1062,7 +1065,11 @@ export function checkApprovalRequirement() {
         }
     }
     
-    if(!isPT && !isAdultMorning && !isKidsMorning) window.updatePackageOptions();
+    // Always update package options - this ensures packages load for all scenarios
+    // PT has its own package logic, but Morning and Evening/Weekend need packages loaded
+    if(!isPT) {
+        window.updatePackageOptions();
+    }
 
     // Logic for approval requirement
     let needsApproval = false;
@@ -1090,7 +1097,12 @@ export function checkApprovalRequirement() {
         // Kids logic
         // For 3-5 years: Morning batch is NOT applicable unless batch is changed to 5-8
         const is3to5 = age >= 3 && age <= 5;
-        const isChangingFromRecommended = currentLeadData.recommended_batch && batchCat !== currentLeadData.recommended_batch;
+        // Only consider it a change if batch is actually selected and different from recommended
+        // AND it's not Morning Batch when time slot is not Morning
+        const isChangingFromRecommended = currentLeadData.recommended_batch && 
+                                         batchCat && 
+                                         batchCat !== currentLeadData.recommended_batch &&
+                                         !(batchCat === 'Morning Batch' && timeSlot !== 'Morning');
         
         // If 3-5 years and trying to select morning without changing to 5-8 batch, show error
         if (is3to5 && timeSlot === 'Morning' && batchCat !== 'Beginner (5-8 Yrs)') {
@@ -1103,20 +1115,32 @@ export function checkApprovalRequirement() {
         }
         
         // If changing batch from recommended, need approval with reason
-        if (isChangingFromRecommended) {
-            needsApproval = true;
-            const reasonField = document.getElementById('batch-change-reason-text');
-            const reasonSection = document.getElementById('batch-change-reason-section');
-            if (reasonSection) reasonSection.classList.remove('hidden');
-            if (reasonField) {
-                reasonField.required = true;
-                if (!reasonField.value.trim()) {
-                    approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
-                } else {
-                    approvalMessage = `Batch change request submitted. Admin will review your reason and confirm.`;
-                }
+        // Only show approval message if:
+        // 1. Batch category is actually selected (not empty)
+        // 2. Batch is different from recommended
+        // 3. It's not Morning Batch when time slot is not Morning
+        if (isChangingFromRecommended && batchCat && batchCat !== '' && currentLeadData.recommended_batch) {
+            // Special case: Only show "Morning Batch" message if time slot is actually Morning
+            if (batchCat === 'Morning Batch' && timeSlot !== 'Morning') {
+                // Don't show approval - Morning Batch shouldn't be selected when Evening is selected
+                // This is an invalid state, so don't show the message
+                needsApproval = false;
             } else {
-                approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                // Show approval for valid batch changes (including Morning Batch when Morning is selected)
+                needsApproval = true;
+                const reasonField = document.getElementById('batch-change-reason-text');
+                const reasonSection = document.getElementById('batch-change-reason-section');
+                if (reasonSection) reasonSection.classList.remove('hidden');
+                if (reasonField) {
+                    reasonField.required = true;
+                    if (!reasonField.value.trim()) {
+                        approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                    } else {
+                        approvalMessage = `Batch change request submitted. Admin will review your reason and confirm.`;
+                    }
+                } else {
+                    approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                }
             }
         }
         
