@@ -572,11 +572,20 @@ async function generateStudentCardWithAttendance(child, count) {
     const ui = await strategy(child, str);
     const badge = count > 0 ? `<span id="msg-badge-${child.id}" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>` : '';
 
+    // Child photo display - show photo if available, otherwise show initial
+    const photoUrl = child.child_photo_url;
+    // Escape photo URL and child name for safe HTML insertion
+    const safePhotoUrl = photoUrl ? photoUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : '';
+    const safeChildName = child.child_name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    const photoDisplay = photoUrl 
+        ? `<img src="${safePhotoUrl}" alt="${safeChildName}" class="w-16 h-16 rounded-2xl object-cover border-2 border-slate-200 cursor-pointer hover:border-blue-400 hover:scale-105 transition-all shadow-sm" onclick="window.viewChildPhoto('${safePhotoUrl.replace(/'/g, "\\'")}', '${safeChildName.replace(/'/g, "\\'")}')" title="Click to view larger">`
+        : `<div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 text-slate-600 flex items-center justify-center font-bold text-xl border-2 border-slate-200 shadow-sm">${child.child_name.charAt(0)}</div>`;
+
     return `
     <div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white mb-4 hover:shadow-md transition-all duration-300">
         <div class="flex justify-between items-start mb-4">
             <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-lg">${child.child_name.charAt(0)}</div>
+                ${photoDisplay}
                 <div><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3><p class="text-xs font-bold text-slate-400 uppercase mt-0.5">${calculateAge(child.dob)} Yrs • ${child.intent}</p></div>
             </div>
             <span class="${ui.color} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">${ui.badge}</span>
@@ -595,11 +604,20 @@ function generateStudentCard(child, count) {
     const ui = strategy(child, str);
     const badge = count > 0 ? `<span id="msg-badge-${child.id}" class="absolute -top-1 -right-1 bg-rose-500 text-white text-[10px] w-4 h-4 flex items-center justify-center rounded-full border border-white shadow-sm">${count}</span>` : '';
 
+    // Child photo display - show photo if available, otherwise show initial
+    const photoUrl = child.child_photo_url;
+    // Escape photo URL and child name for safe HTML insertion
+    const safePhotoUrl = photoUrl ? photoUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : '';
+    const safeChildName = child.child_name.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    const photoDisplay = photoUrl 
+        ? `<img src="${safePhotoUrl}" alt="${safeChildName}" class="w-16 h-16 rounded-2xl object-cover border-2 border-slate-200 cursor-pointer hover:border-blue-400 hover:scale-105 transition-all shadow-sm" onclick="window.viewChildPhoto('${safePhotoUrl.replace(/'/g, "\\'")}', '${safeChildName.replace(/'/g, "\\'")}')" title="Click to view larger">`
+        : `<div class="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-100 to-purple-100 text-slate-600 flex items-center justify-center font-bold text-xl border-2 border-slate-200 shadow-sm">${child.child_name.charAt(0)}</div>`;
+
     return `
     <div class="relative rounded-3xl p-6 shadow-sm border border-slate-100 bg-white mb-4 hover:shadow-md transition-all duration-300">
         <div class="flex justify-between items-start mb-4">
             <div class="flex gap-4 items-center">
-                <div class="w-12 h-12 rounded-2xl bg-slate-100 text-slate-500 flex items-center justify-center font-bold text-lg">${child.child_name.charAt(0)}</div>
+                ${photoDisplay}
                 <div><h3 class="font-bold text-xl text-slate-800">${child.child_name}</h3><p class="text-xs font-bold text-slate-400 uppercase mt-0.5">${calculateAge(child.dob)} Yrs • ${child.intent}</p></div>
             </div>
             <span class="${ui.color} text-[10px] font-bold px-2 py-1 rounded uppercase tracking-wide">${ui.badge}</span>
@@ -2062,11 +2080,18 @@ export async function saveChildInfo() {
     }
     
     // Check if photo already exists (one-time upload only)
-    const { data: existingLead } = await supabaseClient
+    // Note: If child_photo_url column doesn't exist, this will fail
+    // Run add-child-photo-url-column.sql migration first
+    const { data: existingLead, error: selectError } = await supabaseClient
         .from('leads')
         .select('child_photo_url')
         .eq('id', leadId)
         .single();
+    
+    // Handle schema errors gracefully
+    if (selectError && (selectError.message.includes('column') || selectError.message.includes('schema cache'))) {
+        return showErrorModal("Database Schema Error", "The child_photo_url column is missing. Please run the migration SQL: add-child-photo-url-column.sql. See QUICK_FIX_COLUMN.md for instructions.");
+    }
     
     if (existingLead?.child_photo_url && photoFile) {
         return showErrorModal("Photo Already Uploaded", "Child photo can only be uploaded once. Please contact admin to change the photo.");
@@ -2101,28 +2126,35 @@ export async function saveChildInfo() {
             
             if (error1) {
                 // If bucket not found, try alternative names
-                if (error1.message && error1.message.includes('Bucket not found')) {
+                if (error1.message && (error1.message.includes('Bucket not found') || error1.message.includes('not found'))) {
                     // Try alternative bucket names
-                    const alternativeBuckets = ['childphotos', 'photos', 'student-photos'];
+                    const alternativeBuckets = ['childphotos', 'photos', 'student-photos', 'student-photos'];
                     let uploaded = false;
                     
                     for (const altBucket of alternativeBuckets) {
-                        const { error: altError } = await supabaseClient.storage
-                            .from(altBucket)
-                            .upload(filePath, photoFile, {
-                                cacheControl: '3600',
-                                upsert: false
-                            });
-                        
-                        if (!altError) {
-                            bucketName = altBucket;
-                            uploaded = true;
-                            break;
+                        try {
+                            const { error: altError } = await supabaseClient.storage
+                                .from(altBucket)
+                                .upload(filePath, photoFile, {
+                                    cacheControl: '3600',
+                                    upsert: false
+                                });
+                            
+                            if (!altError) {
+                                bucketName = altBucket;
+                                uploaded = true;
+                                break;
+                            }
+                        } catch (e) {
+                            // Continue to next bucket
+                            continue;
                         }
                     }
                     
                     if (!uploaded) {
-                        throw new Error(`Storage bucket '${bucketName}' not found. Please contact admin to create the storage bucket.`);
+                        // Provide detailed instructions for admin
+                        const errorMsg = `Storage bucket 'child-photos' not found in Supabase.\n\nPlease create it:\n1. Go to Supabase Dashboard > Storage\n2. Click "New bucket"\n3. Name: "child-photos"\n4. Set as Public (required)\n5. Add MIME types: image/jpeg, image/jpg, image/png, image/webp\n6. Set file size limit: 1048576 (1 MB)\n\nSee STORAGE_BUCKET_SETUP.md for detailed instructions.`;
+                        throw new Error(errorMsg);
                     }
                 } else {
                     throw error1;
@@ -2161,9 +2193,11 @@ export async function saveChildInfo() {
         // Provide user-friendly error messages
         let errorMessage = e.message || 'An error occurred while saving.';
         
-        // Handle bucket not found error specifically
-        if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket')) {
-            errorMessage = 'Storage bucket not found. Please contact admin to set up the photo storage bucket.';
+        // Handle RLS policy error
+        if (errorMessage.includes('row-level security') || errorMessage.includes('RLS') || errorMessage.includes('policy')) {
+            errorMessage = 'Storage access denied. Please contact admin to set up Row Level Security policies for the storage bucket. See STORAGE_BUCKET_SETUP.md for instructions.';
+        } else if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket')) {
+            errorMessage = 'Storage bucket not found. Please contact admin to create the "child-photos" storage bucket. See STORAGE_BUCKET_SETUP.md for instructions.';
         } else if (errorMessage.includes('File size') || errorMessage.includes('size')) {
             errorMessage = 'Image file is too large. Please upload an image smaller than 1 MB.';
         } else if (errorMessage.includes('Invalid file type') || errorMessage.includes('type')) {
@@ -2559,6 +2593,58 @@ export async function viewAttendanceDetails(leadString) {
     }
 }
 
+// View child photo in larger modal
+export function viewChildPhoto(photoUrl, childName) {
+    // Escape the child name for safe HTML insertion
+    const safeName = childName.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    
+    const modal = document.getElementById('child-photo-modal');
+    if (!modal) {
+        // Create modal if it doesn't exist
+        const modalHTML = `
+            <div id="child-photo-modal" class="modal-overlay hidden z-50 fixed inset-0 bg-black/80 flex items-center justify-center backdrop-blur-sm p-4" onclick="this.classList.add('hidden')">
+                <div class="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden" onclick="event.stopPropagation()">
+                    <div class="bg-gradient-to-r from-blue-600 to-purple-600 p-4 text-white flex justify-between items-center">
+                        <h3 class="font-bold text-lg"><i class="fas fa-image mr-2"></i> <span id="child-photo-modal-name"></span></h3>
+                        <button onclick="document.getElementById('child-photo-modal').classList.add('hidden')" class="text-white hover:text-gray-200 transition">
+                            <i class="fas fa-times text-xl"></i>
+                        </button>
+                    </div>
+                    <div class="p-6 flex items-center justify-center bg-slate-50 min-h-[400px]">
+                        <img id="child-photo-large" src="" alt="" class="max-w-full max-h-[70vh] object-contain rounded-lg shadow-lg">
+                    </div>
+                </div>
+            </div>
+        `;
+        document.body.insertAdjacentHTML('beforeend', modalHTML);
+    }
+    
+    const img = document.getElementById('child-photo-large');
+    const nameEl = document.getElementById('child-photo-modal-name');
+    if (img) {
+        img.src = photoUrl;
+        img.alt = childName;
+        // Add loading state
+        img.onload = function() {
+            img.classList.remove('opacity-0');
+        };
+        img.onerror = function() {
+            img.alt = 'Failed to load image';
+            img.classList.add('opacity-50');
+        };
+        img.classList.add('opacity-0', 'transition-opacity', 'duration-300');
+    }
+    if (nameEl) {
+        nameEl.textContent = childName;
+    }
+    
+    const modalEl = document.getElementById('child-photo-modal');
+    if (modalEl) {
+        modalEl.classList.remove('hidden');
+    }
+}
+
 // Make it available globally
+window.viewChildPhoto = viewChildPhoto;
 window.viewAttendanceDetails = viewAttendanceDetails;
 export function handlePackageChange() { window.calculateTotal(); }
