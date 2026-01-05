@@ -842,6 +842,10 @@ export function openRegistrationModal(leadString, isRenewal) {
         }
     }
     
+    // Ensure packages are loaded when modal opens
+    // Call updatePackageOptions directly to ensure packages load
+    window.updatePackageOptions();
+    
     window.checkApprovalRequirement();
 
     // Check if package is admin-locked (from metadata or direct field)
@@ -909,11 +913,28 @@ export function openRegistrationModal(leadString, isRenewal) {
 }
 
 export function updatePackageOptions() {
-    const timeSlot = document.getElementById('reg-time-slot').value;
-    const batchCat = document.getElementById('reg-batch-category').value;
+    const timeSlotEl = document.getElementById('reg-time-slot');
+    const batchCat = document.getElementById('reg-batch-category')?.value || '';
     const pkgSelect = document.getElementById('reg-package-select');
     const batchEl = document.getElementById('reg-batch-category');
-    const age = parseInt(document.getElementById('reg-child-age').innerText);
+    const ageEl = document.getElementById('reg-child-age');
+    
+    // Safety checks
+    if (!pkgSelect) {
+        console.error('Package select element not found');
+        return;
+    }
+    if (!timeSlotEl) {
+        console.error('Time slot element not found');
+        return;
+    }
+    if (!ageEl) {
+        console.error('Age element not found');
+        return;
+    }
+    
+    const timeSlot = timeSlotEl.value || 'Evening'; // Default to Evening if not set
+    const age = parseInt(ageEl.innerText) || 0;
     const isAdult = age >= ADULT_AGE_THRESHOLD;
     
     // If Morning is selected for kids, update batch category to only show Morning Batch
@@ -1011,6 +1032,7 @@ export function updatePackageOptions() {
     }
     
     // Always load packages based on time slot (this should run regardless of batch selection)
+    // Clear the package select first
     pkgSelect.innerHTML = '<option value="" disabled selected>Select a Package...</option>';
     
     // Morning batch - same rate ₹5500 for all
@@ -1020,14 +1042,28 @@ export function updatePackageOptions() {
         pkgSelect.innerHTML += `<option value="${morningPkg.id}|${morningPkg.price}|${morningPkg.classes}|${morningPkg.months}">Morning Unlimited${priceText}</option>`;
     } else {
         // Evening/Weekend packages - ensure these always load for any non-Morning time slot
-        STANDARD_PACKAGES.forEach(p => {
-            const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${p.price}` : '';
-            pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label}${priceText}</option>`;
-        });
+        // This includes when timeSlot is 'Evening', empty, or any other value
+        if (STANDARD_PACKAGES && Array.isArray(STANDARD_PACKAGES) && STANDARD_PACKAGES.length > 0) {
+            STANDARD_PACKAGES.forEach(p => {
+                const priceText = ENABLE_FINANCE_FEATURES ? ` - ₹${p.price}` : '';
+                pkgSelect.innerHTML += `<option value="${p.id}|${p.price}|${p.classes}|${p.months}">${p.label}${priceText}</option>`;
+            });
+        } else {
+            console.error('STANDARD_PACKAGES is not defined or empty', STANDARD_PACKAGES);
+            pkgSelect.innerHTML += '<option value="" disabled>Error: Packages not available</option>';
+        }
+    }
+    
+    // Debug: Log if packages were loaded
+    const packageCount = pkgSelect.options.length - 1; // Subtract the placeholder option
+    if (packageCount === 0) {
+        console.warn('No packages loaded!', { timeSlot, STANDARD_PACKAGES: STANDARD_PACKAGES?.length, MORNING_PACKAGES });
     }
     
     // Always call calculateTotal to update UI
-    window.calculateTotal();
+    if (typeof window.calculateTotal === 'function') {
+        window.calculateTotal();
+    }
 }
 
 export function checkApprovalRequirement() {
