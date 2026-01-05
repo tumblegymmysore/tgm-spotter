@@ -2047,6 +2047,20 @@ export async function saveChildInfo() {
         return showErrorModal("Check Alternate Number", "Emergency Contact Number must be exactly 10 digits.");
     }
     
+    // Validate photo file size (max 1 MB)
+    if (photoFile) {
+        const maxSize = 1 * 1024 * 1024; // 1 MB in bytes
+        if (photoFile.size > maxSize) {
+            return showErrorModal("File Too Large", "Image size must be less than 1 MB. Please compress the image and try again.");
+        }
+        
+        // Validate file type
+        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+        if (!allowedTypes.includes(photoFile.type)) {
+            return showErrorModal("Invalid File Type", "Please upload a valid image file (JPEG, PNG, or WebP).");
+        }
+    }
+    
     // Check if photo already exists (one-time upload only)
     const { data: existingLead } = await supabaseClient
         .from('leads')
@@ -2068,18 +2082,56 @@ export async function saveChildInfo() {
         
         // Upload photo if provided and no existing photo
         if (photoFile && !photoUrl) {
-            const fileExt = photoFile.name.split('.').pop();
+            const fileExt = photoFile.name.split('.').pop().toLowerCase();
             const fileName = `${leadId}_${Date.now()}.${fileExt}`;
             const filePath = `child-photos/${fileName}`;
             
-            const { error: uploadError } = await supabaseClient.storage
-                .from('child-photos')
-                .upload(filePath, photoFile);
+            // Try to upload to storage bucket
+            // If bucket doesn't exist, try alternative bucket names or create it
+            let uploadError = null;
+            let bucketName = 'child-photos';
             
-            if (uploadError) throw uploadError;
+            // Try the standard bucket name first
+            const { error: error1 } = await supabaseClient.storage
+                .from(bucketName)
+                .upload(filePath, photoFile, {
+                    cacheControl: '3600',
+                    upsert: false
+                });
             
+            if (error1) {
+                // If bucket not found, try alternative names
+                if (error1.message && error1.message.includes('Bucket not found')) {
+                    // Try alternative bucket names
+                    const alternativeBuckets = ['childphotos', 'photos', 'student-photos'];
+                    let uploaded = false;
+                    
+                    for (const altBucket of alternativeBuckets) {
+                        const { error: altError } = await supabaseClient.storage
+                            .from(altBucket)
+                            .upload(filePath, photoFile, {
+                                cacheControl: '3600',
+                                upsert: false
+                            });
+                        
+                        if (!altError) {
+                            bucketName = altBucket;
+                            uploaded = true;
+                            break;
+                        }
+                    }
+                    
+                    if (!uploaded) {
+                        throw new Error(`Storage bucket '${bucketName}' not found. Please contact admin to create the storage bucket.`);
+                    }
+                } else {
+                    throw error1;
+                }
+            }
+            
+            // Get public URL
             const { data: { publicUrl } } = supabaseClient.storage
-                .from('child-photos')
+                .from(bucketName)
                 .getPublicUrl(filePath);
             
             photoUrl = publicUrl;
@@ -2106,7 +2158,19 @@ export async function saveChildInfo() {
         document.getElementById('edit-modal').classList.add('hidden');
         showSuccessModal("Updated!", "Child information has been saved.", () => window.location.reload());
     } catch (e) {
-        showErrorModal("Save Failed", e.message);
+        // Provide user-friendly error messages
+        let errorMessage = e.message || 'An error occurred while saving.';
+        
+        // Handle bucket not found error specifically
+        if (errorMessage.includes('Bucket not found') || errorMessage.includes('bucket')) {
+            errorMessage = 'Storage bucket not found. Please contact admin to set up the photo storage bucket.';
+        } else if (errorMessage.includes('File size') || errorMessage.includes('size')) {
+            errorMessage = 'Image file is too large. Please upload an image smaller than 1 MB.';
+        } else if (errorMessage.includes('Invalid file type') || errorMessage.includes('type')) {
+            errorMessage = 'Invalid file type. Please upload a JPEG, PNG, or WebP image.';
+        }
+        
+        showErrorModal("Save Failed", errorMessage);
     } finally {
         btn.disabled = false;
         btn.innerText = originalText;

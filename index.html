@@ -1079,13 +1079,14 @@
                             <p class="text-xs text-amber-600 mt-1"><i class="fas fa-info-circle"></i> Photo can only be changed by admin</p>
                         </div>
                         <div id="photo-upload-input-section">
-                            <input type="file" id="child-photo-upload" accept="image/*" class="hidden">
+                            <input type="file" id="child-photo-upload" accept="image/jpeg,image/jpg,image/png,image/webp" class="hidden">
                             <label for="child-photo-upload" class="cursor-pointer inline-block bg-blue-50 border-2 border-blue-200 border-dashed rounded-lg p-4 text-center hover:bg-blue-100 transition">
                                 <i class="fas fa-camera text-blue-600 text-xl mb-2"></i>
                                 <p class="text-xs font-semibold text-blue-700">Click to upload photo</p>
-                                <p class="text-xs text-blue-500 mt-1">One-time upload only</p>
+                                <p class="text-xs text-blue-500 mt-1">One-time upload only • Max 1 MB</p>
                             </label>
                             <p id="photo-upload-filename" class="text-xs text-slate-600 mt-1 hidden"></p>
+                            <p id="photo-upload-error" class="text-xs text-red-600 mt-1 hidden"></p>
                         </div>
                     </div>
                 </div>
@@ -1130,11 +1131,50 @@
                 photoUpload.addEventListener('change', function(e) {
                     const file = e.target.files[0];
                     const filenameEl = document.getElementById('photo-upload-filename');
+                    const errorEl = document.getElementById('photo-upload-error');
+                    
+                    // Clear previous errors
+                    if (errorEl) {
+                        errorEl.classList.add('hidden');
+                        errorEl.textContent = '';
+                    }
+                    
                     if (file) {
-                        filenameEl.textContent = `Selected: ${file.name}`;
-                        filenameEl.classList.remove('hidden');
+                        // Validate file size (1 MB = 1048576 bytes)
+                        const maxSize = 1 * 1024 * 1024; // 1 MB
+                        if (file.size > maxSize) {
+                            const fileSizeMB = (file.size / (1024 * 1024)).toFixed(2);
+                            if (errorEl) {
+                                errorEl.textContent = `File size (${fileSizeMB} MB) exceeds 1 MB limit. Please compress the image.`;
+                                errorEl.classList.remove('hidden');
+                            }
+                            // Clear the file input
+                            e.target.value = '';
+                            if (filenameEl) filenameEl.classList.add('hidden');
+                            return;
+                        }
+                        
+                        // Validate file type
+                        const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+                        if (!allowedTypes.includes(file.type)) {
+                            if (errorEl) {
+                                errorEl.textContent = 'Invalid file type. Please upload JPEG, PNG, or WebP image.';
+                                errorEl.classList.remove('hidden');
+                            }
+                            // Clear the file input
+                            e.target.value = '';
+                            if (filenameEl) filenameEl.classList.add('hidden');
+                            return;
+                        }
+                        
+                        // Show filename if valid
+                        if (filenameEl) {
+                            const fileSizeKB = (file.size / 1024).toFixed(2);
+                            filenameEl.textContent = `Selected: ${file.name} (${fileSizeKB} KB)`;
+                            filenameEl.classList.remove('hidden');
+                        }
                     } else {
-                        filenameEl.classList.add('hidden');
+                        if (filenameEl) filenameEl.classList.add('hidden');
                     }
                 });
             }
