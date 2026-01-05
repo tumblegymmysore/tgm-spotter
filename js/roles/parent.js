@@ -408,9 +408,10 @@ const STATUS_STRATEGIES = {
         return { badge: 'Trial Pending', color: 'bg-yellow-100 text-yellow-700', action: `<button disabled class="w-full bg-slate-100 text-slate-400 font-bold py-3 rounded-xl cursor-not-allowed">Waiting for Trial</button>` };
     },
     'Trial Completed': (child, str) => {
+        const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
         let txt = `Trainer recommends: <strong>${child.recommended_batch || 'Standard'}</strong>`;
         if (child.skills_rating?.personal_training) txt += ` <br>(Personal Training Advised)`;
-        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div><button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
+        return { badge: 'Assessment Ready', color: 'bg-blue-100 text-blue-700', action: `<div class="bg-blue-50 p-4 rounded-xl mb-4 border border-blue-100 flex items-start gap-3"><div class="bg-blue-600 text-white rounded-full w-6 h-6 flex items-center justify-center shrink-0 mt-0.5 shadow-sm"><i class="fas fa-check text-xs"></i></div><div><h4 class="font-bold text-blue-900 text-sm">Trial Successful!</h4><p class="text-xs text-blue-700 mt-1">${txt}</p></div></div>${hasAssessment ? `<button onclick="window.viewAssessmentDetails('${str}')" class="w-full bg-gradient-to-r from-purple-500 to-pink-500 text-white font-bold py-2.5 rounded-xl shadow-md hover:shadow-lg transition mb-3 flex items-center justify-center gap-2"><i class="fas fa-clipboard-check"></i> View Assessment Details</button>` : ''}<button onclick="window.openRegistrationModal('${str}', false)" class="w-full bg-blue-600 text-white font-bold py-3.5 rounded-xl shadow-lg shadow-blue-200 hover:bg-blue-700 transition">Proceed to Registration</button>` };
     },
     'Enrollment Requested': (child, str) => {
         const hasAssessment = child.feedback || child.skills_rating || child.recommended_batch;
@@ -1680,10 +1681,11 @@ export async function openEditModal(str) {
     document.getElementById('update-alt-phone').value = lead.alternate_phone || '';
     document.getElementById('update-address').value = lead.address || '';
     
-    // Show/hide assessment button
+    // Show/hide assessment button - only for Trial Completed status (first time after trial)
+    const isTrialCompleted = lead.status === 'Trial Completed';
     const hasAssessment = lead.feedback || lead.skills_rating || lead.recommended_batch;
     const assessmentSection = document.getElementById('assessment-button-section');
-    if (hasAssessment) {
+    if (isTrialCompleted && hasAssessment) {
         assessmentSection.classList.remove('hidden');
     } else {
         assessmentSection.classList.add('hidden');
@@ -1711,10 +1713,35 @@ export async function openEditModal(str) {
     document.getElementById('edit-modal').classList.remove('hidden');
 }
 
-// Function to extract package history from parent_note
-function extractPackageHistory(lead) {
+// Function to extract complete history (trial + packages) from lead
+function extractCompleteHistory(lead) {
     const history = [];
     const parentNote = lead.parent_note || '';
+    
+    // Extract trial information if available
+    if (lead.status === 'Trial Completed' || lead.feedback || lead.skills_rating || lead.recommended_batch) {
+        let trialDate = null;
+        if (lead.trial_scheduled_slot) {
+            const [d] = lead.trial_scheduled_slot.split('|');
+            if (d) {
+                try {
+                    trialDate = new Date(d).toISOString().split('T')[0];
+                } catch (e) {
+                    // Try to parse as is
+                    trialDate = d.trim();
+                }
+            }
+        }
+        
+        history.push({
+            type: 'trial',
+            date: trialDate,
+            recommended_batch: lead.recommended_batch,
+            feedback: lead.feedback,
+            skills_rating: lead.skills_rating,
+            hasAssessment: !!(lead.feedback || lead.skills_rating || lead.recommended_batch)
+        });
+    }
     
     // Find all PACKAGE_META blocks
     const packageMetaRegex = /\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/g;
@@ -1725,6 +1752,7 @@ function extractPackageHistory(lead) {
             const meta = JSON.parse(match[1]);
             if (meta.selected_package || meta.start_date) {
                 history.push({
+                    type: 'package',
                     package: meta.selected_package || lead.selected_package || 'Not Set',
                     start_date: meta.start_date || lead.start_date,
                     months: meta.package_months || meta.months,
@@ -1743,10 +1771,12 @@ function extractPackageHistory(lead) {
         }
     }
     
-    // If no history found but current package exists, add current package
-    if (history.length === 0 && (lead.selected_package || lead.start_date)) {
+    // If no package history found but current package exists, add current package
+    const hasPackageInHistory = history.some(h => h.type === 'package');
+    if (!hasPackageInHistory && (lead.selected_package || lead.start_date)) {
         const meta = getPackageMetadata(lead);
         history.push({
+            type: 'package',
             package: meta?.selected_package || lead.selected_package || 'Not Set',
             start_date: meta?.start_date || lead.start_date,
             months: meta?.package_months || null,
@@ -1756,26 +1786,29 @@ function extractPackageHistory(lead) {
         });
     }
     
-    // Sort by start_date (latest first)
+    // Sort by date (latest first) - trial date or package start_date
     history.sort((a, b) => {
-        if (!a.start_date) return 1;
-        if (!b.start_date) return -1;
-        return new Date(b.start_date) - new Date(a.start_date);
+        const dateA = a.type === 'trial' ? a.date : a.start_date;
+        const dateB = b.type === 'trial' ? b.date : b.start_date;
+        
+        if (!dateA) return 1;
+        if (!dateB) return -1;
+        return new Date(dateB) - new Date(dateA);
     });
     
     return history;
 }
 
-// Load and display package history
+// Load and display complete history (trial + packages)
 async function loadPackageHistory(lead) {
     const container = document.getElementById('package-history-container');
-    const history = extractPackageHistory(lead);
+    const history = extractCompleteHistory(lead);
     
     if (history.length === 0) {
         container.innerHTML = `
             <div class="text-center text-slate-400 text-sm py-4">
                 <i class="fas fa-box-open text-2xl mb-2"></i>
-                <p>No package history available</p>
+                <p>No history available</p>
             </div>
         `;
         return;
@@ -1792,54 +1825,96 @@ async function loadPackageHistory(lead) {
     
     container.innerHTML = `
         <div class="space-y-3">
-            ${history.map((pkg, index) => {
-                let packageName = pkg.package || 'Not Set';
-                // Remove price information if finance features disabled
-                if (!ENABLE_FINANCE_FEATURES && packageName) {
-                    packageName = packageName.replace(/\s*-\s*₹\d+/g, '').trim();
-                }
-                
-                return `
-                    <div class="bg-white p-4 rounded-lg border-2 ${index === 0 ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}">
-                        ${index === 0 ? '<div class="text-xs font-bold text-blue-700 mb-2"><i class="fas fa-star mr-1"></i> Current Package</div>' : ''}
-                        <div class="grid grid-cols-2 gap-3 text-sm">
-                            <div>
-                                <span class="text-slate-600 font-semibold">Package:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">${packageName}</p>
+            ${history.map((item, index) => {
+                if (item.type === 'trial') {
+                    // Trial information with assessment
+                    return `
+                        <div class="bg-gradient-to-br from-indigo-50 to-purple-50 p-4 rounded-lg border-2 border-indigo-300">
+                            <div class="text-xs font-bold text-indigo-700 mb-2 flex items-center">
+                                <i class="fas fa-clipboard-check mr-1"></i> Trial & Assessment
                             </div>
-                            ${pkg.start_date ? `
-                            <div>
-                                <span class="text-slate-600 font-semibold">Start Date:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">${formatDate(pkg.start_date)}</p>
+                            <div class="space-y-2 text-sm">
+                                ${item.date ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Trial Date:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${formatDate(item.date)}</p>
+                                </div>
+                                ` : ''}
+                                ${item.recommended_batch ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Recommended Batch:</span>
+                                    <p class="text-indigo-700 font-bold mt-0.5">${item.recommended_batch}</p>
+                                </div>
+                                ` : ''}
+                                ${item.feedback ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Trainer Feedback:</span>
+                                    <p class="text-slate-700 mt-0.5 text-xs bg-white p-2 rounded border border-slate-200">${sanitizeInput(item.feedback.substring(0, 150))}${item.feedback.length > 150 ? '...' : ''}</p>
+                                </div>
+                                ` : ''}
+                                ${item.skills_rating ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Skills Assessed:</span>
+                                    <p class="text-slate-700 mt-0.5 text-xs">${Object.keys(item.skills_rating).filter(k => item.skills_rating[k]).length} skill areas evaluated</p>
+                                </div>
+                                ` : ''}
                             </div>
-                            ` : ''}
-                            ${pkg.end_date ? `
-                            <div>
-                                <span class="text-slate-600 font-semibold">End Date:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">${formatDate(pkg.end_date)}</p>
-                            </div>
-                            ` : ''}
-                            ${pkg.months ? `
-                            <div>
-                                <span class="text-slate-600 font-semibold">Duration:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">${pkg.months} Month${pkg.months > 1 ? 's' : ''}</p>
-                            </div>
-                            ` : ''}
-                            ${pkg.classes ? `
-                            <div>
-                                <span class="text-slate-600 font-semibold">Classes:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">${pkg.classes === 999 ? 'Unlimited' : pkg.classes}</p>
-                            </div>
-                            ` : ''}
-                            ${ENABLE_FINANCE_FEATURES && pkg.price ? `
-                            <div>
-                                <span class="text-slate-600 font-semibold">Price:</span>
-                                <p class="text-slate-900 font-bold mt-0.5">₹${pkg.price}</p>
-                            </div>
-                            ` : ''}
                         </div>
-                    </div>
-                `;
+                    `;
+                } else {
+                    // Package information
+                    let packageName = item.package || 'Not Set';
+                    // Remove price information if finance features disabled
+                    if (!ENABLE_FINANCE_FEATURES && packageName) {
+                        packageName = packageName.replace(/\s*-\s*₹\d+/g, '').trim();
+                    }
+                    
+                    // Find the first package in history (most recent)
+                    const firstPackageIndex = history.findIndex(h => h.type === 'package');
+                    const isCurrentPackage = firstPackageIndex === index;
+                    
+                    return `
+                        <div class="bg-white p-4 rounded-lg border-2 ${isCurrentPackage ? 'border-blue-300 bg-blue-50' : 'border-slate-200'}">
+                            ${isCurrentPackage ? '<div class="text-xs font-bold text-blue-700 mb-2"><i class="fas fa-star mr-1"></i> Current Package</div>' : ''}
+                            <div class="grid grid-cols-2 gap-3 text-sm">
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Package:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${packageName}</p>
+                                </div>
+                                ${item.start_date ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Start Date:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${formatDate(item.start_date)}</p>
+                                </div>
+                                ` : ''}
+                                ${item.end_date ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">End Date:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${formatDate(item.end_date)}</p>
+                                </div>
+                                ` : ''}
+                                ${item.months ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Duration:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${item.months} Month${item.months > 1 ? 's' : ''}</p>
+                                </div>
+                                ` : ''}
+                                ${item.classes ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Classes:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">${item.classes === 999 ? 'Unlimited' : item.classes}</p>
+                                </div>
+                                ` : ''}
+                                ${ENABLE_FINANCE_FEATURES && item.price ? `
+                                <div>
+                                    <span class="text-slate-600 font-semibold">Price:</span>
+                                    <p class="text-slate-900 font-bold mt-0.5">₹${item.price}</p>
+                                </div>
+                                ` : ''}
+                            </div>
+                        </div>
+                    `;
+                }
             }).join('')}
         </div>
     `;
