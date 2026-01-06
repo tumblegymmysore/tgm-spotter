@@ -34,7 +34,8 @@ export async function loadAdminDashboard(adminName) {
         
         // Load appropriate data based on tab
         if (tab === 'trials') {
-            fetchAdminTrials();
+            // In admin context, trials tab shows registrations
+            fetchPendingRegistrations();
         } else if (tab === 'inbox') {
             // Inbox tab shows messages/conversations
             fetchAdminInbox();
@@ -46,9 +47,9 @@ export async function loadAdminDashboard(adminName) {
     };
     
     // Load Data - Start with pending registrations (trials tab shows registrations)
-    // Switch to trials tab and load pending registrations
+    // Switch to trials tab and ensure data is loaded
     window.switchTab('trials');
-    await fetchPendingRegistrations();
+    // fetchPendingRegistrations is called by switchTab, but we await here to ensure initialization completes
 }
 
 // --- 2. ADMIN TABS UPDATE ---
@@ -359,33 +360,20 @@ export async function fetchPendingRegistrations() {
     listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading registrations...</p>';
 
     try {
-        // First, let's get ALL leads to see what statuses exist (for debugging)
-        const { data: allData, error: allError } = await supabaseClient
-            .from('leads')
-            .select('id, child_name, status')
-            .order('created_at', { ascending: false })
-            .limit(100);
-        
-        console.log('All leads statuses:', allData?.map(l => ({ name: l.child_name, status: l.status })));
-        
         // Fetch all leads that need admin attention or are enrolled
         // Include: Registration Requested, Enrollment Requested, Ready to Pay, and Enrolled
+        // Order by created_at descending to show latest cards first
         const { data, error } = await supabaseClient
             .from('leads')
             .select('*')
             .in('status', ['Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Enrolled', 'Trial Completed'])
             .order('created_at', { ascending: false })
-            .limit(100); // Increased limit to ensure we get all pending registrations
-        
-        console.log('Filtered leads:', data?.length, 'Statuses found:', [...new Set(data?.map(l => l.status))]);
-        console.log('Registration Requested count:', data?.filter(l => l.status === 'Registration Requested').length);
+            .limit(200); // Increased limit to ensure we get all pending registrations
 
         if (error) {
             console.error('Database error:', error);
             throw error;
         }
-        
-        console.log('Fetched leads:', data?.length || 0);
 
         listNew.innerHTML = ''; 
         listDone.innerHTML = '';
