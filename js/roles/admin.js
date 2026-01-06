@@ -2,7 +2,7 @@
 import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, ENABLE_FINANCE_FEATURES } from '../config.js';
 import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
-import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
+import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary, getAttendanceHistory } from '../attendance.js';
 
 // --- 1. DASHBOARD LOADER ---
 export async function loadAdminDashboard(adminName) {
@@ -21,10 +21,6 @@ export async function loadAdminDashboard(adminName) {
     // Update tab labels for admin context
     updateAdminTabs();
     
-    // Show admin search bar
-    const searchBar = document.getElementById('admin-search-bar');
-    if (searchBar) searchBar.classList.remove('hidden');
-    
     // Override switchTab for admin context
     window.switchTab = function(tab) {
         document.querySelectorAll('.tab-content').forEach(e => e.classList.add('hidden'));
@@ -32,9 +28,20 @@ export async function loadAdminDashboard(adminName) {
         document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('text-blue-600','border-b-2'); b.classList.add('text-slate-500'); });
         document.getElementById(`tab-btn-${tab}`).classList.add('text-blue-600', 'border-b-2');
         
+        // Show/hide search bars based on tab
+        const trialsSearchBar = document.getElementById('admin-search-bar-trials');
+        const registrationsSearchBar = document.getElementById('admin-search-bar-registrations');
+        if (trialsSearchBar) trialsSearchBar.classList.add('hidden');
+        if (registrationsSearchBar) registrationsSearchBar.classList.add('hidden');
+        
         // Load appropriate data based on tab
         if (tab === 'trials') {
-            // In admin context, trials tab shows registrations
+            // Show trials search bar
+            if (trialsSearchBar) trialsSearchBar.classList.remove('hidden');
+            fetchAdminTrials();
+        } else if (tab === 'registrations') {
+            // Show registrations search bar
+            if (registrationsSearchBar) registrationsSearchBar.classList.remove('hidden');
             fetchPendingRegistrations();
         } else if (tab === 'inbox') {
             // Inbox tab shows messages/conversations
@@ -46,34 +53,37 @@ export async function loadAdminDashboard(adminName) {
         }
     };
     
-    // Load Data - Start with pending registrations (trials tab shows registrations)
-    // Switch to trials tab and ensure data is loaded
+    // Load Data - Start with trials tab
     window.switchTab('trials');
-    // fetchPendingRegistrations is called by switchTab, but we await here to ensure initialization completes
 }
 
 // --- 2. ADMIN TABS UPDATE ---
 function updateAdminTabs() {
     const trialsTab = document.getElementById('tab-btn-trials');
+    const registrationsTab = document.getElementById('tab-btn-registrations');
     const inboxTab = document.getElementById('tab-btn-inbox');
     const batchesTab = document.getElementById('tab-btn-batches');
     const attendanceTab = document.getElementById('tab-btn-attendance');
     
     if (trialsTab) {
-        trialsTab.innerHTML = '<i class="fas fa-file-invoice-dollar mr-2"></i>Registrations';
-        trialsTab.onclick = () => { window.switchTab('trials'); fetchPendingRegistrations(); };
+        trialsTab.innerHTML = '<i class="fas fa-clipboard-list mr-2"></i>Trials';
+        trialsTab.onclick = () => { window.switchTab('trials'); };
+    }
+    if (registrationsTab) {
+        registrationsTab.innerHTML = '<i class="fas fa-file-invoice-dollar mr-2"></i>Registrations';
+        registrationsTab.onclick = () => { window.switchTab('registrations'); };
     }
     if (inboxTab) {
-        inboxTab.innerHTML = '<i class="fas fa-comments mr-2"></i>Messages';
-        inboxTab.onclick = () => { window.switchTab('inbox'); fetchAdminInbox(); };
+        inboxTab.innerHTML = '<i class="fas fa-inbox mr-2"></i>Messages';
+        inboxTab.onclick = () => { window.switchTab('inbox'); };
     }
     if (batchesTab) {
-        batchesTab.innerHTML = '<i class="fas fa-user-times mr-2"></i>Declined/Follow-ups';
-        batchesTab.onclick = () => { window.switchTab('batches'); fetchDeclinedRegistrations(); };
+        batchesTab.innerHTML = '<i class="fas fa-user-times mr-2"></i>Declined';
+        batchesTab.onclick = () => { window.switchTab('batches'); };
     }
     if (attendanceTab) {
         attendanceTab.innerHTML = '<i class="fas fa-users mr-2"></i>All Students';
-        attendanceTab.onclick = () => { window.switchTab('attendance'); fetchAllStudents(); };
+        attendanceTab.onclick = () => { window.switchTab('attendance'); };
     }
 }
 
@@ -160,34 +170,60 @@ export async function fetchAdminTrials() {
         
         // Expiry date filter (for enrolled students)
         if (adminFilters.expiryDateFrom || adminFilters.expiryDateTo) {
-            filteredData = filteredData.filter(lead => {
-                if (lead.status !== 'Enrolled') return false;
-                
-                // Get package_months from metadata if stored in parent_note
-                let packageMonths = lead.package_months;
-                if (!packageMonths && lead.parent_note) {
-                    const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
-                    if (metaMatch) {
-                        try {
-                            const meta = JSON.parse(metaMatch[1]);
-                            packageMonths = meta.package_months;
-                        } catch (e) {
-                            console.warn('Could not parse package metadata for expiry', e);
+            // Use Promise.all for async filtering
+            const filteredResults = await Promise.all(
+                filteredData.map(async (lead) => {
+                    if (lead.status !== 'Enrolled') return { lead, include: false };
+                    
+                    // Get package_months from metadata if stored in parent_note
+                    let packageMonths = lead.package_months;
+                    if (!packageMonths && lead.parent_note) {
+                        const metaMatch = lead.parent_note.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
+                        if (metaMatch) {
+                            try {
+                                const meta = JSON.parse(metaMatch[1]);
+                                packageMonths = meta.package_months;
+                            } catch (e) {
+                                console.warn('Could not parse package metadata for expiry', e);
+                            }
                         }
                     }
-                }
-                
-                if (!packageMonths) return false;
-                
-                // Calculate expiry date (enrollment_date may not exist, use created_at)
-                const startDate = new Date(lead.created_at);
-                const expiryDate = new Date(startDate);
-                expiryDate.setMonth(expiryDate.getMonth() + (packageMonths || 0));
-                
-                if (adminFilters.expiryDateFrom && expiryDate < new Date(adminFilters.expiryDateFrom)) return false;
-                if (adminFilters.expiryDateTo && expiryDate > new Date(adminFilters.expiryDateTo)) return false;
-                return true;
-            });
+                    
+                    if (!packageMonths) return { lead, include: false };
+                    
+                    // Calculate expiry date using first attendance date, not expected start date
+                    const firstAttendanceDate = await getFirstAttendanceDate(lead.id);
+                    // Use first attendance date if available, otherwise fallback to expected start date or created_at
+                    let startDate;
+                    if (firstAttendanceDate) {
+                        startDate = new Date(firstAttendanceDate);
+                    } else {
+                        // Try to get expected_start_date from metadata
+                        const metaMatch = lead.parent_note?.match(/\[PACKAGE_META\](.*?)\[\/PACKAGE_META\]/);
+                        if (metaMatch) {
+                            try {
+                                const meta = JSON.parse(metaMatch[1]);
+                                if (meta.expected_start_date) {
+                                    startDate = new Date(meta.expected_start_date);
+                                } else {
+                                    startDate = new Date(lead.created_at);
+                                }
+                            } catch (e) {
+                                startDate = new Date(lead.created_at);
+                            }
+                        } else {
+                            startDate = new Date(lead.created_at);
+                        }
+                    }
+                    const expiryDate = new Date(startDate);
+                    expiryDate.setMonth(expiryDate.getMonth() + (packageMonths || 0));
+                    
+                    if (adminFilters.expiryDateFrom && expiryDate < new Date(adminFilters.expiryDateFrom)) return { lead, include: false };
+                    if (adminFilters.expiryDateTo && expiryDate > new Date(adminFilters.expiryDateTo)) return { lead, include: false };
+                    return { lead, include: true };
+                })
+            );
+            filteredData = filteredResults.filter(r => r.include).map(r => r.lead);
         }
         
         listNew.innerHTML = '';
@@ -343,21 +379,15 @@ function createAdminCompletedTrialCard(lead) {
     </div>`;
 }
 
-// --- 2. FETCH PENDING PAYMENTS ---
+// --- 2. FETCH PENDING REGISTRATIONS ---
 export async function fetchPendingRegistrations() {
-    const listNew = document.getElementById('list-new-trials'); 
-    const listDone = document.getElementById('list-completed-trials');
+    const listPending = document.getElementById('list-pending-registrations'); 
+    const listEnrolled = document.getElementById('list-enrolled-students');
     
-    if (!listNew) return;
+    if (!listPending) return;
 
-    // Update Titles for Admin Context
-    const newRequestsTitle = listNew.previousElementSibling;
-    if (newRequestsTitle) newRequestsTitle.innerHTML = '<i class="fas fa-star text-yellow-400 mr-2"></i> Pending Registrations';
-    
-    const completedTitle = listDone.previousElementSibling;
-    if (completedTitle) completedTitle.innerHTML = '<i class="fas fa-check-double mr-2"></i> Recently Enrolled';
-
-    listNew.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading registrations...</p>';
+    listPending.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading registrations...</p>';
+    if (listEnrolled) listEnrolled.innerHTML = '';
 
     try {
         // Fetch all leads that need admin attention or are enrolled
@@ -375,11 +405,12 @@ export async function fetchPendingRegistrations() {
             throw error;
         }
 
-        listNew.innerHTML = ''; 
-        listDone.innerHTML = '';
+        listPending.innerHTML = ''; 
+        if (listEnrolled) listEnrolled.innerHTML = '';
 
         if (!data || data.length === 0) { 
-            listNew.innerHTML = '<p class="text-slate-400 text-sm">No pending payments.</p>'; 
+            listPending.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No pending registrations.</p>'; 
+            if (listEnrolled) listEnrolled.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No enrolled students yet.</p>';
             return; 
         }
         
@@ -395,27 +426,47 @@ export async function fetchPendingRegistrations() {
             const isNew = createdDate >= oneDayAgo;
             
             if (lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Ready to Pay' || lead.status === 'Trial Completed') {
-                listNew.innerHTML += createVerificationCard(lead, isNew);
+                listPending.innerHTML += createVerificationCard(lead, isNew);
                 pendingCount++;
             } else if (lead.status === 'Enrolled') {
-                listDone.innerHTML += createEnrolledCard(lead);
+                if (listEnrolled) listEnrolled.innerHTML += createEnrolledCard(lead);
                 enrolledCount++;
             }
         });
         
         if (pendingCount === 0) {
-            listNew.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No pending registrations. All clear! 🎉</p>';
+            listPending.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No pending registrations. All clear! 🎉</p>';
         }
         
-        if (enrolledCount === 0) {
-            listDone.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No enrolled students yet.</p>';
+        if (enrolledCount === 0 && listEnrolled) {
+            listEnrolled.innerHTML = '<p class="text-slate-400 text-sm text-center py-4">No enrolled students yet.</p>';
         }
 
     } catch (err) {
         console.error("Admin Fetch Error:", err);
-        listNew.innerHTML = `<p class="text-red-500 text-sm">System Error: ${err.message}</p>`;
+        listPending.innerHTML = `<p class="text-red-500 text-sm">System Error: ${err.message}</p>`;
     }
 }
+
+// Handle search for registrations tab
+window.handleAdminSearchRegistrations = function() {
+    const searchInput = document.getElementById('admin-search-input-registrations');
+    if (searchInput) {
+        // Filter registrations based on search
+        const searchTerm = searchInput.value.trim().toLowerCase();
+        const pendingCards = document.querySelectorAll('#list-pending-registrations > div');
+        const enrolledCards = document.querySelectorAll('#list-enrolled-students > div');
+        
+        [...pendingCards, ...enrolledCards].forEach(card => {
+            const text = card.textContent.toLowerCase();
+            if (text.includes(searchTerm) || !searchTerm) {
+                card.style.display = '';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+};
 
 // --- ADMIN INBOX: View all conversations (trainer-parent, admin-parent, admin-trainer) ---
 export async function fetchAdminInbox() {
@@ -873,6 +924,31 @@ export async function rejectPayment(leadId) {
 
 // --- 5. PACKAGE MODIFICATION ---
 
+/**
+ * Get the first attendance date for a student
+ * @param {number} studentId - Student lead ID
+ * @returns {Promise<string|null>} First attendance date in YYYY-MM-DD format, or null if no attendance
+ */
+async function getFirstAttendanceDate(studentId) {
+    try {
+        const attendanceHistory = await getAttendanceHistory(studentId);
+        if (!attendanceHistory || attendanceHistory.length === 0) {
+            return null;
+        }
+        
+        // Get all attendance dates and sort them
+        const dates = attendanceHistory
+            .map(record => record.attendance_date || record.date)
+            .filter(date => date)
+            .sort();
+        
+        return dates.length > 0 ? dates[0] : null;
+    } catch (error) {
+        console.warn('Error getting first attendance date:', error);
+        return null;
+    }
+}
+
 export async function modifyAdminPackage(leadId) {
     try {
         const { data: lead, error } = await supabaseClient
@@ -1062,6 +1138,29 @@ export async function modifyAdminPackage(leadId) {
             if (feeDisplaySection) feeDisplaySection.classList.remove('hidden');
             if (priceRow) priceRow.classList.remove('hidden');
         }
+        
+        // Update modal title based on finance features
+        const modalTitle = document.getElementById('admin-package-modal-title');
+        if (modalTitle) {
+            if (ENABLE_FINANCE_FEATURES) {
+                modalTitle.innerHTML = '<i class="fas fa-cog mr-2"></i> Modify Package & Pricing';
+            } else {
+                modalTitle.innerHTML = '<i class="fas fa-cog mr-2"></i> Modify Package';
+            }
+        }
+        
+        // Set minimum date for expected start date fields (today)
+        const startDateFields = ['admin-pkg-standard-start-date', 'admin-pkg-morning-start-date', 'admin-pkg-custom-start-date', 'admin-pkg-pt-start-date'];
+        startDateFields.forEach(fieldId => {
+            const field = document.getElementById(fieldId);
+            if (field) {
+                field.min = new Date().toISOString().split('T')[0];
+                // Pre-fill existing expected start date from metadata if available
+                if (meta?.expected_start_date && fieldId !== 'admin-pkg-pt-start-date') {
+                    field.value = meta.expected_start_date;
+                }
+            }
+        });
         
         document.getElementById('admin-package-modal').classList.remove('hidden');
         window.calculateAdminPackageTotal();
@@ -1269,6 +1368,13 @@ export async function saveAdminPackage() {
         const basePrice = parseInt(price);
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
+        // Get expected start date
+        const expectedStartDate = document.getElementById('admin-pkg-standard-start-date').value;
+        if (!expectedStartDate) {
+            showErrorModal("Date Required", "Please select an expected start date.");
+            return;
+        }
+        
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
         packageMetadata.selected_package = pkg.label;
@@ -1277,6 +1383,7 @@ export async function saveAdminPackage() {
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = parseInt(classes);
         packageMetadata.package_months = parseInt(months);
+        packageMetadata.expected_start_date = expectedStartDate;
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'morning') {
@@ -1290,6 +1397,13 @@ export async function saveAdminPackage() {
         const basePrice = parseInt(price);
         const finalPackagePrice = customFees.package_fee_override || basePrice;
         
+        // Get expected start date
+        const expectedStartDate = document.getElementById('admin-pkg-morning-start-date').value;
+        if (!expectedStartDate) {
+            showErrorModal("Date Required", "Please select an expected start date.");
+            return;
+        }
+        
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
         packageMetadata.selected_package = pkg.label;
@@ -1298,6 +1412,7 @@ export async function saveAdminPackage() {
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = parseInt(classes);
         packageMetadata.package_months = parseInt(months);
+        packageMetadata.expected_start_date = expectedStartDate;
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'pt') {
@@ -1318,25 +1433,12 @@ export async function saveAdminPackage() {
         }
         
         if (!startDate) {
-            showErrorModal("Date Required", "Please select a start date for Personal Training.");
+            showErrorModal("Date Required", "Please select an expected start date for Personal Training.");
             return;
         }
         
-        // Calculate validity end date
-        let validityEndDate = null;
-        if (validityType === 'specific') {
-            if (!validityDate) {
-                showErrorModal("Date Required", "Please select an end date for validity.");
-                return;
-            }
-            validityEndDate = validityDate;
-        } else {
-            const start = new Date(startDate);
-            const months = validityType === 'month' ? 1 : validityType === 'quarter' ? 3 : validityType === 'halfyearly' ? 6 : 12;
-            validityEndDate = new Date(start);
-            validityEndDate.setMonth(validityEndDate.getMonth() + months);
-            validityEndDate = validityEndDate.toISOString().split('T')[0];
-        }
+        // For PT, expected start date is stored as start_date in pt_details
+        // Note: Actual end date calculation will use first attendance date, not this expected start date
         
         const basePrice = rate * sessions;
         const finalPackagePrice = customFees.package_fee_override || basePrice;
@@ -1353,13 +1455,38 @@ export async function saveAdminPackage() {
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = sessions;
         packageMetadata.package_months = null; // PT uses specific dates
+        packageMetadata.expected_start_date = startDate; // Store expected start date
+        
+        // Calculate validity end date for PT based on validity type
+        let validityEndDate = null;
+        if (validityType === 'specific') {
+            if (validityDate) {
+                validityEndDate = validityDate;
+            }
+        } else {
+            const start = new Date(startDate);
+            const months = validityType === 'month' ? 1 : validityType === 'quarter' ? 3 : validityType === 'halfyearly' ? 6 : 12;
+            validityEndDate = new Date(start);
+            validityEndDate.setMonth(validityEndDate.getMonth() + months);
+            validityEndDate = validityEndDate.toISOString().split('T')[0];
+        }
+        
         packageMetadata.pt_details = {
             rate_per_session: rate,
             sessions: sessions,
-            start_date: startDate,
+            start_date: startDate, // This is expected start date
             validity_type: validityType,
-            validity_end_date: validityEndDate
+            validity_end_date: validityEndDate // Store calculated validity end date
         };
+        
+        // For PT, if enrolling (finance disabled), set actual dates
+        // Note: Actual end date will be recalculated based on first attendance date later
+        if (!ENABLE_FINANCE_FEATURES) {
+            packageMetadata.actual_start_date = startDate;
+            packageMetadata.actual_end_date = validityEndDate; // Initial end date (may be updated based on first attendance)
+            packageMetadata.remaining_classes = sessions; // Initialize remaining sessions
+        }
+        
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'custom') {
@@ -1372,6 +1499,14 @@ export async function saveAdminPackage() {
             showErrorModal("Input Required", "Please fill all custom package fields.");
             return;
         }
+        
+        // Get expected start date
+        const expectedStartDate = document.getElementById('admin-pkg-custom-start-date').value;
+        if (!expectedStartDate) {
+            showErrorModal("Date Required", "Please select an expected start date.");
+            return;
+        }
+        
         const finalPackagePrice = customFees.package_fee_override || price;
         
         // Store ALL package data in metadata (columns may not exist)
@@ -1381,14 +1516,38 @@ export async function saveAdminPackage() {
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = classes;
         packageMetadata.package_months = months;
+        packageMetadata.expected_start_date = expectedStartDate;
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     }
 
-    // Update status to "Ready to Pay" if it was "Enrollment Requested"
+    // Update status based on finance features flag
     const currentStatus = document.getElementById('admin-pkg-status').innerText;
     if (currentStatus === 'Enrollment Requested' || currentStatus === 'Trial Completed') {
-        packageData.status = 'Ready to Pay';
+        if (ENABLE_FINANCE_FEATURES) {
+            // With finance features: Enrollment Requested → Ready to Pay
+            packageData.status = 'Ready to Pay';
+        } else {
+            // Without finance features: Enrollment Requested → Enrolled (direct acceptance)
+            packageData.status = 'Enrolled';
+            
+            // When enrolling, set actual start date, end date, and classes
+            // Start date is the expected_start_date entered by admin
+            const startDate = packageMetadata.expected_start_date;
+            if (startDate && packageMetadata.package_months) {
+                // Calculate end date: start date + package_months
+                const start = new Date(startDate);
+                const endDate = new Date(start);
+                endDate.setMonth(endDate.getMonth() + packageMetadata.package_months);
+                packageMetadata.actual_start_date = startDate; // Store actual start date
+                packageMetadata.actual_end_date = endDate.toISOString().split('T')[0]; // Store calculated end date
+            }
+            
+            // Ensure package classes are stored
+            if (packageMetadata.package_classes) {
+                packageMetadata.remaining_classes = packageMetadata.package_classes; // Initialize remaining classes
+            }
+        }
         // Use recommended_batch instead of final_batch (which doesn't exist in DB)
         const currentBatch = document.getElementById('admin-pkg-current-batch').innerText;
         if (currentBatch && currentBatch !== 'Not Set') {
@@ -1419,7 +1578,17 @@ export async function saveAdminPackage() {
         if (error) throw error;
 
         document.getElementById('admin-package-modal').classList.add('hidden');
-        showSuccessModal("Package Updated!", "Package details have been saved. Parent can now proceed with payment.");
+        
+        // Show appropriate success message based on status and finance features
+        const finalStatus = packageData.status || currentStatus;
+        if (!ENABLE_FINANCE_FEATURES && finalStatus === 'Enrolled') {
+            showSuccessModal("Enrollment Accepted!", "Student has been enrolled. Start date, end date, and classes have been set.");
+        } else if (ENABLE_FINANCE_FEATURES && finalStatus === 'Ready to Pay') {
+            showSuccessModal("Package Updated!", "Package details have been saved. Parent can now proceed with payment.");
+        } else {
+            showSuccessModal("Package Updated!", "Package details have been saved successfully.");
+        }
+        
         fetchPendingRegistrations();
 
     } catch (err) {
