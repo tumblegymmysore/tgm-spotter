@@ -44,6 +44,23 @@ export function getPackagePrice(lead) {
     return meta?.package_price || lead.package_price || 0;
 }
 
+// Helper to get child photo thumbnail HTML
+export function getChildPhotoThumbnail(child, size = 'w-12 h-12') {
+    const photoUrl = child.child_photo_url;
+    const childName = child.child_name || 'Student';
+    
+    // Escape for HTML safety
+    const safePhotoUrl = photoUrl ? photoUrl.replace(/'/g, "&#39;").replace(/"/g, "&quot;") : '';
+    const safeChildName = childName.replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+    const initial = childName.charAt(0).toUpperCase();
+    
+    if (photoUrl) {
+        return `<img src="${safePhotoUrl}" alt="${safeChildName}" class="${size} rounded-full object-cover border-2 border-slate-200 cursor-pointer hover:border-blue-400 hover:scale-105 transition-all shadow-sm flex-shrink-0" onclick="window.viewChildPhoto && window.viewChildPhoto('${safePhotoUrl.replace(/'/g, "\\'")}', '${safeChildName.replace(/'/g, "\\'")}')" title="Click to view larger" onerror="this.onerror=null; this.parentElement.innerHTML='<div class=\\'${size} rounded-full bg-gradient-to-br from-blue-100 to-purple-100 text-slate-600 flex items-center justify-center font-bold text-lg border-2 border-slate-200 shadow-sm flex-shrink-0\\'>${initial}</div>';" />`;
+    } else {
+        return `<div class="${size} rounded-full bg-gradient-to-br from-blue-100 to-purple-100 text-slate-600 flex items-center justify-center font-bold text-lg border-2 border-slate-200 shadow-sm flex-shrink-0">${initial}</div>`;
+    }
+}
+
 // 1. Age Calculator
 export function calculateAge(dob) {
     if(!dob) return 0;

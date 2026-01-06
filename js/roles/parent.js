@@ -632,6 +632,11 @@ function generateStudentCard(child, count) {
 
 // --- 4. REGISTRATION & UTILS (All Functionality Preserved) ---
 export function openRegistrationModal(leadString, isRenewal) {
+    // Update static text based on finance features flag
+    const batchChangeApprovalText = document.getElementById('batch-change-approval-text');
+    if (batchChangeApprovalText) {
+        batchChangeApprovalText.textContent = `This change requires admin approval${ENABLE_FINANCE_FEATURES ? ' before you can proceed with payment' : ''}.`;
+    }
     const child = JSON.parse(decodeURIComponent(leadString));
     currentRegistrationId = child.id;
     currentLeadData = child;
@@ -1161,7 +1166,11 @@ export function checkApprovalRequirement() {
             // If changing from group to PT, need approval
             if (!recommendedPT) {
                 needsApproval = true;
-                approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details, rate, and validity period before proceeding with payment.';
+                if (ENABLE_FINANCE_FEATURES) {
+                    approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details, rate, and validity period before proceeding with payment.';
+                } else {
+                    approvalMessage = 'Since you\'ve selected Personal Training, please discuss with admin regarding session details and validity period. Admin will review and approve your enrollment.';
+                }
             } else {
                 // If PT was recommended, hide approval notice (PT details box already covers it)
                 needsApproval = false;
@@ -1211,12 +1220,14 @@ export function checkApprovalRequirement() {
                 if (reasonField) {
                     reasonField.required = true;
                     if (!reasonField.value.trim()) {
-                        approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                        const paymentText = ENABLE_FINANCE_FEATURES ? ' Admin will review and confirm.' : ' Admin will review and approve your enrollment.';
+                        approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change.${paymentText}`;
                     } else {
-                        approvalMessage = `Batch change request submitted. Admin will review your reason and confirm.`;
+                        approvalMessage = `Batch change request submitted. Admin will review your reason and ${ENABLE_FINANCE_FEATURES ? 'confirm' : 'approve your enrollment'}.`;
                     }
                 } else {
-                    approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change. Admin will review and confirm.`;
+                    const paymentText = ENABLE_FINANCE_FEATURES ? ' Admin will review and confirm.' : ' Admin will review and approve your enrollment.';
+                    approvalMessage = `You've selected a different batch (${batchCat}) than recommended (${currentLeadData.recommended_batch}). Please provide a reason for this change.${paymentText}`;
                 }
             }
         }

@@ -1,5 +1,5 @@
-import { supabaseClient, supabaseKey, ADULT_AGE_THRESHOLD } from '../config.js'; 
-import { showView, showSuccessModal, showErrorModal, calculateAge } from '../utils.js';
+import { supabaseClient, supabaseKey, ADULT_AGE_THRESHOLD, ENABLE_FINANCE_FEATURES } from '../config.js'; 
+import { showView, showSuccessModal, showErrorModal, calculateAge, getChildPhotoThumbnail } from '../utils.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
 
 let currentAssessmentLead = null;
@@ -63,13 +63,16 @@ function createTrialCard(lead) {
     const colorClass = isPending ? 'border-l-4 border-yellow-400' : 'border-l-4 border-green-500 opacity-75';
     const age = calculateAge(lead.dob);
     const dobDisplay = lead.dob ? new Date(lead.dob).toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'N/A';
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border border-slate-200 ${colorClass} hover:shadow-md transition mb-3">
         <div class="flex justify-between items-start">
-            <div>
-                <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
-                <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                <p class="text-xs text-blue-600 font-bold mt-1"><i class="fas fa-birthday-cake mr-1"></i>DOB: ${dobDisplay} • Age: ${age} Yrs</p>
+            <div class="flex items-center gap-3 flex-1">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span></h4>
+                    <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
+                    <p class="text-xs text-blue-600 font-bold mt-1"><i class="fas fa-birthday-cake mr-1"></i>DOB: ${dobDisplay} • Age: ${age} Yrs</p>
                 <button onclick="window.openChat('${leadString}')" class="mt-2 text-xs font-bold text-blue-600 bg-blue-50 hover:bg-blue-100 px-3 py-1 rounded-full border border-blue-200 transition flex items-center">
                     <i class="fas fa-comment-dots mr-2"></i> Message Parent
                 </button>
@@ -122,7 +125,7 @@ export async function openAssessment(leadString) {
             .select('id, child_name, dob, status, recommended_batch')
             .eq('email', lead.email)
             .neq('id', lead.id)
-            .in('status', ['Enrolled', 'Trial Completed', 'Registration Requested', 'Ready to Pay']);
+            .in('status', ['Enrolled', 'Trial Completed', 'Registration Requested'].concat(ENABLE_FINANCE_FEATURES ? ['Ready to Pay'] : []));
         
         if (siblings && siblings.length > 0) {
             const siblingsHtml = siblings.map(s => {
@@ -242,11 +245,12 @@ function renderInbox(conversations) {
     filtered.forEach(conv => {
         const leadString = encodeURIComponent(JSON.stringify(conv.details));
         const unreadClass = conv.unread > 0 ? 'bg-blue-50 border-l-4 border-blue-500' : 'bg-white hover:bg-slate-50';
+        const photoThumbnail = getChildPhotoThumbnail(conv.details, 'w-10 h-10');
         container.innerHTML += `
             <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
                 <div class="flex items-center">
-                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">${conv.details.child_name.charAt(0)}</div>
-                    <div class="overflow-hidden">
+                    ${photoThumbnail}
+                    <div class="overflow-hidden ml-3">
                         <h4 class="font-bold text-slate-800 text-sm truncate">${conv.details.parent_name}</h4>
                         <p class="text-xs text-slate-500 truncate w-48">${conv.lastMessage.sender_role === 'trainer' ? 'You: ' : ''}${conv.lastMessage.message_text}</p>
                     </div>

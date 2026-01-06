@@ -1,6 +1,6 @@
 // js/roles/admin.js
 import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, ENABLE_FINANCE_FEATURES } from '../config.js';
-import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata } from '../utils.js';
+import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata, getChildPhotoThumbnail } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary, getAttendanceHistory } from '../attendance.js';
 
@@ -316,13 +316,17 @@ window.removeAdminFilter = function(type) {
 
 function createAdminTrialCard(lead) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border-l-4 border-yellow-400 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span> <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
-                <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
+            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <span class="text-xs font-normal text-slate-500">(${lead.gender})</span> <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
+                    <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
+                    <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
+                </div>
             </div>
             <span class="bg-yellow-100 text-yellow-700 text-[10px] font-bold px-2 py-1 rounded">Pending</span>
         </div>
@@ -355,12 +359,16 @@ function createAdminTrialCard(lead) {
 
 function createAdminCompletedTrialCard(lead) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
     return `
     <div class="bg-slate-50 p-4 rounded-lg shadow-sm border-l-4 border-green-500 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
-                <p class="text-xs text-slate-500">${lead.parent_name}</p>
+            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
+                    <p class="text-xs text-slate-500">${lead.parent_name}</p>
+                </div>
             </div>
             <span class="bg-green-100 text-green-700 text-[10px] font-bold px-2 py-1 rounded">Completed</span>
         </div>
@@ -396,7 +404,7 @@ export async function fetchPendingRegistrations() {
         const { data, error } = await supabaseClient
             .from('leads')
             .select('*')
-            .in('status', ['Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Enrolled', 'Trial Completed'])
+            .in('status', statusesToFetch)
             .order('created_at', { ascending: false })
             .limit(200); // Increased limit to ensure we get all pending registrations
 
@@ -425,7 +433,8 @@ export async function fetchPendingRegistrations() {
             const createdDate = new Date(lead.created_at || lead.submitted_at);
             const isNew = createdDate >= oneDayAgo;
             
-            if (lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Ready to Pay' || lead.status === 'Trial Completed') {
+            const canEnroll = lead.status === 'Registration Requested' || lead.status === 'Enrollment Requested' || lead.status === 'Trial Completed' || (ENABLE_FINANCE_FEATURES && lead.status === 'Ready to Pay');
+            if (canEnroll) {
                 listPending.innerHTML += createVerificationCard(lead, isNew);
                 pendingCount++;
             } else if (lead.status === 'Enrolled') {
@@ -580,11 +589,12 @@ function renderAdminInbox(conversations) {
         const senderLabel = conv.senderRole === 'trainer' ? 'Trainer' : conv.senderRole === 'admin' ? 'Admin' : 'Parent';
         const senderIcon = conv.senderRole === 'trainer' ? '👨‍🏫' : conv.senderRole === 'admin' ? '👤' : '👨‍👩‍👧';
         
+        const photoThumbnail = getChildPhotoThumbnail(conv.details, 'w-10 h-10');
         container.innerHTML += `
             <div onclick="window.openChat('${leadString}')" class="cursor-pointer p-4 border-b border-slate-100 flex justify-between items-center ${unreadClass} transition">
                 <div class="flex items-center flex-1">
-                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-slate-500 font-bold mr-3 shrink-0">${conv.details.child_name.charAt(0)}</div>
-                    <div class="overflow-hidden flex-1">
+                    ${photoThumbnail}
+                    <div class="overflow-hidden flex-1 ml-3">
                         <div class="flex items-center gap-2 mb-1">
                             <h4 class="font-bold text-slate-800 text-sm">${conv.details.parent_name}</h4>
                             <span class="text-xs text-slate-500">${senderIcon} ${senderLabel}</span>
@@ -625,7 +635,8 @@ function createVerificationCard(lead, isNew = false) {
         'Trial Completed': 'bg-blue-100 text-blue-700',
         'Enrollment Requested': 'bg-orange-100 text-orange-700',
         'Registration Requested': 'bg-purple-100 text-purple-700',
-        'Ready to Pay': 'bg-green-100 text-green-700'
+        'Ready to Pay': 'bg-green-100 text-green-700',
+        'Enrolled': 'bg-emerald-100 text-emerald-700'
     };
     const statusColor = statusColors[lead.status] || 'bg-purple-100 text-purple-700';
     const newBadge = isNew ? '<span class="ml-2 bg-red-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold">NEW!</span>' : '';
@@ -640,13 +651,18 @@ function createVerificationCard(lead, isNew = false) {
     // Show payment actions for Registration Requested status (both UPI and Cash) - only if finance features enabled
     const showPaymentActions = ENABLE_FINANCE_FEATURES && lead.status === 'Registration Requested' && (lead.payment_proof_url || paymentMode === 'Cash');
     
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
+    
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isNew ? 'border-red-500 bg-red-50' : 'border-purple-500'} mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name}${newBadge} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
-                <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
-                <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
+            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name}${newBadge} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
+                    <p class="text-xs text-slate-500">Parent: ${lead.parent_name}</p>
+                    <p class="text-xs text-slate-500 font-mono mt-1">${lead.phone || 'N/A'}</p>
+                </div>
             </div>
             <span class="${statusColor} text-[10px] font-bold px-2 py-1 rounded">${lead.status || 'Pending'}</span>
         </div>
@@ -744,13 +760,16 @@ function createEnrolledCard(lead) {
     
     // Calculate age
     const age = lead.dob ? calculateAge(lead.dob) : null;
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
     
     return `
     <div class="bg-white p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 mb-3 hover:shadow-md transition">
         <div class="flex justify-between items-start mb-2">
-            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-800 text-sm hover:text-purple-600 transition mb-1">
-                    ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
+            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 text-sm hover:text-purple-600 transition mb-1">
+                        ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
                 </h4>
                 <div class="text-xs text-slate-600 space-y-1">
                     <div><strong>Package:</strong> ${selectedPkg}</div>
@@ -1186,16 +1205,20 @@ export async function modifyAdminPackage(leadId) {
             const customFeeSection = document.getElementById('admin-custom-fee-section');
             const feeDisplaySection = document.getElementById('admin-pkg-fee-display-section');
             const priceRow = document.getElementById('admin-pkg-current-price-row');
+            const customPriceContainer = document.getElementById('admin-pkg-custom-price-container');
             if (customFeeSection) customFeeSection.classList.add('hidden');
             if (feeDisplaySection) feeDisplaySection.classList.add('hidden');
             if (priceRow) priceRow.classList.add('hidden');
+            if (customPriceContainer) customPriceContainer.classList.add('hidden');
         } else {
             const customFeeSection = document.getElementById('admin-custom-fee-section');
             const feeDisplaySection = document.getElementById('admin-pkg-fee-display-section');
             const priceRow = document.getElementById('admin-pkg-current-price-row');
+            const customPriceContainer = document.getElementById('admin-pkg-custom-price-container');
             if (customFeeSection) customFeeSection.classList.remove('hidden');
             if (feeDisplaySection) feeDisplaySection.classList.remove('hidden');
             if (priceRow) priceRow.classList.remove('hidden');
+            if (customPriceContainer) customPriceContainer.classList.remove('hidden');
         }
         
         // Update modal title based on finance features
@@ -1287,6 +1310,25 @@ export function updateAdminPackageOptions() {
         }
     } else if (pkgType === 'custom') {
         document.getElementById('admin-pkg-custom-options').classList.remove('hidden');
+        // Hide/show custom price field based on finance flag
+        const customPriceContainer = document.getElementById('admin-pkg-custom-price-container');
+        if (customPriceContainer) {
+            if (ENABLE_FINANCE_FEATURES) {
+                customPriceContainer.classList.remove('hidden');
+                // Ensure grid has 2 columns when price is visible
+                const customGrid = customPriceContainer.parentElement;
+                if (customGrid && customGrid.classList.contains('grid')) {
+                    customGrid.className = 'grid grid-cols-2 gap-4';
+                }
+            } else {
+                customPriceContainer.classList.add('hidden');
+                // Change to single column when price is hidden
+                const customGrid = customPriceContainer.parentElement;
+                if (customGrid && customGrid.classList.contains('grid')) {
+                    customGrid.className = 'grid grid-cols-1 gap-4';
+                }
+            }
+        }
     }
 
     window.calculateAdminPackageTotal();
@@ -1992,12 +2034,16 @@ export async function fetchDeclinedRegistrations() {
 
 function createFollowUpCard(lead, isOverdue) {
     const leadString = encodeURIComponent(JSON.stringify(lead));
+    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
     return `
     <div class="bg-white p-4 rounded-lg shadow-sm border-l-4 ${isOverdue ? 'border-red-500' : 'border-orange-400'} mb-3">
         <div class="flex justify-between items-start mb-2">
-            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
-                <p class="text-xs text-slate-500">${lead.parent_name} • ${lead.phone || 'N/A'}</p>
+            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                ${photoThumbnail}
+                <div class="flex-1">
+                    <h4 class="font-bold text-slate-800 hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
+                    <p class="text-xs text-slate-500">${lead.parent_name} • ${lead.phone || 'N/A'}</p>
+                </div>
             </div>
             <span class="bg-orange-100 text-orange-700 text-[10px] font-bold px-2 py-1 rounded">${lead.status}</span>
         </div>
@@ -2115,17 +2161,21 @@ export async function fetchAllStudents() {
                 
                 grouped[status].slice(0, 20).forEach(lead => {
                     const age = lead.dob ? calculateAge(lead.dob) : null;
+                    const photoThumbnail = getChildPhotoThumbnail(lead, 'w-12 h-12');
                     html += `
                     <div class="bg-white p-3 md:p-4 rounded-lg border border-slate-200 hover:shadow-md transition">
                         <div class="flex justify-between items-start">
-                            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                                <h4 class="font-bold text-sm md:text-base text-slate-800 hover:text-purple-600 transition mb-1">
-                                    ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
-                                </h4>
-                                <div class="text-xs text-slate-600 space-y-0.5">
-                                    <div>${lead.parent_name} • ${lead.phone || 'N/A'}</div>
-                                    ${age ? `<div>Age: ${age} years</div>` : ''}
-                                    ${lead.recommended_batch ? `<div>Batch: ${lead.recommended_batch}</div>` : ''}
+                            <div class="cursor-pointer flex-1 flex items-center gap-3" onclick="window.openStudentProfile('${lead.id}')">
+                                ${photoThumbnail}
+                                <div class="flex-1">
+                                    <h4 class="font-bold text-sm md:text-base text-slate-800 hover:text-purple-600 transition mb-1">
+                                        ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
+                                    </h4>
+                                    <div class="text-xs text-slate-600 space-y-0.5">
+                                        <div>${lead.parent_name} • ${lead.phone || 'N/A'}</div>
+                                        ${age ? `<div>Age: ${age} years</div>` : ''}
+                                        ${lead.recommended_batch ? `<div>Batch: ${lead.recommended_batch}</div>` : ''}
+                                    </div>
                                 </div>
                             </div>
                             <span class="${statusColor.split(' ')[0]} ${statusColor.split(' ')[1]} text-[10px] font-bold px-2 py-1 rounded">
@@ -3181,15 +3231,19 @@ window.loadAttendanceStudents = async function() {
             const remainingClasses = meta?.remaining_classes !== undefined ? meta.remaining_classes : null;
             const totalClasses = meta?.package_classes || null;
             
+            const photoThumbnail = getChildPhotoThumbnail(student, 'w-12 h-12');
             html += `
             <div class="bg-white p-4 rounded-lg border-2 ${existing ? (isPresent ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50') : 'border-slate-200'} transition-all" data-student-id="${student.id}">
                 <div class="flex items-center justify-between mb-3">
-                    <div class="flex-1">
-                        <h4 class="font-bold text-slate-800 text-sm mb-1">${student.child_name}</h4>
-                        <div class="text-xs text-slate-600 space-y-0.5">
-                            <div>${student.parent_name} • ${student.phone || 'N/A'}</div>
-                            ${age ? `<div>Age: ${age} years</div>` : ''}
-                            ${remainingClasses !== null && totalClasses !== null ? `<div>Classes: <span class="font-bold ${remainingClasses < 5 ? 'text-red-600' : 'text-green-600'}">${remainingClasses}/${totalClasses}</span></div>` : ''}
+                    <div class="flex-1 flex items-center gap-3">
+                        ${photoThumbnail}
+                        <div class="flex-1">
+                            <h4 class="font-bold text-slate-800 text-sm mb-1">${student.child_name}</h4>
+                            <div class="text-xs text-slate-600 space-y-0.5">
+                                <div>${student.parent_name} • ${student.phone || 'N/A'}</div>
+                                ${age ? `<div>Age: ${age} years</div>` : ''}
+                                ${remainingClasses !== null && totalClasses !== null ? `<div>Classes: <span class="font-bold ${remainingClasses < 5 ? 'text-red-600' : 'text-green-600'}">${remainingClasses}/${totalClasses}</span></div>` : ''}
+                            </div>
                         </div>
                     </div>
                     <span class="attendance-status-badge px-3 py-1 rounded-lg text-xs font-bold ${existing ? (isPresent ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') : 'hidden'}">

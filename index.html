@@ -640,7 +640,7 @@
                     <div id="batch-change-reason-section" class="hidden md:col-span-2">
                         <label class="block text-xs font-bold text-slate-500 uppercase mb-2">Reason for Batch Change *</label>
                         <textarea id="batch-change-reason-text" rows="3" class="input-field w-full bg-white" placeholder="Please explain why you'd like to change the recommended batch..."></textarea>
-                        <p class="text-xs text-amber-600 mt-1 font-semibold">This change requires admin approval before you can proceed with payment.</p>
+                        <p class="text-xs text-amber-600 mt-1 font-semibold" id="batch-change-approval-text">This change requires admin approval.</p>
                     </div>
                 </div>
             </div>
@@ -658,11 +658,11 @@
                 <div id="approval-notice" class="hidden mb-6 p-4 bg-amber-50 border border-amber-200 rounded-xl flex items-start gap-3">
                     <i class="fas fa-info-circle text-amber-600 mt-0.5"></i>
                     <div class="text-xs text-amber-800 leading-relaxed" id="approval-notice-text">
-                        <strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve the final fee shortly.
+                        <strong>Approval Required:</strong> You have customized the standard recommendation. Please submit a request; our Admin will review the changes and approve your enrollment shortly.
                     </div>
                 </div>
 
-                <div id="fee-display-section">
+                <div id="fee-display-section" class="${ENABLE_FINANCE_FEATURES ? '' : 'hidden'}">
                     <div class="flex justify-between items-center mb-4">
                         <span class="text-sm font-bold text-slate-500">Registration Fee</span>
                         <span class="text-sm font-bold text-slate-800">₹<span id="reg-fee-display">2000</span></span>
@@ -852,7 +852,7 @@
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Package Name</label>
                                 <input type="text" id="admin-pkg-custom-name" placeholder="e.g., Custom 3 Months" class="input-field w-full">
                             </div>
-                            <div>
+                            <div id="admin-pkg-custom-price-container" class="${ENABLE_FINANCE_FEATURES ? '' : 'hidden'}">
                                 <label class="block text-xs font-bold text-slate-700 uppercase mb-2">Price (₹)</label>
                                 <input type="number" id="admin-pkg-custom-price" min="0" class="input-field w-full">
                             </div>
