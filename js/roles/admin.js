@@ -906,9 +906,16 @@ export async function modifyAdminPackage(leadId) {
         document.getElementById('admin-pkg-current-batch').innerText = lead.recommended_batch || 'Not Set';
         // Get package data from metadata or direct fields
         const meta = getPackageMetadata(lead);
-        const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+        let selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
         const packagePrice = meta?.package_price || lead.package_price || 0;
         const finalPrice = getFinalPrice(lead);
+        
+        // Remove price from package name if finance features are disabled
+        if (!ENABLE_FINANCE_FEATURES && selectedPkg !== 'Not Set') {
+            // Remove price patterns: " - ₹1234", " @ ₹123/session", "@ ₹123/session"
+            selectedPkg = selectedPkg.replace(/\s*-\s*₹\d+.*$/, '').replace(/\s*@\s*₹\d+\/session/gi, '').trim();
+        }
+        
         document.getElementById('admin-pkg-current-package').innerText = selectedPkg;
         if (ENABLE_FINANCE_FEATURES) {
             document.getElementById('admin-pkg-current-price').innerText = finalPrice || packagePrice || '₹0';
@@ -1000,7 +1007,7 @@ export async function modifyAdminPackage(leadId) {
                         if (morningSelect) morningSelect.value = 'morn_child|5500|999|1';
                     } else if (defaultPkgType === 'pt' && meta?.pt_request) {
                         // Pre-fill PT details from metadata if available
-                        if (meta.pt_request.rate_per_session) {
+                        if (ENABLE_FINANCE_FEATURES && meta.pt_request.rate_per_session) {
                             const ptRate = document.getElementById('admin-pkg-pt-rate');
                             if (ptRate) ptRate.value = meta.pt_request.rate_per_session;
                         }
@@ -1074,7 +1081,7 @@ export async function modifyAdminPackage(leadId) {
         // Add event listeners for real-time calculation
         document.getElementById('admin-pkg-standard-select')?.addEventListener('change', window.calculateAdminPackageTotal);
         document.getElementById('admin-pkg-morning-select')?.addEventListener('change', window.calculateAdminPackageTotal);
-        document.getElementById('admin-pkg-pt-level')?.addEventListener('change', window.calculateAdminPackageTotal);
+        document.getElementById('admin-pkg-pt-rate')?.addEventListener('input', window.calculateAdminPackageTotal);
         document.getElementById('admin-pkg-pt-sessions')?.addEventListener('input', window.calculateAdminPackageTotal);
         document.getElementById('admin-pkg-custom-price')?.addEventListener('input', window.calculateAdminPackageTotal);
         document.getElementById('admin-pkg-reg-fee-custom')?.addEventListener('input', window.calculateAdminPackageTotal);
@@ -1105,8 +1112,28 @@ export function updateAdminPackageOptions() {
         document.getElementById('admin-pkg-standard-options').classList.remove('hidden');
     } else if (pkgType === 'morning') {
         document.getElementById('admin-pkg-morning-options').classList.remove('hidden');
+        // Update morning dropdown option text based on finance flag
+        const morningSelect = document.getElementById('admin-pkg-morning-select');
+        if (morningSelect) {
+            const priceText = ENABLE_FINANCE_FEATURES ? ' - ₹5500' : '';
+            morningSelect.innerHTML = `<option value="morn_child|5500|999|1">Morning Unlimited${priceText}</option>`;
+        }
     } else if (pkgType === 'pt') {
         document.getElementById('admin-pkg-pt-options').classList.remove('hidden');
+        // Hide/show PT rate per session field based on finance flag
+        const ptRateContainer = document.getElementById('admin-pkg-pt-rate-container');
+        const ptRateSessionRow = document.getElementById('admin-pkg-pt-rate-session-row');
+        if (ptRateContainer) {
+            if (ENABLE_FINANCE_FEATURES) {
+                ptRateContainer.classList.remove('hidden');
+                // Ensure grid has 2 columns when rate is visible
+                if (ptRateSessionRow) ptRateSessionRow.className = 'grid grid-cols-2 gap-4';
+            } else {
+                ptRateContainer.classList.add('hidden');
+                // Change to single column when rate is hidden
+                if (ptRateSessionRow) ptRateSessionRow.className = 'grid grid-cols-1 gap-4';
+            }
+        }
         // Set minimum date for start date (today)
         const startDateEl = document.getElementById('admin-pkg-pt-start-date');
         if (startDateEl) {
@@ -1142,9 +1169,10 @@ export function calculateAdminPackageTotal() {
         const val = document.getElementById('admin-pkg-morning-select').value;
         if (val) packageFee = parseInt(val.split('|')[1]);
     } else if (pkgType === 'pt') {
-        const level = document.getElementById('admin-pkg-pt-level').value;
+        const rateEl = document.getElementById('admin-pkg-pt-rate');
+        const rate = rateEl && !rateEl.closest('.hidden') ? (parseInt(rateEl.value) || 0) : 0;
         const sessions = parseInt(document.getElementById('admin-pkg-pt-sessions').value) || 0;
-        if (PT_RATES[level]) packageFee = PT_RATES[level] * sessions;
+        if (rate > 0) packageFee = rate * sessions;
     } else if (pkgType === 'custom') {
         packageFee = parseInt(document.getElementById('admin-pkg-custom-price').value) || 0;
     }
@@ -1285,14 +1313,19 @@ export async function saveAdminPackage() {
         packageMetadata.package_locked = isLocked;
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     } else if (pkgType === 'pt') {
-        const rate = parseInt(document.getElementById('admin-pkg-pt-rate').value) || 0;
+        const rateEl = document.getElementById('admin-pkg-pt-rate');
+        const rate = rateEl && !rateEl.closest('.hidden') ? (parseInt(rateEl.value) || 0) : 0;
         const sessions = parseInt(document.getElementById('admin-pkg-pt-sessions').value) || 0;
         const startDate = document.getElementById('admin-pkg-pt-start-date').value;
         const validityType = document.getElementById('admin-pkg-pt-validity-type').value;
         const validityDate = document.getElementById('admin-pkg-pt-validity-date').value;
         
-        if (!rate || !sessions) {
+        // Only validate rate if finance features are enabled (rate field is visible)
+        if (ENABLE_FINANCE_FEATURES && (!rate || !sessions)) {
             showErrorModal("Input Required", "Please enter rate per session and number of sessions.");
+            return;
+        } else if (!ENABLE_FINANCE_FEATURES && !sessions) {
+            showErrorModal("Input Required", "Please enter number of sessions.");
             return;
         }
         
@@ -1322,7 +1355,12 @@ export async function saveAdminPackage() {
         
         // Store ALL package data in metadata (columns may not exist)
         const calculatedFinalPrice = finalPackagePrice + (document.getElementById('admin-pkg-status').innerText !== 'Enrolled' ? regFee : 0);
-        packageMetadata.selected_package = `PT - ${sessions} Classes @ ₹${rate}/session`;
+        // Include rate in package name only if finance features are enabled
+        if (ENABLE_FINANCE_FEATURES) {
+            packageMetadata.selected_package = `PT - ${sessions} Classes @ ₹${rate}/session`;
+        } else {
+            packageMetadata.selected_package = `PT - ${sessions} Classes`;
+        }
         packageMetadata.package_price = finalPackagePrice;
         packageMetadata.final_price = calculatedFinalPrice;
         packageMetadata.package_classes = sessions;
