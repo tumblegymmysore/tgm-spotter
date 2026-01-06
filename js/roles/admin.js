@@ -49,7 +49,7 @@ export async function loadAdminDashboard(adminName) {
         } else if (tab === 'batches') {
             fetchDeclinedRegistrations();
         } else if (tab === 'attendance') {
-            loadAdminAttendanceView();
+            fetchAllStudents();
         }
     };
     
@@ -706,15 +706,74 @@ function createVerificationCard(lead, isNew = false) {
 
 function createEnrolledCard(lead) {
     const meta = getPackageMetadata(lead);
-    const selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+    let selectedPkg = meta?.selected_package || lead.selected_package || 'Not Set';
+    
+    // Remove price from package name if finance features are disabled
+    if (!ENABLE_FINANCE_FEATURES && selectedPkg !== 'Not Set') {
+        selectedPkg = selectedPkg.replace(/\s*-\s*₹\d+.*$/, '').replace(/\s*@\s*₹\d+\/session/gi, '').trim();
+    }
+    
+    // Get end date (renewal date) - use actual_end_date if available, otherwise calculate from start date + months
+    let endDate = null;
+    let startDate = null;
+    
+    if (meta?.actual_end_date) {
+        endDate = new Date(meta.actual_end_date);
+    } else if (meta?.actual_start_date && meta?.package_months) {
+        startDate = new Date(meta.actual_start_date);
+        const calculatedEnd = new Date(startDate);
+        calculatedEnd.setMonth(calculatedEnd.getMonth() + meta.package_months);
+        endDate = calculatedEnd;
+    } else if (meta?.expected_start_date && meta?.package_months) {
+        startDate = new Date(meta.expected_start_date);
+        const calculatedEnd = new Date(startDate);
+        calculatedEnd.setMonth(calculatedEnd.getMonth() + meta.package_months);
+        endDate = calculatedEnd;
+    } else if (meta?.pt_details?.validity_end_date) {
+        endDate = new Date(meta.pt_details.validity_end_date);
+    }
+    
+    const formattedEndDate = endDate ? endDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Not Set';
+    
+    // Get batch
+    const batch = lead.recommended_batch || 'Not Set';
+    
+    // Get classes/sessions info
+    const totalClasses = meta?.package_classes || meta?.pt_details?.sessions || null;
+    const remainingClasses = meta?.remaining_classes !== undefined ? meta.remaining_classes : null;
+    
+    // Calculate age
+    const age = lead.dob ? calculateAge(lead.dob) : null;
+    
     return `
-    <div class="bg-slate-50 p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 mb-3">
-        <div class="flex justify-between items-center">
+    <div class="bg-white p-4 rounded-lg border border-slate-200 border-l-4 border-green-500 mb-3 hover:shadow-md transition">
+        <div class="flex justify-between items-start mb-2">
             <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                <h4 class="font-bold text-slate-700 text-sm hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></h4>
-                <p class="text-[10px] text-slate-500">${selectedPkg}</p>
+                <h4 class="font-bold text-slate-800 text-sm hover:text-purple-600 transition mb-1">
+                    ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
+                </h4>
+                <div class="text-xs text-slate-600 space-y-1">
+                    <div><strong>Package:</strong> ${selectedPkg}</div>
+                    <div><strong>Batch:</strong> ${batch}</div>
+                    ${age ? `<div><strong>Age:</strong> ${age} years</div>` : ''}
+                    <div><strong>End Date:</strong> <span class="font-bold text-blue-700">${formattedEndDate}</span></div>
+                    ${totalClasses !== null ? `
+                        <div class="mt-1">
+                            <strong>Classes:</strong> 
+                            ${remainingClasses !== null ? `<span class="text-green-700">${remainingClasses}/${totalClasses}</span>` : `<span>${totalClasses}</span>`}
+                        </div>
+                    ` : ''}
+                </div>
             </div>
-            <span class="text-green-700 text-[10px] font-bold uppercase">Active</span>
+            <span class="text-green-700 text-[10px] font-bold uppercase bg-green-50 px-2 py-1 rounded">Active</span>
+        </div>
+        <div class="flex gap-2 mt-2">
+            <button onclick="window.modifyAdminPackage('${lead.id}')" class="flex-1 bg-purple-600 text-white text-xs font-bold py-2 rounded hover:bg-purple-700 transition">
+                <i class="fas fa-cog mr-1"></i> Modify Package
+            </button>
+            <button onclick="window.openChat('${encodeURIComponent(JSON.stringify(lead))}')" class="flex-1 bg-slate-600 text-white text-xs font-bold py-2 rounded hover:bg-slate-700 transition">
+                <i class="fas fa-comment mr-1"></i> Message
+            </button>
         </div>
     </div>`;
 }
@@ -1961,9 +2020,12 @@ function createFollowUpCard(lead, isOverdue) {
 // --- 8. ALL STUDENTS VIEW ---
 export async function fetchAllStudents() {
     const container = document.getElementById('view-attendance');
-    if (!container) return;
+    if (!container) {
+        console.error('view-attendance container not found');
+        return;
+    }
     
-    container.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse">Loading all students...</p>';
+    container.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse text-center p-8">Loading all students...</p>';
     
     try {
         const { data, error } = await supabaseClient
@@ -1974,6 +2036,11 @@ export async function fetchAllStudents() {
         
         if (error) throw error;
         
+        if (!data || data.length === 0) {
+            container.innerHTML = '<p class="text-slate-400 text-sm text-center p-8">No students found.</p>';
+            return;
+        }
+        
         // Group by status
         const grouped = {};
         data.forEach(lead => {
@@ -1982,45 +2049,114 @@ export async function fetchAllStudents() {
             grouped[status].push(lead);
         });
         
-        let html = '<div class="space-y-6">';
-        html += `<div class="bg-white p-4 rounded-xl shadow-sm mb-4">
-            <h3 class="font-bold text-lg mb-4">Total Students: ${data.length}</h3>
-            <div class="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">`;
+        let html = '<div class="p-4 md:p-6 space-y-6">';
         
+        // Status summary cards
+        html += `<div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">
+            <h3 class="font-bold text-lg mb-4 text-slate-800">Total Students: ${data.length}</h3>
+            <div class="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 text-sm">`;
+        
+        const statusOrder = ['Enrolled', 'Pending Trial', 'Trial Completed', 'Registration Requested', 'Enrollment Requested', 'Ready to Pay', 'Follow Up', 'Declined'];
+        const statusColors = {
+            'Enrolled': 'bg-green-50 text-green-700 border-green-200',
+            'Pending Trial': 'bg-yellow-50 text-yellow-700 border-yellow-200',
+            'Trial Completed': 'bg-blue-50 text-blue-700 border-blue-200',
+            'Registration Requested': 'bg-purple-50 text-purple-700 border-purple-200',
+            'Enrollment Requested': 'bg-orange-50 text-orange-700 border-orange-200',
+            'Ready to Pay': 'bg-emerald-50 text-emerald-700 border-emerald-200',
+            'Follow Up': 'bg-amber-50 text-amber-700 border-amber-200',
+            'Declined': 'bg-red-50 text-red-700 border-red-200'
+        };
+        
+        // Show statuses in order
+        statusOrder.forEach(status => {
+            if (grouped[status] && grouped[status].length > 0) {
+                const colorClass = statusColors[status] || 'bg-slate-50 text-slate-700 border-slate-200';
+                html += `<div class="text-center p-3 ${colorClass} rounded-lg border-2">
+                    <div class="text-2xl font-bold">${grouped[status].length}</div>
+                    <div class="text-xs font-bold mt-1">${status}</div>
+                </div>`;
+            }
+        });
+        
+        // Show other statuses not in the predefined order
         Object.keys(grouped).forEach(status => {
-            html += `<div class="text-center p-3 bg-slate-50 rounded-lg">
-                <div class="text-2xl font-bold text-blue-600">${grouped[status].length}</div>
-                <div class="text-xs text-slate-600 mt-1">${status}</div>
-            </div>`;
+            if (!statusOrder.includes(status) && grouped[status].length > 0) {
+                html += `<div class="text-center p-3 bg-slate-50 text-slate-700 rounded-lg border-2 border-slate-200">
+                    <div class="text-2xl font-bold">${grouped[status].length}</div>
+                    <div class="text-xs font-bold mt-1">${status}</div>
+                </div>`;
+            }
         });
         
         html += '</div></div>';
         
-        // Show enrolled students
-        if (grouped['Enrolled']) {
-            html += '<div class="bg-white p-4 rounded-xl shadow-sm"><h3 class="font-bold mb-4">Enrolled Students</h3><div class="space-y-2">';
+        // Show enrolled students with improved cards
+        if (grouped['Enrolled'] && grouped['Enrolled'].length > 0) {
+            html += '<div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">';
+            html += '<h3 class="font-bold text-lg mb-4 text-slate-800 flex items-center">';
+            html += `<i class="fas fa-check-circle text-green-600 mr-2"></i>Enrolled Students (${grouped['Enrolled'].length})`;
+            html += '</h3><div class="space-y-3">';
+            
             grouped['Enrolled'].forEach(lead => {
-                const pkgMeta = getPackageMetadata(lead);
-                const pkgName = pkgMeta?.selected_package || lead.selected_package || 'N/A';
-                html += `<div class="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                    <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
-                        <span class="font-bold hover:text-purple-600 transition">${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i></span>
-                        <span class="text-xs text-slate-500 ml-2">${pkgName}</span>
-                    </div>
-                    <button onclick="window.modifyAdminPackage('${lead.id}')" class="text-xs bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700">
-                        Edit Package
-                    </button>
-                </div>`;
+                html += createEnrolledCard(lead);
             });
+            
             html += '</div></div>';
         }
+        
+        // Show other status groups (non-enrolled)
+        statusOrder.forEach(status => {
+            if (status !== 'Enrolled' && grouped[status] && grouped[status].length > 0) {
+                const statusColor = statusColors[status] || 'bg-slate-50 text-slate-700 border-slate-200';
+                html += `<div class="bg-white p-4 md:p-6 rounded-xl shadow-sm border border-slate-200">`;
+                html += `<h3 class="font-bold text-base md:text-lg mb-4 text-slate-800">${status} (${grouped[status].length})</h3>`;
+                html += '<div class="space-y-3">';
+                
+                grouped[status].slice(0, 20).forEach(lead => {
+                    const age = lead.dob ? calculateAge(lead.dob) : null;
+                    html += `
+                    <div class="bg-white p-3 md:p-4 rounded-lg border border-slate-200 hover:shadow-md transition">
+                        <div class="flex justify-between items-start">
+                            <div class="cursor-pointer flex-1" onclick="window.openStudentProfile('${lead.id}')">
+                                <h4 class="font-bold text-sm md:text-base text-slate-800 hover:text-purple-600 transition mb-1">
+                                    ${lead.child_name} <i class="fas fa-external-link-alt text-xs ml-1 text-purple-500"></i>
+                                </h4>
+                                <div class="text-xs text-slate-600 space-y-0.5">
+                                    <div>${lead.parent_name} • ${lead.phone || 'N/A'}</div>
+                                    ${age ? `<div>Age: ${age} years</div>` : ''}
+                                    ${lead.recommended_batch ? `<div>Batch: ${lead.recommended_batch}</div>` : ''}
+                                </div>
+                            </div>
+                            <span class="${statusColor.split(' ')[0]} ${statusColor.split(' ')[1]} text-[10px] font-bold px-2 py-1 rounded">
+                                ${status}
+                            </span>
+                        </div>
+                        <div class="flex gap-2 mt-2">
+                            <button onclick="window.modifyAdminPackage('${lead.id}')" class="flex-1 bg-purple-600 text-white text-xs font-bold py-2 rounded hover:bg-purple-700 transition">
+                                <i class="fas fa-cog mr-1"></i> ${status === 'Trial Completed' ? 'Set Package' : 'Modify'}
+                            </button>
+                            <button onclick="window.openChat('${encodeURIComponent(JSON.stringify(lead))}')" class="flex-1 bg-slate-600 text-white text-xs font-bold py-2 rounded hover:bg-slate-700 transition">
+                                <i class="fas fa-comment mr-1"></i> Message
+                            </button>
+                        </div>
+                    </div>`;
+                });
+                
+                if (grouped[status].length > 20) {
+                    html += `<p class="text-xs text-slate-500 text-center pt-2">... and ${grouped[status].length - 20} more</p>`;
+                }
+                
+                html += '</div></div>';
+            }
+        });
         
         html += '</div>';
         container.innerHTML = html;
         
     } catch (err) {
         console.error("All Students Error:", err);
-        container.innerHTML = `<p class="text-red-500 text-sm">Error: ${err.message}</p>`;
+        container.innerHTML = `<p class="text-red-500 text-sm text-center p-8">Error: ${err.message}</p>`;
     }
 }
 
