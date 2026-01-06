@@ -1521,38 +1521,53 @@ export async function saveAdminPackage() {
         packageMetadata.package_lock_type = isLocked ? lockType : null;
     }
 
-    // Update status based on finance features flag
+    // Update status based on finance features flag and current status
     const currentStatus = document.getElementById('admin-pkg-status').innerText;
-    if (currentStatus === 'Enrollment Requested' || currentStatus === 'Trial Completed') {
-        if (ENABLE_FINANCE_FEATURES) {
-            // With finance features: Enrollment Requested → Ready to Pay
-            packageData.status = 'Ready to Pay';
-        } else {
-            // Without finance features: Enrollment Requested → Enrolled (direct acceptance)
+    
+    // Handle status transitions for finance disabled scenarios
+    if (!ENABLE_FINANCE_FEATURES) {
+        // Scenario 1: Trial Completed → Admin sets package → Enrolled
+        // Scenario 2: Registration Requested (parent submitted) → Admin verifies/sets package → Enrolled
+        if (currentStatus === 'Trial Completed' || currentStatus === 'Registration Requested' || currentStatus === 'Enrollment Requested') {
             packageData.status = 'Enrolled';
             
             // When enrolling, set actual start date, end date, and classes
             // Start date is the expected_start_date entered by admin
-            const startDate = packageMetadata.expected_start_date;
-            if (startDate && packageMetadata.package_months) {
-                // Calculate end date: start date + package_months
-                const start = new Date(startDate);
-                const endDate = new Date(start);
-                endDate.setMonth(endDate.getMonth() + packageMetadata.package_months);
+            const startDate = packageMetadata.expected_start_date || packageMetadata.pt_details?.start_date;
+            if (startDate) {
                 packageMetadata.actual_start_date = startDate; // Store actual start date
-                packageMetadata.actual_end_date = endDate.toISOString().split('T')[0]; // Store calculated end date
+                
+                // Calculate end date for non-PT packages
+                if (packageMetadata.package_months) {
+                    const start = new Date(startDate);
+                    const endDate = new Date(start);
+                    endDate.setMonth(endDate.getMonth() + packageMetadata.package_months);
+                    packageMetadata.actual_end_date = endDate.toISOString().split('T')[0]; // Store calculated end date
+                } else if (packageMetadata.pt_details?.validity_end_date) {
+                    // For PT packages, use validity end date
+                    packageMetadata.actual_end_date = packageMetadata.pt_details.validity_end_date;
+                }
             }
             
-            // Ensure package classes are stored
+            // Ensure package classes/sessions are stored
             if (packageMetadata.package_classes) {
                 packageMetadata.remaining_classes = packageMetadata.package_classes; // Initialize remaining classes
+            } else if (packageMetadata.pt_details?.sessions) {
+                packageMetadata.remaining_classes = packageMetadata.pt_details.sessions; // For PT, use sessions
             }
         }
-        // Use recommended_batch instead of final_batch (which doesn't exist in DB)
-        const currentBatch = document.getElementById('admin-pkg-current-batch').innerText;
-        if (currentBatch && currentBatch !== 'Not Set') {
-            packageData.recommended_batch = currentBatch;
+    } else {
+        // With finance features enabled
+        if (currentStatus === 'Enrollment Requested' || currentStatus === 'Trial Completed') {
+            packageData.status = 'Ready to Pay';
         }
+        // Note: Registration Requested with finance enabled goes through payment verification flow
+    }
+    
+    // Use recommended_batch instead of final_batch (which doesn't exist in DB)
+    const currentBatch = document.getElementById('admin-pkg-current-batch').innerText;
+    if (currentBatch && currentBatch !== 'Not Set') {
+        packageData.recommended_batch = currentBatch;
     }
 
     // ALWAYS store package metadata in parent_note (all package data goes here to avoid column errors)
@@ -1579,17 +1594,34 @@ export async function saveAdminPackage() {
 
         document.getElementById('admin-package-modal').classList.add('hidden');
         
-        // Show appropriate success message based on status and finance features
+        // Show appropriate success message and switch to appropriate tab
         const finalStatus = packageData.status || currentStatus;
         if (!ENABLE_FINANCE_FEATURES && finalStatus === 'Enrolled') {
             showSuccessModal("Enrollment Accepted!", "Student has been enrolled. Start date, end date, and classes have been set.");
+            // Switch to registrations tab to show enrolled students
+            window.switchTab('registrations');
+            // Refresh registrations data
+            setTimeout(() => {
+                fetchPendingRegistrations();
+                fetchAdminTrials(); // Also refresh trials in case student was moved from there
+            }, 300);
         } else if (ENABLE_FINANCE_FEATURES && finalStatus === 'Ready to Pay') {
             showSuccessModal("Package Updated!", "Package details have been saved. Parent can now proceed with payment.");
+            // Stay on registrations tab and refresh
+            if (document.getElementById('view-registrations') && !document.getElementById('view-registrations').classList.contains('hidden')) {
+                fetchPendingRegistrations();
+            } else {
+                fetchAdminTrials();
+            }
         } else {
             showSuccessModal("Package Updated!", "Package details have been saved successfully.");
+            // Refresh current tab
+            if (document.getElementById('view-registrations') && !document.getElementById('view-registrations').classList.contains('hidden')) {
+                fetchPendingRegistrations();
+            } else if (document.getElementById('view-trials') && !document.getElementById('view-trials').classList.contains('hidden')) {
+                fetchAdminTrials();
+            }
         }
-        
-        fetchPendingRegistrations();
 
     } catch (err) {
         showErrorModal("Save Failed", err.message);
@@ -2912,3 +2944,4 @@ export async function openStudentProfile(leadId) {
 
 // Expose to window
 window.openStudentProfile = openStudentProfile;
+
