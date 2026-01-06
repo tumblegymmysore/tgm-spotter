@@ -399,8 +399,12 @@ export async function fetchPendingRegistrations() {
 
     try {
         // Fetch all leads that need admin attention or are enrolled
-        // Include: Registration Requested, Enrollment Requested, Ready to Pay, and Enrolled
+        // Include: Registration Requested, Enrollment Requested, Ready to Pay (only if finance enabled), and Enrolled
         // Order by created_at descending to show latest cards first
+        const statusesToFetch = ['Registration Requested', 'Enrollment Requested', 'Enrolled', 'Trial Completed'];
+        if (ENABLE_FINANCE_FEATURES) {
+            statusesToFetch.push('Ready to Pay');
+        }
         const { data, error } = await supabaseClient
             .from('leads')
             .select('*')
