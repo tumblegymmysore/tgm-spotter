@@ -2868,7 +2868,7 @@ export function editAdminForm(leadString) {
                         </div>
                         <div>
                             <label class="block text-xs font-bold text-slate-700 mb-1">Alternate Phone</label>
-                            <input type="tel" id="admin-edit-alt-phone" value="${lead.alt_phone || ''}" class="input-field w-full">
+                            <input type="tel" id="admin-edit-alt-phone" value="${lead.alternate_phone || ''}" class="input-field w-full">
                         </div>
                         <div class="md:col-span-2">
                             <label class="block text-xs font-bold text-slate-700 mb-1">Address</label>
@@ -2989,7 +2989,7 @@ export async function saveAdminFormEdit() {
         parent_name: document.getElementById('admin-edit-parent-name').value.trim(),
         email: document.getElementById('admin-edit-email').value.trim().toLowerCase(),
         phone: document.getElementById('admin-edit-phone').value.trim(),
-        alt_phone: document.getElementById('admin-edit-alt-phone').value.trim(),
+        alternate_phone: document.getElementById('admin-edit-alt-phone').value.trim(),
         address: document.getElementById('admin-edit-address').value.trim(),
         medical_info: document.getElementById('admin-edit-medical').value.trim()
     };
