@@ -49,7 +49,7 @@ export async function loadAdminDashboard(adminName) {
         } else if (tab === 'batches') {
             fetchDeclinedRegistrations();
         } else if (tab === 'attendance') {
-            fetchAllStudents();
+            loadAdminAttendanceView();
         }
     };
     
@@ -3077,6 +3077,395 @@ export async function openStudentProfile(leadId) {
         document.getElementById('student-profile-content').innerHTML = '<p class="text-red-500 text-center">Error loading student profile.</p>';
     }
 }
+
+// --- 10. ADMIN ATTENDANCE MANAGEMENT ---
+
+// Store current admin name for attendance recording
+let currentAdminName = '';
+let currentAdminId = '';
+
+// Initialize admin name when dashboard loads
+export async function loadAdminAttendanceView() {
+    // Get current admin user info
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (user) {
+        currentAdminName = user.email?.split('@')[0] || 'Admin';
+        currentAdminId = user.id;
+    }
+    
+    // Populate batch dropdown
+    await populateAttendanceBatches();
+    
+    // Set default date to today
+    const dateInput = document.getElementById('attendance-date');
+    if (dateInput && !dateInput.value) {
+        dateInput.value = new Date().toISOString().split('T')[0];
+    }
+}
+
+// Populate batch dropdown
+async function populateAttendanceBatches() {
+    const batchSelect = document.getElementById('attendance-batch');
+    if (!batchSelect) return;
+    
+    try {
+        const batches = await getAllBatches();
+        batchSelect.innerHTML = '<option value="">Select Batch...</option>';
+        
+        batches.forEach(batch => {
+            const option = document.createElement('option');
+            option.value = batch;
+            option.textContent = batch;
+            batchSelect.appendChild(option);
+        });
+    } catch (error) {
+        console.error('Error loading batches:', error);
+    }
+}
+
+// Load students for selected batch and date
+window.loadAttendanceStudents = async function() {
+    const dateInput = document.getElementById('attendance-date');
+    const batchSelect = document.getElementById('attendance-batch');
+    const studentsList = document.getElementById('attendance-students-list');
+    const summaryDiv = document.getElementById('attendance-summary');
+    
+    if (!dateInput || !batchSelect || !studentsList) return;
+    
+    const date = dateInput.value;
+    const batch = batchSelect.value;
+    
+    if (!date || !batch) {
+        showErrorModal("Selection Required", "Please select both date and batch.");
+        return;
+    }
+    
+    studentsList.innerHTML = '<p class="text-sm text-blue-500 italic animate-pulse text-center p-4">Loading students...</p>';
+    
+    try {
+        // Get enrolled students for this batch
+        const students = await getEligibleStudents(batch);
+        
+        if (students.length === 0) {
+            studentsList.innerHTML = '<p class="text-slate-400 text-sm text-center p-8">No enrolled students found for this batch.</p>';
+            summaryDiv.classList.add('hidden');
+            return;
+        }
+        
+        // Get existing attendance for this date
+        const { data: existingAttendance } = await supabaseClient
+            .from('attendance')
+            .select('*')
+            .eq('attendance_date', date)
+            .eq('batch', batch);
+        
+        const attendanceMap = {};
+        if (existingAttendance) {
+            existingAttendance.forEach(record => {
+                attendanceMap[record.lead_id] = {
+                    isPresent: record.is_present,
+                    isMissed: record.is_missed
+                };
+            });
+        }
+        
+        // Build student list HTML
+        let html = '';
+        students.forEach(student => {
+            const existing = attendanceMap[student.id];
+            const isPresent = existing ? existing.isPresent : null;
+            const isMissed = existing ? existing.isMissed : false;
+            
+            const age = student.dob ? calculateAge(student.dob) : null;
+            const meta = getPackageMetadata(student);
+            const remainingClasses = meta?.remaining_classes !== undefined ? meta.remaining_classes : null;
+            const totalClasses = meta?.package_classes || null;
+            
+            html += `
+            <div class="bg-white p-4 rounded-lg border-2 ${existing ? (isPresent ? 'border-green-300 bg-green-50' : 'border-red-300 bg-red-50') : 'border-slate-200'} transition-all" data-student-id="${student.id}">
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex-1">
+                        <h4 class="font-bold text-slate-800 text-sm mb-1">${student.child_name}</h4>
+                        <div class="text-xs text-slate-600 space-y-0.5">
+                            <div>${student.parent_name} • ${student.phone || 'N/A'}</div>
+                            ${age ? `<div>Age: ${age} years</div>` : ''}
+                            ${remainingClasses !== null && totalClasses !== null ? `<div>Classes: <span class="font-bold ${remainingClasses < 5 ? 'text-red-600' : 'text-green-600'}">${remainingClasses}/${totalClasses}</span></div>` : ''}
+                        </div>
+                    </div>
+                    <span class="attendance-status-badge px-3 py-1 rounded-lg text-xs font-bold ${existing ? (isPresent ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700') : 'hidden'}">
+                        ${existing ? (isPresent ? '✓ Present' : '✗ Absent') : ''}
+                    </span>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="window.toggleAttendance('${student.id}', true)" 
+                        class="attendance-btn-present flex-1 py-2 px-3 rounded-lg text-sm font-bold transition ${isPresent === true ? 'bg-green-600 text-white' : 'bg-green-100 text-green-700 hover:bg-green-200'}">
+                        <i class="fas fa-check mr-1"></i> Present
+                    </button>
+                    <button onclick="window.toggleAttendance('${student.id}', false)" 
+                        class="attendance-btn-absent flex-1 py-2 px-3 rounded-lg text-sm font-bold transition ${isPresent === false ? 'bg-red-600 text-white' : 'bg-red-100 text-red-700 hover:bg-red-200'}">
+                        <i class="fas fa-times mr-1"></i> Absent
+                    </button>
+                </div>
+            </div>`;
+        });
+        
+        studentsList.innerHTML = html;
+        summaryDiv.classList.remove('hidden');
+        updateAttendanceSummary();
+        
+    } catch (error) {
+        console.error('Error loading students:', error);
+        studentsList.innerHTML = `<p class="text-red-500 text-sm text-center p-4">Error: ${error.message}</p>`;
+    }
+};
+
+// Toggle attendance for a student
+window.toggleAttendance = function(studentId, isPresent) {
+    const dateInput = document.getElementById('attendance-date');
+    const batchSelect = document.getElementById('attendance-batch');
+    
+    if (!dateInput || !batchSelect) return;
+    
+    const date = dateInput.value;
+    const batch = batchSelect.value;
+    
+    if (!date || !batch) return;
+    
+    // Find student card by data attribute
+    const studentCard = document.querySelector(`[data-student-id="${studentId}"]`);
+    if (!studentCard) return;
+    
+    // Update card border and background
+    studentCard.classList.remove('border-green-300', 'bg-green-50', 'border-red-300', 'bg-red-50', 'border-slate-200');
+    
+    if (isPresent) {
+        studentCard.classList.add('border-green-300', 'bg-green-50');
+    } else {
+        studentCard.classList.add('border-red-300', 'bg-red-50');
+    }
+    
+    // Update buttons
+    const presentBtn = studentCard.querySelector('.attendance-btn-present');
+    const absentBtn = studentCard.querySelector('.attendance-btn-absent');
+    
+    if (presentBtn && absentBtn) {
+        if (isPresent) {
+            presentBtn.className = 'attendance-btn-present flex-1 py-2 px-3 rounded-lg text-sm font-bold transition bg-green-600 text-white';
+            absentBtn.className = 'attendance-btn-absent flex-1 py-2 px-3 rounded-lg text-sm font-bold transition bg-red-100 text-red-700 hover:bg-red-200';
+        } else {
+            presentBtn.className = 'attendance-btn-present flex-1 py-2 px-3 rounded-lg text-sm font-bold transition bg-green-100 text-green-700 hover:bg-green-200';
+            absentBtn.className = 'attendance-btn-absent flex-1 py-2 px-3 rounded-lg text-sm font-bold transition bg-red-600 text-white';
+        }
+    }
+    
+    // Update status badge
+    const statusBadge = studentCard.querySelector('.attendance-status-badge');
+    if (statusBadge) {
+        statusBadge.classList.remove('hidden');
+        if (isPresent) {
+            statusBadge.className = 'attendance-status-badge px-3 py-1 rounded-lg text-xs font-bold bg-green-100 text-green-700';
+            statusBadge.textContent = '✓ Present';
+        } else {
+            statusBadge.className = 'attendance-status-badge px-3 py-1 rounded-lg text-xs font-bold bg-red-100 text-red-700';
+            statusBadge.textContent = '✗ Absent';
+        }
+    }
+    
+    updateAttendanceSummary();
+};
+
+// Update attendance summary
+function updateAttendanceSummary() {
+    const studentsList = document.getElementById('attendance-students-list');
+    if (!studentsList) return;
+    
+    const cards = studentsList.querySelectorAll('[data-student-id]');
+    let present = 0;
+    let absent = 0;
+    const total = cards.length;
+    
+    cards.forEach(card => {
+        const presentBtn = card.querySelector('.attendance-btn-present');
+        const absentBtn = card.querySelector('.attendance-btn-absent');
+        
+        if (presentBtn && presentBtn.classList.contains('bg-green-600')) {
+            present++;
+        } else if (absentBtn && absentBtn.classList.contains('bg-red-600')) {
+            absent++;
+        }
+    });
+    
+    const presentEl = document.getElementById('summary-present');
+    const absentEl = document.getElementById('summary-absent');
+    const totalEl = document.getElementById('summary-total');
+    
+    if (presentEl) presentEl.textContent = present;
+    if (absentEl) absentEl.textContent = absent;
+    if (totalEl) totalEl.textContent = total;
+}
+
+// Set attendance date helper
+window.setAttendanceDate = function(option) {
+    const dateInput = document.getElementById('attendance-date');
+    if (!dateInput) return;
+    
+    const today = new Date();
+    let date;
+    
+    if (option === 'today') {
+        date = today;
+    } else if (option === 'yesterday') {
+        date = new Date(today);
+        date.setDate(date.getDate() - 1);
+    } else {
+        return;
+    }
+    
+    dateInput.value = date.toISOString().split('T')[0];
+    
+    // Auto-load if batch is selected
+    const batchSelect = document.getElementById('attendance-batch');
+    if (batchSelect && batchSelect.value) {
+        window.loadAttendanceStudents();
+    }
+};
+
+// Save attendance
+window.saveAttendance = async function() {
+    const dateInput = document.getElementById('attendance-date');
+    const batchSelect = document.getElementById('attendance-batch');
+    const studentsList = document.getElementById('attendance-students-list');
+    const saveBtn = document.getElementById('btn-save-attendance');
+    
+    if (!dateInput || !batchSelect || !studentsList) return;
+    
+    const date = dateInput.value;
+    const batch = batchSelect.value;
+    
+    if (!date || !batch) {
+        showErrorModal("Selection Required", "Please select both date and batch.");
+        return;
+    }
+    
+    // Get all student cards
+    const cards = studentsList.querySelectorAll('.bg-white');
+    if (cards.length === 0) {
+        showErrorModal("No Students", "No students loaded. Please load students first.");
+        return;
+    }
+    
+    // Collect attendance data
+    const attendanceRecords = [];
+    let hasChanges = false;
+    
+    cards.forEach(card => {
+        const studentId = card.getAttribute('data-student-id');
+        if (!studentId) return;
+        
+        const presentBtn = card.querySelector('.attendance-btn-present');
+        const absentBtn = card.querySelector('.attendance-btn-absent');
+        
+        let isPresent = null;
+        if (presentBtn && presentBtn.classList.contains('bg-green-600')) {
+            isPresent = true;
+            hasChanges = true;
+        } else if (absentBtn && absentBtn.classList.contains('bg-red-600')) {
+            isPresent = false;
+            hasChanges = true;
+        }
+        
+        if (isPresent !== null) {
+            attendanceRecords.push({
+                studentId: studentId,
+                isPresent: isPresent,
+                isMissed: !isPresent
+            });
+        }
+    });
+    
+    if (!hasChanges) {
+        showErrorModal("No Changes", "Please mark attendance for at least one student.");
+        return;
+    }
+    
+    // Disable save button
+    if (saveBtn) {
+        saveBtn.disabled = true;
+        saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Saving...';
+    }
+    
+    try {
+        // Record attendance for each student
+        let successCount = 0;
+        let errorCount = 0;
+        const errors = [];
+        
+        for (const record of attendanceRecords) {
+            try {
+                await recordAttendance({
+                    studentId: record.studentId,
+                    date: date,
+                    batch: batch,
+                    isMissed: record.isMissed,
+                    recordedBy: 'admin',
+                    recordedById: currentAdminId || 'admin'
+                });
+                successCount++;
+            } catch (error) {
+                errorCount++;
+                if (error.message !== 'Attendance already recorded for this date') {
+                    errors.push(error.message);
+                } else {
+                    // If already recorded, try to update
+                    try {
+                        const { error: updateError } = await supabaseClient
+                            .from('attendance')
+                            .update({
+                                is_present: record.isPresent,
+                                is_missed: record.isMissed,
+                                recorded_by: 'admin',
+                                recorded_by_id: currentAdminId || 'admin'
+                            })
+                            .eq('lead_id', record.studentId)
+                            .eq('attendance_date', date);
+                        
+                        if (!updateError) {
+                            successCount++;
+                            errorCount--;
+                        } else {
+                            errors.push(updateError.message);
+                        }
+                    } catch (updateErr) {
+                        errors.push(updateErr.message);
+                    }
+                }
+            }
+        }
+        
+        if (successCount > 0) {
+            showSuccessModal(
+                "Attendance Saved!", 
+                `Successfully recorded attendance for ${successCount} student(s)${errorCount > 0 ? `. ${errorCount} error(s) occurred.` : '.'}`
+            );
+            
+            // Reload students to show updated status
+            setTimeout(() => {
+                window.loadAttendanceStudents();
+            }, 500);
+        } else {
+            showErrorModal("Save Failed", errors.length > 0 ? errors[0] : "Failed to save attendance.");
+        }
+        
+    } catch (error) {
+        console.error('Error saving attendance:', error);
+        showErrorModal("Save Failed", error.message || "An error occurred while saving attendance.");
+    } finally {
+        if (saveBtn) {
+            saveBtn.disabled = false;
+            saveBtn.innerHTML = '<i class="fas fa-save mr-2"></i>Save Attendance';
+        }
+    }
+};
 
 // Expose to window
 window.openStudentProfile = openStudentProfile;
