@@ -113,6 +113,7 @@ export async function recordAttendance(attendanceData) {
         
         // Send notification to parent
         await notifyAttendanceMarked({
+            studentId: student.id,
             childName: student.child_name,
             parentEmail: student.email,
             parentPhone: student.phone,

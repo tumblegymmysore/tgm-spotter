@@ -2,6 +2,7 @@
 import { supabaseClient, supabaseKey, REGISTRATION_FEE, STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, ADULT_AGE_THRESHOLD, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXCLUDED_DAYS, MIN_ELIGIBLE_AGE, WHATSAPP_LINK, ENABLE_FINANCE_FEATURES } from '../config.js';
 import { showView, showSuccessModal, showErrorModal, calculateAge, sanitizeInput, getFinalPrice, getPackageMetadata } from '../utils.js';
 import { getAttendanceHistory } from '../attendance.js';
+import { notifyStatusChange } from '../notifications.js';
 
 let currentRegistrationId = null;
 let currentLeadData = null;
@@ -1616,10 +1617,26 @@ export async function submitRegistration(actionType) {
         const cleanedNote = existingNote.replace(/\[PACKAGE_META\].*?\[\/PACKAGE_META\]/g, '').trim();
         const updatedNote = cleanedNote ? `${cleanedNote}\n${metaNote}` : metaNote;
         
-        await supabaseClient.from('leads').update({ 
+        const { data: updatedLead } = await supabaseClient.from('leads').update({ 
             status: 'Enrollment Requested', 
             parent_note: `${note}\n${updatedNote}` 
-        }).eq('id', currentRegistrationId);
+        }).eq('id', currentRegistrationId).select().single();
+        
+        // Send notifications (both email and WhatsApp)
+        if (updatedLead) {
+            await notifyStatusChange({
+                studentId: currentRegistrationId,
+                childName: currentLeadData.child_name,
+                parentEmail: currentLeadData.email,
+                parentPhone: currentLeadData.phone,
+                oldStatus: currentLeadData.status,
+                newStatus: 'Enrollment Requested',
+                message: isAdult && batchCat === 'Personal Training' 
+                    ? `Your Personal Training request for ${currentLeadData.child_name} has been received. Admin will review and confirm the session details, rate, and validity period.`
+                    : `Your enrollment request for ${currentLeadData.child_name} has been received and is under review. We'll notify you once it's approved.`,
+                details: `<p><strong>Package:</strong> ${pkgLabel}</p><p><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString('en-IN')}</p>`
+            });
+        }
         
         document.getElementById('reg-modal').classList.add('hidden');
         const message = isAdult && batchCat === 'Personal Training' 
@@ -1749,6 +1766,20 @@ export async function submitRegistration(actionType) {
         }
         
         console.log('Registration status updated successfully:', updatedLead.status);
+        
+        // Send notifications to parent (both email and WhatsApp)
+        await notifyStatusChange({
+            studentId: currentRegistrationId,
+            childName: currentLeadData.child_name,
+            parentEmail: currentLeadData.email,
+            parentPhone: currentLeadData.phone,
+            oldStatus: currentLeadData.status,
+            newStatus: 'Registration Requested',
+            message: ENABLE_FINANCE_FEATURES 
+                ? `Thank you! Your registration for ${currentLeadData.child_name} has been submitted. We're verifying your payment and will confirm soon.`
+                : `Thank you! Your registration for ${currentLeadData.child_name} has been submitted and is under review. We'll notify you once it's approved.`,
+            details: `<p><strong>Package:</strong> ${pkgLabel}</p><p><strong>Start Date:</strong> ${new Date(startDate).toLocaleDateString('en-IN')}</p>${ENABLE_FINANCE_FEATURES && paymentMode ? `<p><strong>Payment Mode:</strong> ${paymentMode}</p>` : ''}`
+        });
         
         // Send notification to admin about new registration
         try {

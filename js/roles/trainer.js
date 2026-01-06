@@ -1,6 +1,7 @@
 import { supabaseClient, supabaseKey, ADULT_AGE_THRESHOLD, ENABLE_FINANCE_FEATURES } from '../config.js'; 
 import { showView, showSuccessModal, showErrorModal, calculateAge, getChildPhotoThumbnail } from '../utils.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary } from '../attendance.js';
+import { notifyStatusChange } from '../notifications.js';
 
 let currentAssessmentLead = null;
 
@@ -170,9 +171,21 @@ export async function submitAssessment() {
     try {
         const { error } = await supabaseClient.from('leads').update({ status: 'Trial Completed', feedback: feedback, recommended_batch: batch, skills_rating: skills, special_needs: special }).eq('id', currentAssessmentLead.id);
         if (error) throw error;
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` }, body: JSON.stringify({ record: { ...currentAssessmentLead, feedback: feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: pt, special_needs: special, type: 'feedback_email' } }) });
+        
+        // Send notifications (both email and WhatsApp)
+        await notifyStatusChange({
+            studentId: currentAssessmentLead.id,
+            childName: currentAssessmentLead.child_name,
+            parentEmail: currentAssessmentLead.email,
+            parentPhone: currentAssessmentLead.phone,
+            oldStatus: 'Pending Trial',
+            newStatus: 'Trial Completed',
+            message: `Great news! ${currentAssessmentLead.child_name}'s trial class has been completed. The trainer has provided feedback and recommended batch: ${batch}. Please log in to view the assessment details and proceed with registration.`,
+            details: `<p><strong>Recommended Batch:</strong> ${batch}</p>${feedback ? `<p><strong>Feedback:</strong> ${feedback.substring(0, 100)}${feedback.length > 100 ? '...' : ''}</p>` : ''}`
+        });
+        
         document.getElementById('assessment-modal').classList.add('hidden');
-        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
+        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email and WhatsApp.");
         fetchTrials(); 
     } catch (e) { console.error(e); showErrorModal("Save Error", e.message); } finally { btn.disabled = false; btn.innerText = orgTxt; }
 }

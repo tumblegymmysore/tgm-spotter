@@ -122,6 +122,7 @@ window.togglePaymentMode = Parent.togglePaymentMode;
 window.fetchAdminInbox = Admin.fetchAdminInbox;
 window.openStudentProfile = Admin.openStudentProfile;
 window.loadAdminAttendanceView = Admin.loadAdminAttendanceView;
+window.checkAndSendReminders = Admin.checkAndSendReminders;
 
 // --- SHARED CHAT LOGIC ---
 window.openChat = async (str) => {

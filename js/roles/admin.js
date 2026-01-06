@@ -3,6 +3,7 @@ import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXC
 import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata, getChildPhotoThumbnail } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary, getAttendanceHistory } from '../attendance.js';
+import { notifyStatusChange, notifyPackageUpdate, notifyFollowUpReminder, notifyRenewalReminder, checkAndSendReminders } from '../notifications.js';
 
 // --- 1. DASHBOARD LOADER ---
 export async function loadAdminDashboard(adminName) {
@@ -55,6 +56,13 @@ export async function loadAdminDashboard(adminName) {
     
     // Load Data - Start with trials tab
     window.switchTab('trials');
+    
+    // Check and send scheduled reminders (follow-ups and renewals) on dashboard load
+    // This runs in background and doesn't block UI
+    checkAndSendReminders().catch(err => {
+        console.error('Error checking reminders:', err);
+        // Fail silently - don't interrupt user experience
+    });
 }
 
 // --- 2. ADMIN TABS UPDATE ---
@@ -936,18 +944,37 @@ export async function approvePayment(leadId) {
         const updatedNote = cleanedNote ? `${cleanedNote}\n${verificationNote}` : verificationNote;
         
         // Update lead with enrollment status and verification metadata
-        const { error } = await supabaseClient
+        const { data: updatedLead, error } = await supabaseClient
             .from('leads')
             .update({ 
                 status: 'Enrolled', 
                 payment_status: 'Paid',
                 parent_note: updatedNote
             })
-            .eq('id', leadId);
+            .eq('id', leadId)
+            .select()
+            .single();
 
         if (error) throw error;
 
-        showSuccessModal("Student Enrolled!", `Payment verified by ${approvalData.collectedBy || currentAdminName}. Student is now enrolled.`);
+        // Send enrollment confirmation notification
+        if (updatedLead) {
+            const meta = getPackageMetadata(updatedLead);
+            const packageName = meta?.selected_package || updatedLead.selected_package || 'Package';
+            
+            await notifyStatusChange({
+                studentId: updatedLead.id,
+                childName: updatedLead.child_name,
+                parentEmail: updatedLead.email,
+                parentPhone: updatedLead.phone,
+                oldStatus: 'Registration Requested',
+                newStatus: 'Enrolled',
+                message: `Congratulations! Payment has been verified and ${updatedLead.child_name} is now enrolled at Tumble Gym Mysore. Welcome to our community!`,
+                details: `<p><strong>Package:</strong> ${packageName}</p><p><strong>Payment Verified By:</strong> ${approvalData.collectedBy || currentAdminName}</p>${meta?.actual_start_date ? `<p><strong>Start Date:</strong> ${new Date(meta.actual_start_date).toLocaleDateString('en-IN')}</p>` : ''}${meta?.actual_end_date ? `<p><strong>End Date:</strong> ${new Date(meta.actual_end_date).toLocaleDateString('en-IN')}</p>` : ''}`
+            });
+        }
+
+        showSuccessModal("Student Enrolled!", `Payment verified by ${approvalData.collectedBy || currentAdminName}. Student is now enrolled. Parent has been notified.`);
         fetchPendingRegistrations(); 
 
     } catch (err) {
@@ -1690,10 +1717,12 @@ export async function saveAdminPackage() {
     }
 
     try {
-        const { error } = await supabaseClient
+        const { data: updatedLead, error } = await supabaseClient
             .from('leads')
             .update(packageData)
-            .eq('id', leadId);
+            .eq('id', leadId)
+            .select()
+            .single();
 
         if (error) throw error;
 
@@ -1701,8 +1730,54 @@ export async function saveAdminPackage() {
         
         // Show appropriate success message and switch to appropriate tab
         const finalStatus = packageData.status || currentStatus;
+        const statusChanged = finalStatus !== currentStatus;
+        
+        // Send notifications if status changed
+        if (statusChanged && updatedLead) {
+            // Get package details for notification
+            const meta = getPackageMetadata(updatedLead);
+            const packageName = meta?.selected_package || updatedLead.selected_package || 'Package';
+            
+            if (finalStatus === 'Enrolled') {
+                // Send enrollment confirmation
+                await notifyStatusChange({
+                    studentId: updatedLead.id,
+                    childName: updatedLead.child_name,
+                    parentEmail: updatedLead.email,
+                    parentPhone: updatedLead.phone,
+                    oldStatus: currentStatus,
+                    newStatus: 'Enrolled',
+                    message: `Congratulations! ${updatedLead.child_name} is now enrolled at Tumble Gym Mysore. Welcome to our community!`,
+                    details: `<p><strong>Package:</strong> ${packageName}</p>${meta?.actual_start_date ? `<p><strong>Start Date:</strong> ${new Date(meta.actual_start_date).toLocaleDateString('en-IN')}</p>` : ''}${meta?.actual_end_date ? `<p><strong>End Date:</strong> ${new Date(meta.actual_end_date).toLocaleDateString('en-IN')}</p>` : ''}`
+                });
+            } else if (finalStatus === 'Ready to Pay' && ENABLE_FINANCE_FEATURES) {
+                // Send ready to pay notification
+                await notifyStatusChange({
+                    studentId: updatedLead.id,
+                    childName: updatedLead.child_name,
+                    parentEmail: updatedLead.email,
+                    parentPhone: updatedLead.phone,
+                    oldStatus: currentStatus,
+                    newStatus: 'Ready to Pay',
+                    message: `Your package for ${updatedLead.child_name} has been approved! Please proceed with payment to complete enrollment.`,
+                    details: `<p><strong>Package:</strong> ${packageName}</p>${meta?.expected_start_date ? `<p><strong>Start Date:</strong> ${new Date(meta.expected_start_date).toLocaleDateString('en-IN')}</p>` : ''}`
+                });
+            } else if (packageName && packageName !== 'Not Set') {
+                // Send package update notification
+                const finalPrice = getFinalPrice(updatedLead);
+                await notifyPackageUpdate({
+                    studentId: updatedLead.id,
+                    childName: updatedLead.child_name,
+                    parentEmail: updatedLead.email,
+                    parentPhone: updatedLead.phone,
+                    packageName: packageName,
+                    totalAmount: finalPrice
+                });
+            }
+        }
+        
         if (!ENABLE_FINANCE_FEATURES && finalStatus === 'Enrolled') {
-            showSuccessModal("Enrollment Accepted!", "Student has been enrolled. Start date, end date, and classes have been set.");
+            showSuccessModal("Enrollment Accepted!", "Student has been enrolled. Start date, end date, and classes have been set. Parent has been notified.");
             // Switch to registrations tab to show enrolled students
             window.switchTab('registrations');
             // Refresh registrations data
@@ -1711,7 +1786,7 @@ export async function saveAdminPackage() {
                 fetchAdminTrials(); // Also refresh trials in case student was moved from there
             }, 300);
         } else if (ENABLE_FINANCE_FEATURES && finalStatus === 'Ready to Pay') {
-            showSuccessModal("Package Updated!", "Package details have been saved. Parent can now proceed with payment.");
+            showSuccessModal("Package Updated!", "Package details have been saved. Parent can now proceed with payment. Parent has been notified.");
             // Stay on registrations tab and refresh
             if (document.getElementById('view-registrations') && !document.getElementById('view-registrations').classList.contains('hidden')) {
                 fetchPendingRegistrations();
@@ -1719,7 +1794,7 @@ export async function saveAdminPackage() {
                 fetchAdminTrials();
             }
         } else {
-            showSuccessModal("Package Updated!", "Package details have been saved successfully.");
+            showSuccessModal("Package Updated!", "Package details have been saved successfully." + (statusChanged ? " Parent has been notified." : ""));
             // Refresh current tab
             if (document.getElementById('view-registrations') && !document.getElementById('view-registrations').classList.contains('hidden')) {
                 fetchPendingRegistrations();
@@ -1894,18 +1969,23 @@ export async function saveAdminAssessment() {
         
         if (error) throw error;
         
-        // Send email notification
+        // Send notifications (both email and WhatsApp)
         const { data: lead } = await supabaseClient.from('leads').select('*').eq('id', leadId).single();
-        await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-            body: JSON.stringify({
-                record: { ...lead, feedback: feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: pt, special_needs: special, type: 'feedback_email' }
-            })
-        });
+        if (lead) {
+            await notifyStatusChange({
+                studentId: lead.id,
+                childName: lead.child_name,
+                parentEmail: lead.email,
+                parentPhone: lead.phone,
+                oldStatus: lead.status,
+                newStatus: 'Trial Completed',
+                message: `Great news! ${lead.child_name}'s trial class has been completed. The trainer has provided feedback and recommended batch: ${batch}. Please log in to view the assessment details and proceed with registration.`,
+                details: `<p><strong>Recommended Batch:</strong> ${batch}</p>${feedback ? `<p><strong>Feedback:</strong> ${feedback.substring(0, 100)}${feedback.length > 100 ? '...' : ''}</p>` : ''}`
+            });
+        }
         
         document.getElementById('assessment-modal').classList.add('hidden');
-        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email.");
+        showSuccessModal("Assessment Saved!", "Evaluation saved and parent notified via email and WhatsApp.");
         fetchAdminTrials();
     } catch (e) {
         console.error(e);
@@ -1938,20 +2018,25 @@ export async function saveAdminAssessmentEdit() {
         
         if (error) throw error;
         
-        // Re-send email if requested
+        // Re-send notification if requested (both email and WhatsApp)
         if (resendEmail) {
             const { data: lead } = await supabaseClient.from('leads').select('*').eq('id', leadId).single();
-            await fetch('https://znfsbuconoezbjqksxnu.supabase.co/functions/v1/notify', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${supabaseKey}` },
-                body: JSON.stringify({
-                    record: { ...lead, feedback: feedback, recommended_batch: batch, skills_rating: skills, pt_recommended: skills.personal_training, special_needs: skills.special_needs, type: 'feedback_email' }
-                })
-            });
+            if (lead) {
+                await notifyStatusChange({
+                    studentId: lead.id,
+                    childName: lead.child_name,
+                    parentEmail: lead.email,
+                    parentPhone: lead.phone,
+                    oldStatus: lead.status,
+                    newStatus: 'Trial Completed',
+                    message: `Great news! The assessment for ${lead.child_name} has been updated. The trainer has provided feedback and recommended batch: ${batch}. Please log in to view the assessment details and proceed with registration.`,
+                    details: `<p><strong>Recommended Batch:</strong> ${batch}</p>${feedback ? `<p><strong>Feedback:</strong> ${feedback.substring(0, 100)}${feedback.length > 100 ? '...' : ''}</p>` : ''}`
+                });
+            }
         }
         
         document.getElementById('admin-edit-assessment-modal').remove();
-        showSuccessModal("Assessment Updated!", resendEmail ? "Changes saved and email sent to parent." : "Changes saved.");
+        showSuccessModal("Assessment Updated!", resendEmail ? "Changes saved and parent notified via email and WhatsApp." : "Changes saved.");
         fetchAdminTrials();
     } catch (e) {
         console.error(e);
@@ -2258,19 +2343,35 @@ export async function saveFollowUp(leadId) {
     const notes = document.getElementById('edit-followup-notes').value;
     
     try {
-        const { error } = await supabaseClient
+        const { data: updatedLead, error } = await supabaseClient
             .from('leads')
             .update({
                 follow_up_date: date || null,
                 feedback_reason: reason || null,
                 parent_note: notes || null
             })
-            .eq('id', leadId);
+            .eq('id', leadId)
+            .select()
+            .single();
         
         if (error) throw error;
         
+        // Send notification if follow-up date is set
+        if (date && updatedLead) {
+            await notifyStatusChange({
+                studentId: updatedLead.id,
+                childName: updatedLead.child_name,
+                parentEmail: updatedLead.email,
+                parentPhone: updatedLead.phone,
+                oldStatus: updatedLead.status,
+                newStatus: 'Follow Up',
+                message: `A follow-up has been scheduled for ${updatedLead.child_name} on ${new Date(date).toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}. We'll contact you soon.`,
+                details: reason ? `<p><strong>Reason:</strong> ${reason}</p>` : ''
+            });
+        }
+        
         document.querySelector('#edit-followup-date').closest('.modal-overlay').remove();
-        showSuccessModal("Follow-up Updated!", "Changes saved successfully.");
+        showSuccessModal("Follow-up Updated!", "Changes saved successfully." + (date ? " Parent has been notified." : ""));
         fetchDeclinedRegistrations();
     } catch (err) {
         showErrorModal("Save Failed", err.message);
@@ -3113,8 +3214,95 @@ export async function openStudentProfile(leadId) {
                     ` : '<p class="text-sm text-indigo-700">No messages yet.</p>'}
                 </div>
                 
+                <!-- Notification Log / Communication History -->
+                ${(() => {
+                    // Extract notification logs from parent_note
+                    let notificationLogs = [];
+                    if (lead.parent_note) {
+                        const logMatch = lead.parent_note.match(/\[NOTIFICATION_LOG\](.*?)\[\/NOTIFICATION_LOG\]/s);
+                        if (logMatch) {
+                            try {
+                                notificationLogs = JSON.parse(logMatch[1]);
+                                // Sort by timestamp descending (most recent first)
+                                notificationLogs.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                            } catch (e) {
+                                console.warn('Could not parse notification logs', e);
+                            }
+                        }
+                    }
+                    
+                    if (notificationLogs.length === 0) {
+                        return '<div class="bg-slate-50 p-5 rounded-xl border-2 border-slate-200"><h3 class="text-lg font-bold text-slate-900 mb-3 flex items-center"><i class="fas fa-envelope-open-text mr-2"></i> Communication History</h3><p class="text-sm text-slate-700">No notifications sent yet.</p></div>';
+                    }
+                    
+                    const formatNotificationType = (type) => {
+                        const types = {
+                            'status_change': 'Status Update',
+                            'attendance': 'Attendance',
+                            'package_update': 'Package Update',
+                            'follow_up_reminder': 'Follow-up Reminder',
+                            'renewal_reminder': 'Renewal Reminder'
+                        };
+                        return types[type] || type;
+                    };
+                    
+                    const getChannelIcon = (channel) => {
+                        return channel === 'email' ? '📧' : channel === 'whatsapp' ? '💬' : '📬';
+                    };
+                    
+                    const getStatusBadge = (status) => {
+                        return status === 'sent' 
+                            ? '<span class="px-2 py-0.5 bg-green-100 text-green-700 rounded text-xs font-bold">Sent</span>'
+                            : '<span class="px-2 py-0.5 bg-red-100 text-red-700 rounded text-xs font-bold">Failed</span>';
+                    };
+                    
+                    return `
+                    <div class="bg-slate-50 p-5 rounded-xl border-2 border-slate-200">
+                        <div class="flex items-center justify-between mb-4">
+                            <h3 class="text-lg font-bold text-slate-900 flex items-center">
+                                <i class="fas fa-envelope-open-text mr-2"></i> Communication History
+                            </h3>
+                            <span class="text-xs text-slate-600 font-bold">${notificationLogs.length} notification${notificationLogs.length !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div class="space-y-3 max-h-96 overflow-y-auto">
+                            ${notificationLogs.map(log => {
+                                const logDate = new Date(log.timestamp);
+                                const formattedDate = logDate.toLocaleDateString('en-IN', { 
+                                    day: 'numeric', 
+                                    month: 'short', 
+                                    year: 'numeric',
+                                    hour: '2-digit',
+                                    minute: '2-digit'
+                                });
+                                
+                                return `
+                                <div class="bg-white p-4 rounded-lg border border-slate-200 hover:border-slate-300 transition">
+                                    <div class="flex items-start justify-between mb-2">
+                                        <div class="flex items-center gap-2">
+                                            <span class="text-lg">${getChannelIcon(log.channel)}</span>
+                                            <div>
+                                                <div class="font-bold text-sm text-slate-800">${formatNotificationType(log.type)}</div>
+                                                <div class="text-xs text-slate-500">${log.channel.charAt(0).toUpperCase() + log.channel.slice(1)}</div>
+                                            </div>
+                                        </div>
+                                        <div class="text-right">
+                                            ${getStatusBadge(log.status)}
+                                            <div class="text-xs text-slate-500 mt-1">${formattedDate}</div>
+                                        </div>
+                                    </div>
+                                    ${log.subject ? `<div class="text-xs font-bold text-slate-700 mb-1">Subject: ${log.subject}</div>` : ''}
+                                    ${log.message ? `<div class="text-xs text-slate-600 mb-2">${log.message.substring(0, 150)}${log.message.length > 150 ? '...' : ''}</div>` : ''}
+                                    ${log.error ? `<div class="text-xs text-red-600 bg-red-50 p-2 rounded mt-2"><strong>Error:</strong> ${log.error}</div>` : ''}
+                                </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                    `;
+                })()}
+                
                 <!-- Additional Notes -->
-                ${lead.parent_note && !lead.parent_note.includes('[PACKAGE_META]') && !lead.parent_note.includes('[VERIFICATION_META]') ? `
+                ${lead.parent_note && !lead.parent_note.includes('[PACKAGE_META]') && !lead.parent_note.includes('[VERIFICATION_META]') && !lead.parent_note.includes('[NOTIFICATION_LOG]') ? `
                 <div class="bg-yellow-50 p-5 rounded-xl border-2 border-yellow-200">
                     <h3 class="text-lg font-bold text-yellow-900 mb-3 flex items-center">
                         <i class="fas fa-sticky-note mr-2"></i> Additional Notes
@@ -3524,6 +3712,9 @@ window.saveAttendance = async function() {
         }
     }
 };
+
+// Expose reminder checker to window (can be called manually or via cron)
+window.checkAndSendReminders = checkAndSendReminders;
 
 // Expose to window
 window.openStudentProfile = openStudentProfile;
