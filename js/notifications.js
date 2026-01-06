@@ -542,6 +542,144 @@ export async function notifyStatusChange(statusData) {
 }
 
 /**
+ * Send trial slot change notification to parent
+ * @param {Object} slotData - Trial slot change information
+ */
+export async function notifyTrialSlotChanged(slotData) {
+    const { studentId, childName, parentEmail, parentPhone, oldSlot, newSlot } = slotData;
+    
+    // Format the dates for display
+    const formatSlot = (slot) => {
+        if (!slot) return 'Not Set';
+        const [dateStr, time] = slot.split('|').map(s => s.trim());
+        if (!dateStr || !time) return slot;
+        try {
+            const date = new Date(dateStr);
+            const formattedDate = date.toLocaleDateString('en-IN', { 
+                weekday: 'long', 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+            });
+            return `${formattedDate} at ${time}`;
+        } catch (e) {
+            return slot;
+        }
+    };
+    
+    const oldSlotFormatted = formatSlot(oldSlot);
+    const newSlotFormatted = formatSlot(newSlot);
+    
+    const emailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>Trial Slot Changed</title>
+            <style>
+                body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+                .header { background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; padding: 30px; text-align: center; border-radius: 10px 10px 0 0; }
+                .content { background: #f9fafb; padding: 30px; border-radius: 0 0 10px 10px; }
+                .info-box { background: #fff3cd; border-left: 4px solid #ffc107; padding: 15px; margin: 15px 0; border-radius: 4px; }
+                .new-slot { background: #d1ecf1; border-left: 4px solid #0dcaf0; padding: 15px; margin: 15px 0; border-radius: 4px; font-weight: bold; }
+            </style>
+        </head>
+        <body>
+            <div class="header">
+                <h1 style="margin: 0;">📅 Trial Slot Changed</h1>
+            </div>
+            <div class="content">
+                <p><strong>Dear Parent,</strong></p>
+                <p>We wanted to inform you that <strong>${childName}</strong>'s trial class slot has been updated.</p>
+                
+                <div class="info-box">
+                    <p><strong>Previous Slot:</strong><br>${oldSlotFormatted}</p>
+                </div>
+                
+                <div class="new-slot">
+                    <p><strong>New Trial Slot:</strong><br>${newSlotFormatted}</p>
+                </div>
+                
+                <p>Please make a note of this change. We look forward to seeing ${childName} on the new date!</p>
+                <p>If you have any questions or concerns, please don't hesitate to contact us.</p>
+                <p><strong>Best regards,<br>Tumble Gym Mysore Team</strong></p>
+            </div>
+        </body>
+        </html>
+    `;
+    
+    // Extract studentId from slotData (should be passed)
+    const leadId = studentId;
+    
+    // Send email notification
+    let emailStatus = 'sent';
+    let emailError = null;
+    try {
+        await sendEmailNotification({
+            to: parentEmail,
+            subject: `📅 Trial Slot Changed - ${childName}`,
+            html: emailHtml,
+        });
+    } catch (error) {
+        console.error('Failed to send trial slot change email:', error);
+        emailStatus = 'failed';
+        emailError = error.message;
+    }
+    
+    // Log email notification
+    if (leadId) {
+        await logNotification({
+            leadId: leadId,
+            type: 'trial_slot_change',
+            channel: 'email',
+            subject: `📅 Trial Slot Changed - ${childName}`,
+            message: `Trial slot changed from ${oldSlotFormatted} to ${newSlotFormatted}`,
+            template: 'trial_slot_change',
+            params: { oldSlot, newSlot },
+            status: emailStatus,
+            error: emailError
+        });
+    }
+    
+    // Send WhatsApp notification (if phone provided)
+    if (parentPhone) {
+        let whatsappStatus = 'sent';
+        let whatsappError = null;
+        try {
+            await sendWhatsAppNotification({
+                phone: parentPhone,
+                template: 'trial_slot_change',
+                params: {
+                    child_name: childName,
+                    old_slot: oldSlotFormatted,
+                    new_slot: newSlotFormatted,
+                },
+            });
+        } catch (error) {
+            console.error('Failed to send trial slot change WhatsApp:', error);
+            whatsappStatus = 'failed';
+            whatsappError = error.message;
+        }
+        
+        // Log WhatsApp notification
+        if (leadId) {
+            await logNotification({
+                leadId: leadId,
+                type: 'trial_slot_change',
+                channel: 'whatsapp',
+                subject: '',
+                message: `Trial slot change notification sent`,
+                template: 'trial_slot_change',
+                params: { child_name: childName, old_slot: oldSlotFormatted, new_slot: newSlotFormatted },
+                status: whatsappStatus,
+                error: whatsappError
+            });
+        }
+    }
+}
+
+/**
  * Send follow-up reminder notification (3 days before due date)
  * @param {Object} followUpData - Follow-up information
  */

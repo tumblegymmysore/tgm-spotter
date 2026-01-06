@@ -3,7 +3,7 @@ import { supabaseClient, supabaseKey, CLASS_SCHEDULE, HOLIDAYS_MYSORE, TRIAL_EXC
 import { showView, showSuccessModal, showToast, showErrorModal, calculateAge, getFinalPrice, getPackageMetadata, getChildPhotoThumbnail } from '../utils.js';
 import { STANDARD_PACKAGES, MORNING_PACKAGES, PT_RATES, REGISTRATION_FEE, ADULT_AGE_THRESHOLD } from '../config.js';
 import { getAllBatches, getEligibleStudents, recordAttendance, getAttendanceSummary, getAttendanceHistory } from '../attendance.js';
-import { notifyStatusChange, notifyPackageUpdate, notifyFollowUpReminder, notifyRenewalReminder, checkAndSendReminders } from '../notifications.js';
+import { notifyStatusChange, notifyPackageUpdate, notifyFollowUpReminder, notifyRenewalReminder, notifyTrialSlotChanged, checkAndSendReminders } from '../notifications.js';
 
 // --- 1. DASHBOARD LOADER ---
 export async function loadAdminDashboard(adminName) {
@@ -2981,6 +2981,24 @@ export async function saveAdminFormEdit() {
     const leadId = document.getElementById('admin-edit-lead-id').value;
     const newSlot = document.getElementById('admin-new-trial-slot').value;
     
+    // Get current lead to check if slot is changing
+    let oldSlot = null;
+    let leadData = null;
+    try {
+        const { data: currentLead } = await supabaseClient
+            .from('leads')
+            .select('trial_scheduled_slot, child_name, email, phone')
+            .eq('id', leadId)
+            .single();
+        
+        if (currentLead) {
+            oldSlot = currentLead.trial_scheduled_slot;
+            leadData = currentLead;
+        }
+    } catch (err) {
+        console.warn('Could not fetch current lead data:', err);
+    }
+    
     const updateData = {
         child_name: document.getElementById('admin-edit-child-name').value.trim(),
         dob: document.getElementById('admin-edit-dob').value,
@@ -2994,6 +3012,7 @@ export async function saveAdminFormEdit() {
         medical_info: document.getElementById('admin-edit-medical').value.trim()
     };
     
+    const slotChanged = newSlot && newSlot !== oldSlot;
     if (newSlot) {
         updateData.trial_scheduled_slot = newSlot;
     }
@@ -3006,8 +3025,20 @@ export async function saveAdminFormEdit() {
         
         if (error) throw error;
         
+        // Send notification if trial slot was changed
+        if (slotChanged && leadData) {
+            await notifyTrialSlotChanged({
+                studentId: leadId,
+                childName: leadData.child_name,
+                parentEmail: leadData.email,
+                parentPhone: leadData.phone,
+                oldSlot: oldSlot,
+                newSlot: newSlot,
+            });
+        }
+        
         document.getElementById('admin-edit-form-modal').remove();
-        showSuccessModal("Form Updated!", "All changes have been saved successfully.");
+        showSuccessModal("Form Updated!", slotChanged ? "Trial slot updated and parent notified!" : "All changes have been saved successfully.");
         fetchAdminTrials();
     } catch (err) {
         showErrorModal("Save Failed", err.message);
